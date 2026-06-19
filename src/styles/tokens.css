@@ -1,0 +1,214 @@
+/* ============================================================
+   Cơm Trưa — design tokens + base + shared utilities
+   Direction: warm daily lunch board. Herb-green hero, chili
+   accent for "unpaid". Signature = lunch ticket + ĐÃ TRẢ stamp.
+   This file is the single source of visual truth. Restyle here.
+   ============================================================ */
+
+:root {
+  /* palette */
+  --bg: #faf6ef;          /* warm rice-paper */
+  --bg-tint: #f3ecdf;     /* slightly deeper paper for wells */
+  --card: #fffdf9;        /* ticket surface */
+  --ink: #23271f;         /* warm near-black */
+  --ink-soft: #56514a;    /* secondary text */
+  --muted: #8c8579;       /* captions, meta */
+  --line: #e7ddcb;        /* hairline borders */
+  --line-strong: #d8cbb2;
+
+  --primary: #1f6e45;     /* herb green */
+  --primary-ink: #16532f;
+  --primary-soft: #e4f0e7;
+  --accent: #e2542b;      /* chili — unpaid / urgent */
+  --accent-soft: #fce6dd;
+  --gold: #c8901f;        /* small highlight */
+
+  /* type */
+  --font: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fs-xs: 0.78rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.18rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 2.1rem;
+
+  /* space + shape */
+  --gap: 1rem;
+  --pad: 1.15rem;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --radius-pill: 999px;
+  --shadow: 0 1px 2px rgba(35, 39, 31, 0.05), 0 6px 20px rgba(35, 39, 31, 0.06);
+  --shadow-lift: 0 2px 6px rgba(35, 39, 31, 0.08), 0 14px 34px rgba(35, 39, 31, 0.1);
+  --ring: 0 0 0 3px rgba(31, 110, 69, 0.28);
+  --maxw: 760px;
+}
+
+/* ---- reset ---- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #app { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+img { max-width: 100%; display: block; }
+button, input, textarea, select { font: inherit; color: inherit; }
+a { color: var(--primary-ink); }
+h1, h2, h3, p { margin: 0; }
+:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-sm); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ---- layout shell ---- */
+.app-shell { min-height: 100%; display: flex; flex-direction: column; }
+.app-bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.7rem clamp(0.9rem, 4vw, 1.5rem);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  font-weight: 800; font-size: var(--fs-lg); letter-spacing: -0.02em;
+  color: var(--ink); text-decoration: none; white-space: nowrap;
+}
+.brand-dot {
+  width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3, transparent 60%), var(--primary);
+  display: grid; place-items: center; color: #fff; font-size: 0.95rem; flex: none;
+}
+.app-nav { display: flex; gap: 0.2rem; margin-left: auto; align-items: center; flex-wrap: wrap; }
+.nav-link {
+  text-decoration: none; color: var(--ink-soft);
+  padding: 0.4rem 0.7rem; border-radius: var(--radius-pill);
+  font-weight: 600; font-size: var(--fs-sm); white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.nav-link:hover { background: var(--bg-tint); color: var(--ink); }
+.nav-link.router-link-active { background: var(--primary); color: #fff; }
+.app-main {
+  flex: 1; width: 100%; max-width: var(--maxw);
+  margin: 0 auto; padding: clamp(1.1rem, 4vw, 2rem) clamp(0.9rem, 4vw, 1.5rem) 4rem;
+}
+@media (max-width: 560px) {
+  .app-nav { font-size: var(--fs-xs); }
+  .nav-link { padding: 0.35rem 0.55rem; }
+}
+
+/* ---- typography helpers ---- */
+.eyebrow {
+  text-transform: uppercase; letter-spacing: 0.14em;
+  font-size: var(--fs-xs); font-weight: 700; color: var(--primary);
+}
+.page-title { font-size: var(--fs-2xl); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.page-sub { color: var(--muted); margin-top: 0.3rem; }
+.section-title { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; }
+.meta { color: var(--muted); font-size: var(--fs-sm); }
+.stack { display: flex; flex-direction: column; gap: var(--gap); }
+.stack-sm { display: flex; flex-direction: column; gap: 0.55rem; }
+.row { display: flex; align-items: center; gap: 0.6rem; }
+.row-wrap { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.spacer { margin-left: auto; }
+
+/* ---- buttons ---- */
+.btn {
+  --b-bg: var(--primary); --b-fg: #fff; --b-bd: var(--primary);
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  padding: 0.62rem 1.05rem; border-radius: var(--radius-pill);
+  background: var(--b-bg); color: var(--b-fg); border: 1.5px solid var(--b-bd);
+  font-weight: 700; font-size: var(--fs-sm); cursor: pointer;
+  transition: transform 0.08s, filter 0.15s, background 0.15s; text-decoration: none;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--ghost { --b-bg: transparent; --b-fg: var(--ink); --b-bd: var(--line-strong); }
+.btn--ghost:hover { background: var(--bg-tint); filter: none; }
+.btn--danger { --b-bg: var(--accent); --b-bd: var(--accent); }
+.btn--block { width: 100%; }
+.btn--sm { padding: 0.4rem 0.8rem; }
+
+/* ---- card / ticket ---- */
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--pad);
+}
+.ticket {
+  position: relative; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: var(--pad); overflow: hidden;
+}
+/* perforated left edge — the lunch-ticket signature */
+.ticket::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+  background:
+    radial-gradient(circle at 3px 7px, var(--bg) 2.5px, transparent 3px) 0 0 / 6px 14px repeat-y;
+}
+.ticket > * { position: relative; }
+
+/* ---- fields ---- */
+.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.field > label { font-weight: 600; font-size: var(--fs-sm); color: var(--ink-soft); }
+.field .hint { color: var(--muted); font-size: var(--fs-xs); }
+.input, .textarea, select.input {
+  width: 100%; padding: 0.62rem 0.8rem; background: var(--bg);
+  border: 1.5px solid var(--line-strong); border-radius: var(--radius-sm);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus, .textarea:focus, select.input:focus {
+  outline: none; border-color: var(--primary); box-shadow: var(--ring);
+}
+.textarea { min-height: 4.5rem; resize: vertical; line-height: 1.5; }
+
+/* ---- avatar ---- */
+.avatar {
+  width: 2.2rem; height: 2.2rem; border-radius: 50%; flex: none;
+  object-fit: cover; background: var(--primary-soft); color: var(--primary-ink);
+  display: inline-grid; place-items: center; font-weight: 700; font-size: var(--fs-sm);
+  border: 1px solid var(--line);
+}
+
+/* ---- badges + the ĐÃ TRẢ stamp ---- */
+.badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.18rem 0.6rem; border-radius: var(--radius-pill);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.01em;
+}
+.badge--unpaid { background: var(--accent-soft); color: #a83312; }
+.badge--paid { background: var(--primary-soft); color: var(--primary-ink); }
+
+.stamp {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: var(--fs-sm); color: var(--primary);
+  border: 2.5px solid var(--primary); border-radius: 8px;
+  padding: 0.12rem 0.55rem; transform: rotate(-7deg);
+  opacity: 0.92; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+/* ---- misc ---- */
+.divider { height: 1px; background: var(--line); border: 0; margin: 0; }
+.empty {
+  text-align: center; padding: 2.4rem 1rem; color: var(--muted);
+  border: 1.5px dashed var(--line-strong); border-radius: var(--radius); background: var(--bg-tint);
+}
+.spinner {
+  width: 1.15rem; height: 1.15rem; border-radius: 50%;
+  border: 2.5px solid var(--line-strong); border-top-color: var(--primary);
+  animation: spin 0.7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.alert {
+  padding: 0.7rem 0.9rem; border-radius: var(--radius-sm);
+  background: var(--accent-soft); color: #a83312; font-size: var(--fs-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}

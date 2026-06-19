@@ -55,8 +55,11 @@ need a query not covered here (and prefer adding a composable instead).
   — uploads `imageFile` (if any) to `menus/{userId}/...`, sets `image_url`, inserts the menu with
   `poster_id = current user`. The poster is the person who collects payment for that menu.
 - `listMenusByDate(date = todayInVN()): Promise<{ data, error }>` — menus on `date`, each with a
-  nested `poster` profile (`id, full_name, avatar_url, payment_info`) and its `orders` array.
-- `getMenu(id): Promise<{ data, error }>` — one menu with the same nested `poster` + `orders`.
+  nested `poster` profile (`id, full_name, avatar_url, payment_info`) and its `orders` array. Each
+  order also carries a nested `user` (`id, full_name, avatar_url`) = the person who ordered, so the
+  Today screen can show "who ordered what".
+- `getMenu(id): Promise<{ data, error }>` — one menu with the same nested `poster` + `orders`
+  (each order with its nested `user`).
 
 A day can have multiple menus. `payment_info` shown on a menu comes from the poster's profile.
 

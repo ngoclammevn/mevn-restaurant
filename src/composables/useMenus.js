@@ -26,14 +26,14 @@ export function useMenus() {
 
   async function listMenusByDate(date = todayInVN()) {
     return sb.from('menus')
-      .select('*, poster:profiles!menus_poster_id_fkey(id,full_name,avatar_url,payment_info), orders(*)')
+      .select('*, poster:profiles!menus_poster_id_fkey(id,full_name,avatar_url,payment_info), orders(*, user:profiles!orders_user_id_fkey(id,full_name,avatar_url))')
       .eq('menu_date', date)
       .order('created_at', { ascending: true })
   }
 
   async function getMenu(id) {
     return sb.from('menus')
-      .select('*, poster:profiles!menus_poster_id_fkey(id,full_name,avatar_url,payment_info), orders(*)')
+      .select('*, poster:profiles!menus_poster_id_fkey(id,full_name,avatar_url,payment_info), orders(*, user:profiles!orders_user_id_fkey(id,full_name,avatar_url))')
       .eq('id', id)
       .single()
   }
