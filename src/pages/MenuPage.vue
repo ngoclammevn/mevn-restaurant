@@ -17,6 +17,7 @@ import {
   PaidToggle,
   Spinner,
 } from '../components/ui'
+import OcrHelper from '../components/OcrHelper.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -312,6 +313,11 @@ onUnmounted(() => {
                 </option>
               </select>
             </div>
+            <OcrHelper
+              v-if="menu.image_url"
+              :image-url="menu.image_url"
+              @select-meal="(mealName) => draft.item_text = mealName"
+            />
             <TextField
               v-model="draft.item_text"
               label="Món bạn muốn đặt"
