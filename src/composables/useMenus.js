@@ -38,5 +38,32 @@ export function useMenus() {
       .single()
   }
 
-  return { createMenu, listMenusByDate, getMenu }
+  async function deleteMenu(menuId, imageUrl = null) {
+    const uid = user.value?.id
+    if (!uid) return { error: new Error('not signed in') }
+
+    const { error: dbError } = await sb.from('menus')
+      .delete()
+      .eq('id', menuId)
+      .eq('poster_id', uid)
+
+    if (dbError) return { error: dbError }
+
+    if (imageUrl) {
+      try {
+        const bucketPathPrefix = '/storage/v1/object/public/menus/'
+        const idx = imageUrl.indexOf(bucketPathPrefix)
+        if (idx !== -1) {
+          const path = imageUrl.substring(idx + bucketPathPrefix.length)
+          await sb.storage.from('menus').remove([path])
+        }
+      } catch (err) {
+        console.error('Failed to delete menu image from storage:', err)
+      }
+    }
+
+    return { error: null }
+  }
+
+  return { createMenu, listMenusByDate, getMenu, deleteMenu }
 }

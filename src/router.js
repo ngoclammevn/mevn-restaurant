@@ -4,6 +4,7 @@ import SignInPage from './pages/SignInPage.vue'
 const routes = [
   { path: '/sign-in', component: SignInPage, meta: { public: true } },
   { path: '/', component: () => import('./pages/TodayPage.vue') },
+  { path: '/menu/:id', component: () => import('./pages/MenuPage.vue') },
   { path: '/post', component: () => import('./pages/PostMenuPage.vue') },
   { path: '/dashboard', component: () => import('./pages/DashboardPage.vue') },
   { path: '/history', component: () => import('./pages/HistoryPage.vue') },
