@@ -30,6 +30,9 @@ async function load() {
   loading.value = false
 }
 
+// Count of orders the user still owes money for.
+const unpaidCount = computed(() => orders.value.filter((o) => !o.is_paid).length)
+
 // Group by menu.menu_date, descending (newest day first).
 // Orders without a menu are skipped defensively.
 const groupedByDay = computed(() => {
@@ -69,6 +72,9 @@ const groupedByDay = computed(() => {
     </EmptyState>
 
     <div v-else class="stack">
+      <p v-if="unpaidCount > 0" class="unpaid-banner">
+        Bạn còn {{ unpaidCount }} đơn chưa trả
+      </p>
       <section
         v-for="group in groupedByDay"
         :key="group.date"
@@ -107,6 +113,14 @@ const groupedByDay = computed(() => {
 </template>
 
 <style scoped>
+.unpaid-banner {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tint);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
 .day-header {
   gap: 0.7rem;
   align-items: center;

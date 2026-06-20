@@ -4,6 +4,7 @@ import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { useOrders } from '../composables/useOrders'
 import { todayInVN, formatVNDate } from '../lib/date'
+import { autolink } from '../lib/autolink'
 import {
   AppCard,
   AppButton,
@@ -18,7 +19,7 @@ import {
 
 const { user } = useUser()
 const { listMenusByDate } = useMenus()
-const { createOrder, togglePaid } = useOrders()
+const { createOrder, togglePaid, listProfiles } = useOrders()
 
 // Reactive current user id — Clerk may not be hydrated at setup time
 const myId = computed(() => user.value?.id)
@@ -30,9 +31,10 @@ const todayDisplay = formatVNDate(todayStr)
 const loading = ref(true)
 const errorMsg = ref('')
 const menus = ref([])
+const profiles = ref([])
 
 // Per-menu form drafts keyed by menu.id
-// drafts[menuId] = { item_text, note, submitting, submitError }
+// drafts[menuId] = { item_text, note, orderFor, submitting, submitError }
 const drafts = reactive({})
 
 // Per-order toggle loading and error keyed by order.id
@@ -41,7 +43,7 @@ const toggleError = reactive({})
 
 function initDraft(menuId) {
   if (!drafts[menuId]) {
-    drafts[menuId] = { item_text: '', note: '', submitting: false, submitError: '' }
+    drafts[menuId] = { item_text: '', note: '', orderFor: '', submitting: false, submitError: '' }
   }
 }
 
@@ -60,6 +62,9 @@ async function load() {
       initDraft(m.id)
     }
   }
+  // Load people for the "order on behalf" picker; failure is non-blocking.
+  const { data: profileData } = await listProfiles()
+  profiles.value = profileData ?? []
   loading.value = false
 }
 
@@ -73,15 +78,19 @@ async function submitOrder(menu) {
     menu_id: menu.id,
     item_text: draft.item_text.trim(),
     note: draft.note.trim() || null,
+    user_id: draft.orderFor || null,
   })
 
   if (error) {
     draft.submitError = 'Đặt món không thành công. Thử lại nhé.'
   } else {
-    // Attach current user info to the returned flat row so the list renders immediately
+    // Resolve who the order is for, so the list renders immediately.
+    const orderedFor = draft.orderFor
+      ? profiles.value.find((p) => p.id === draft.orderFor)
+      : null
     const newOrder = {
       ...data,
-      user: {
+      user: orderedFor ?? {
         id: user.value?.id,
         full_name: user.value?.fullName ?? '',
         avatar_url: user.value?.imageUrl ?? '',
@@ -90,6 +99,7 @@ async function submitOrder(menu) {
     menu.orders = [...(menu.orders ?? []), newOrder]
     draft.item_text = ''
     draft.note = ''
+    draft.orderFor = ''
   }
   draft.submitting = false
 }
@@ -174,7 +184,8 @@ async function handleToggle(menu, order, newVal) {
             :alt="menu.title"
             class="menu-image"
           />
-          <p v-else-if="menu.note" class="menu-note">{{ menu.note }}</p>
+          <!-- eslint-disable-next-line vue/no-v-html -- autolink() escapes all input; only generated <a> tags are emitted -->
+          <p v-else-if="menu.note" class="menu-note" v-html="autolink(menu.note)"></p>
 
           <!-- Orders list -->
           <div v-if="menu.orders && menu.orders.length > 0" class="stack-sm orders-section">
@@ -217,6 +228,15 @@ async function handleToggle(menu, order, newVal) {
           <!-- Order form -->
           <form class="stack-sm" @submit.prevent="submitOrder(menu)">
             <div class="eyebrow">Đặt món</div>
+            <div v-if="drafts[menu.id]" class="field">
+              <label>Đặt cho</label>
+              <select v-model="drafts[menu.id].orderFor" class="input">
+                <option value="">Tôi (chính mình)</option>
+                <option v-for="p in profiles" :key="p.id" :value="p.id">
+                  {{ p.full_name }}
+                </option>
+              </select>
+            </div>
             <TextField
               v-if="drafts[menu.id]"
               v-model="drafts[menu.id].item_text"

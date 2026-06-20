@@ -43,6 +43,7 @@ người thu tiền thấy **ai chưa trả**. Nhóm **< 25 người, tin tưở
 - **Đặt món = text tự do.** Không có danh sách món có cấu trúc, không tính tiền tự động.
 - **Thanh toán = boolean (đã trả / chưa trả), self-tick.** Người đặt **tự** bấm "đã trả".
 - **CHỈ chủ đơn mới đổi được `is_paid` của đơn đó.** KHÔNG có nút "đánh dấu đã trả hộ" cho người thu tiền (mâu thuẫn RLS + cơ chế self-tick). Người thu chỉ *xem*.
+- **Đặt hộ người khác (đặt giúp người đang họp):** người đặt có thể chọn "Đặt cho" = một người khác từ danh sách profile. Đơn khi đó **thuộc về người được đặt hộ** (`orders.user_id` = id người đó), nên **người đó** mới là người tự tick "đã trả". Để cho phép, RLS `orders_insert` đã được **nới thành `with check (true)`** (nhóm <25, tin nhau). `orders_update` **giữ nguyên** (`user_id = sub`) → vẫn chỉ chủ đơn tick được. Đây là sai lệch có chủ đích so với mô hình self-tick chặt ban đầu, đã được chủ dự án duyệt.
 - **Ai đăng nhập cũng đăng được menu.** Người đăng = người thu tiền của menu đó. Không có role admin.
 - **Thông tin chuyển khoản** nằm ở profile mỗi người, tự hiện trên menu họ đăng.
 - Một ngày có thể có **nhiều menu**.
