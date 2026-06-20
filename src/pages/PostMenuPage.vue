@@ -1,13 +1,13 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useMenus } from '../composables/useMenus'
-import { todayInVN } from '../lib/date'
-import { AppCard, AppButton, TextField, TextArea, PageHeader } from '../components/ui'
+import { todayInVN, formatVNDate } from '../lib/date'
+import { AppCard, AppButton, TextArea, PageHeader } from '../components/ui'
 
 const { createMenu } = useMenus()
 
 const menuDate = ref(todayInVN())
-const title = ref('')
+const title = computed(() => `Đặt cơm trưa ngày ${formatVNDate(menuDate.value)}`)
 const note = ref('')
 const imageFile = ref(null)
 const imagePreview = ref(null)
@@ -31,7 +31,6 @@ function onFile(e) {
 const fileInputEl = ref(null)
 
 function resetForm() {
-  title.value = ''
   note.value = ''
   menuDate.value = todayInVN()
   imageFile.value = null
@@ -45,10 +44,6 @@ function resetForm() {
 async function submit() {
   errorMsg.value = ''
 
-  if (!title.value.trim()) {
-    errorMsg.value = 'Vui lòng nhập tiêu đề menu.'
-    return
-  }
   if (!imageFile.value && !note.value.trim()) {
     errorMsg.value = 'Menu cần có ít nhất ảnh hoặc mô tả món ăn.'
     return
@@ -109,12 +104,11 @@ async function submit() {
             />
           </div>
 
-          <!-- Title -->
-          <TextField
-            v-model="title"
-            label="Tiêu đề"
-            placeholder="Menu thứ 5 — Lộc Vừng"
-          />
+          <!-- Title (auto-generated from date) -->
+          <div class="field">
+            <label>Tiêu đề</label>
+            <p class="title-preview">{{ title }}</p>
+          </div>
 
           <!-- Note / text menu -->
           <TextArea
@@ -158,6 +152,11 @@ async function submit() {
 </template>
 
 <style scoped>
+.title-preview {
+  font-weight: 700;
+  font-size: var(--fs-base);
+  color: var(--ink);
+}
 .preview-wrap {
   border-radius: var(--radius-sm);
   overflow: hidden;
