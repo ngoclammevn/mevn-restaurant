@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { useOrders } from '../composables/useOrders'
@@ -157,6 +157,26 @@ function copyMenuLink(menuId) {
     console.error('Failed to copy link: ', err)
   })
 }
+
+const zoomedImageUrl = ref(null)
+
+function zoomImage(url) {
+  zoomedImageUrl.value = url
+  window.addEventListener('keydown', handleEsc)
+}
+
+function closeZoom() {
+  zoomedImageUrl.value = null
+  window.removeEventListener('keydown', handleEsc)
+}
+
+function handleEsc(e) {
+  if (e.key === 'Escape') closeZoom()
+}
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEsc)
+})
 </script>
 
 <template>
@@ -243,7 +263,8 @@ function copyMenuLink(menuId) {
             v-if="menu.image_url"
             :src="menu.image_url"
             :alt="menu.title"
-            class="menu-image"
+            class="menu-image clickable"
+            @click="zoomImage(menu.image_url)"
           />
           <!-- eslint-disable-next-line vue/no-v-html -- autolink() escapes all input; only generated <a> tags are emitted -->
           <p v-else-if="menu.note" class="menu-note" v-html="autolink(menu.note)"></p>
@@ -324,6 +345,20 @@ function copyMenuLink(menuId) {
         </div>
       </AppCard>
     </div>
+
+    <!-- Image Zoom Lightbox Overlay -->
+    <div
+      v-if="zoomedImageUrl"
+      class="lightbox-overlay"
+      @click="closeZoom"
+    >
+      <button class="lightbox-close" @click.stop="closeZoom">✕</button>
+      <img
+        :src="zoomedImageUrl"
+        class="lightbox-image"
+        @click.stop
+      />
+    </div>
   </div>
 </template>
 
@@ -400,5 +435,74 @@ function copyMenuLink(menuId) {
 
 .no-orders {
   padding: 0.4rem 0;
+}
+
+.menu-image.clickable {
+  cursor: zoom-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.menu-image.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.lightbox-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  cursor: zoom-out;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.lightbox-image {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
+  cursor: default;
+  animation: zoomIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 </style>
