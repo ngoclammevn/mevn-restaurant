@@ -87,10 +87,11 @@ const groupedByDay = computed(() => {
         </div>
 
         <!-- Ticket per order -->
-        <div
+        <router-link
           v-for="order in group.orders"
           :key="order.id"
-          class="ticket"
+          :to="`/menu/${order.menu_id}`"
+          class="ticket clickable-ticket"
         >
           <div class="stack-sm">
             <!-- Menu title + stamp -->
@@ -106,7 +107,7 @@ const groupedByDay = computed(() => {
             <!-- Optional note -->
             <p v-if="order.note" class="meta">{{ order.note }}</p>
           </div>
-        </div>
+        </router-link>
       </section>
     </div>
   </div>
@@ -136,5 +137,16 @@ const groupedByDay = computed(() => {
   font-weight: 600;
   color: var(--ink);
   font-size: var(--fs-base);
+}
+.clickable-ticket {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.clickable-ticket:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+  border-color: var(--line-strong);
 }
 </style>

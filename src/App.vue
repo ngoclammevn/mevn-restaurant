@@ -28,8 +28,10 @@ const nav = [
           <router-link v-for="l in nav" :key="l.to" :to="l.to" class="nav-link" exact-active-class="router-link-active">
             {{ l.label }}
           </router-link>
-          <UserButton />
         </nav>
+        <div class="user-action">
+          <UserButton />
+        </div>
       </header>
       <main class="app-main">
         <router-view />
