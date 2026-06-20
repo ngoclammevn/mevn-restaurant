@@ -16,6 +16,7 @@ import {
   PaidToggle,
   Spinner,
 } from '../components/ui'
+import OcrHelper from '../components/OcrHelper.vue'
 
 const { user } = useUser()
 const { listMenusByDate, deleteMenu } = useMenus()
@@ -319,6 +320,11 @@ onUnmounted(() => {
                 </option>
               </select>
             </div>
+            <OcrHelper
+              v-if="menu.image_url"
+              :image-url="menu.image_url"
+              @select-meal="(mealName) => { if (drafts[menu.id]) drafts[menu.id].item_text = mealName }"
+            />
             <TextField
               v-if="drafts[menu.id]"
               v-model="drafts[menu.id].item_text"
