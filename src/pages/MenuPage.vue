@@ -395,8 +395,9 @@ onUnmounted(() => {
 .menu-image {
   width: 100%;
   border-radius: var(--radius-sm);
-  object-fit: cover;
-  max-height: 380px;
+  object-fit: contain;
+  max-height: 480px;
+  background: var(--bg-tint);
 }
 
 .menu-note {
