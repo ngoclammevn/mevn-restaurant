@@ -1,9 +1,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { useOrders } from '../composables/useOrders'
-import { todayInVN, formatVNDate } from '../lib/date'
+import { formatVNDate } from '../lib/date'
 import { autolink } from '../lib/autolink'
 import {
   AppCard,
@@ -17,65 +18,67 @@ import {
   Spinner,
 } from '../components/ui'
 
+const route = useRoute()
+const router = useRouter()
 const { user } = useUser()
-const { listMenusByDate, deleteMenu } = useMenus()
+const { getMenu, deleteMenu } = useMenus()
 const { createOrder, togglePaid, listProfiles } = useOrders()
 
-// Reactive current user id — Clerk may not be hydrated at setup time
 const myId = computed(() => user.value?.id)
 
-const todayStr = todayInVN()
-const todayDisplay = formatVNDate(todayStr)
-
-// ---- page state ----
 const loading = ref(true)
 const errorMsg = ref('')
-const menus = ref([])
+const menu = ref(null)
 const profiles = ref([])
 
-// Per-menu form drafts keyed by menu.id
-// drafts[menuId] = { item_text, note, orderFor, submitting, submitError }
-const drafts = reactive({})
+// Form draft
+const draft = reactive({
+  item_text: '',
+  note: '',
+  orderFor: '',
+  submitting: false,
+  submitError: ''
+})
 
-// Per-order toggle loading and error keyed by order.id
 const toggleLoading = reactive({})
 const toggleError = reactive({})
-
-function initDraft(menuId) {
-  if (!drafts[menuId]) {
-    drafts[menuId] = { item_text: '', note: '', orderFor: '', submitting: false, submitError: '' }
-  }
-}
+const deleting = ref(false)
+const deleteError = ref('')
+const copied = ref(false)
 
 onMounted(load)
 
 async function load() {
   loading.value = true
   errorMsg.value = ''
-  const { data, error } = await listMenusByDate()
-  if (error) {
-    errorMsg.value = 'Không tải được menu hôm nay. Kiểm tra kết nối rồi thử lại.'
-  } else {
-    menus.value = data ?? []
-    // Initialise drafts for each menu
-    for (const m of menus.value) {
-      initDraft(m.id)
-    }
+  
+  const menuId = route.params.id
+  if (!menuId) {
+    errorMsg.value = 'Không tìm thấy ID của menu.'
+    loading.value = false
+    return
   }
-  // Load people for the "order on behalf" picker; failure is non-blocking.
+
+  const { data, error } = await getMenu(menuId)
+  if (error) {
+    errorMsg.value = 'Không tải được chi tiết menu. Menu có thể không tồn tại hoặc đã bị xoá.'
+  } else {
+    menu.value = data
+  }
+
+  // Load profiles for ordering on behalf
   const { data: profileData } = await listProfiles()
   profiles.value = profileData ?? []
   loading.value = false
 }
 
-async function submitOrder(menu) {
-  const draft = drafts[menu.id]
-  if (!draft || !draft.item_text.trim()) return
+async function submitOrder() {
+  if (!menu.value || !draft.item_text.trim()) return
   draft.submitting = true
   draft.submitError = ''
 
   const { data, error } = await createOrder({
-    menu_id: menu.id,
+    menu_id: menu.value.id,
     item_text: draft.item_text.trim(),
     note: draft.note.trim() || null,
     user_id: draft.orderFor || null,
@@ -84,7 +87,6 @@ async function submitOrder(menu) {
   if (error) {
     draft.submitError = 'Đặt món không thành công. Thử lại nhé.'
   } else {
-    // Resolve who the order is for, so the list renders immediately.
     const orderedFor = draft.orderFor
       ? profiles.value.find((p) => p.id === draft.orderFor)
       : null
@@ -96,7 +98,7 @@ async function submitOrder(menu) {
         avatar_url: user.value?.imageUrl ?? '',
       },
     }
-    menu.orders = [...(menu.orders ?? []), newOrder]
+    menu.value.orders = [...(menu.value.orders ?? []), newOrder]
     draft.item_text = ''
     draft.note = ''
     draft.orderFor = ''
@@ -104,54 +106,48 @@ async function submitOrder(menu) {
   draft.submitting = false
 }
 
-async function handleToggle(menu, order, newVal) {
+async function handleToggle(order, newVal) {
   toggleLoading[order.id] = true
   toggleError[order.id] = ''
   const { data, error } = await togglePaid(order.id, newVal)
   if (error) {
     toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
   } else if (data) {
-    // Update the order in the local orders array
-    const idx = menu.orders.findIndex((o) => o.id === order.id)
+    const idx = menu.value.orders.findIndex((o) => o.id === order.id)
     if (idx !== -1) {
-      menu.orders[idx] = { ...menu.orders[idx], is_paid: data.is_paid }
+      menu.value.orders[idx] = { ...menu.value.orders[idx], is_paid: data.is_paid }
     }
   }
   toggleLoading[order.id] = false
 }
 
-const deletingMenus = reactive({})
-const deleteErrors = reactive({})
-
-async function confirmDeleteMenu(menu) {
-  const message = menu.orders?.length > 0
-    ? `Bạn có chắc chắn muốn xoá menu "${menu.title}"?\nThao tác này sẽ xoá toàn bộ ${menu.orders.length} đơn đặt món đi kèm!`
-    : `Bạn có chắc chắn muốn xoá menu "${menu.title}"?`
+async function confirmDeleteMenu() {
+  if (!menu.value) return
+  const message = menu.value.orders?.length > 0
+    ? `Bạn có chắc chắn muốn xoá menu "${menu.value.title}"?\nThao tác này sẽ xoá toàn bộ ${menu.value.orders.length} đơn đặt món đi kèm!`
+    : `Bạn có chắc chắn muốn xoá menu "${menu.value.title}"?`
     
   if (!confirm(message)) return
 
-  deletingMenus[menu.id] = true
-  deleteErrors[menu.id] = ''
+  deleting.value = true
+  deleteError.value = ''
   
-  const { error } = await deleteMenu(menu.id, menu.image_url)
+  const { error } = await deleteMenu(menu.value.id, menu.value.image_url)
   if (error) {
-    deleteErrors[menu.id] = 'Xoá menu không thành công. Thử lại nhé.'
-    deletingMenus[menu.id] = false
+    deleteError.value = 'Xoá menu không thành công. Thử lại nhé.'
+    deleting.value = false
   } else {
-    menus.value = menus.value.filter((m) => m.id !== menu.id)
+    router.push('/')
   }
 }
 
-const copiedMenuId = ref(null)
-
-function copyMenuLink(menuId) {
-  const url = `${window.location.origin}/menu/${menuId}`
+function copyMenuLink() {
+  if (!menu.value) return
+  const url = `${window.location.origin}/menu/${menu.value.id}`
   navigator.clipboard.writeText(url).then(() => {
-    copiedMenuId.value = menuId
+    copied.value = true
     setTimeout(() => {
-      if (copiedMenuId.value === menuId) {
-        copiedMenuId.value = null
-      }
+      copied.value = false
     }, 2000)
   }).catch((err) => {
     console.error('Failed to copy link: ', err)
@@ -181,35 +177,35 @@ onUnmounted(() => {
 
 <template>
   <div>
-    <PageHeader
-      eyebrow="Hôm nay"
-      :title="`Menu ngày ${todayDisplay}`"
-      sub="Đặt món bằng cách gõ vào form bên dưới mỗi menu."
-    />
+    <div style="margin-bottom: 1.5rem;">
+      <router-link to="/" class="back-link">
+        ← Quay lại trang Hôm nay
+      </router-link>
+    </div>
 
     <!-- Loading -->
     <Spinner v-if="loading" />
 
     <!-- Load error -->
-    <p v-else-if="errorMsg" class="alert">{{ errorMsg }}</p>
-
-    <!-- Empty state -->
-    <EmptyState
-      v-else-if="menus.length === 0"
-      title="Chưa có menu nào hôm nay"
-      description="Bạn có thể đăng menu để mọi người đặt cơm."
-      icon="🍱"
-    >
-      <AppButton :to="'/post'">Đăng cơm</AppButton>
-    </EmptyState>
-
-    <!-- Menu list -->
-    <div v-else class="stack">
-      <AppCard
-        v-for="menu in menus"
-        :key="menu.id"
-        ticket
+    <div v-else-if="errorMsg">
+      <EmptyState
+        title="Không tìm thấy menu"
+        :description="errorMsg"
+        icon="🔍"
       >
+        <AppButton :to="'/'">Quay lại Hôm nay</AppButton>
+      </EmptyState>
+    </div>
+
+    <!-- Menu Detail -->
+    <div v-else class="stack">
+      <PageHeader
+        eyebrow="Chi tiết menu"
+        :title="menu.title"
+        :sub="`Đăng ngày ${formatVNDate(menu.menu_date)}`"
+      />
+
+      <AppCard ticket>
         <div class="stack">
           <!-- Poster header -->
           <div class="row row-wrap">
@@ -227,24 +223,24 @@ onUnmounted(() => {
               <AppButton
                 variant="ghost"
                 size="sm"
-                @click="copyMenuLink(menu.id)"
+                @click="copyMenuLink"
               >
-                {{ copiedMenuId === menu.id ? 'Đã chép ✓' : 'Sao chép link' }}
+                {{ copied ? 'Đã chép ✓' : 'Sao chép link' }}
               </AppButton>
               <AppButton
                 v-if="menu.poster_id === myId"
                 variant="danger"
                 size="sm"
-                :loading="!!deletingMenus[menu.id]"
-                @click="confirmDeleteMenu(menu)"
+                :loading="deleting"
+                @click="confirmDeleteMenu"
               >
                 Xoá Menu
               </AppButton>
             </div>
           </div>
 
-          <p v-if="deleteErrors[menu.id]" class="alert">
-            {{ deleteErrors[menu.id] }}
+          <p v-if="deleteError" class="alert">
+            {{ deleteError }}
           </p>
 
           <!-- Payment info (shown only when set) -->
@@ -254,9 +250,6 @@ onUnmounted(() => {
           </div>
 
           <hr class="divider" />
-
-          <!-- Menu title -->
-          <h2 class="section-title">{{ menu.title }}</h2>
 
           <!-- Image or note -->
           <img
@@ -295,7 +288,7 @@ onUnmounted(() => {
                 v-if="order.user_id === myId"
                 :paid="order.is_paid"
                 :loading="!!toggleLoading[order.id]"
-                @toggle="(val) => handleToggle(menu, order, val)"
+                @toggle="(val) => handleToggle(order, val)"
               />
               <p v-if="order.user_id === myId && toggleError[order.id]" class="alert">
                 {{ toggleError[order.id] }}
@@ -308,11 +301,11 @@ onUnmounted(() => {
           <hr class="divider" />
 
           <!-- Order form -->
-          <form class="stack-sm" @submit.prevent="submitOrder(menu)">
+          <form class="stack-sm" @submit.prevent="submitOrder">
             <div class="eyebrow">Đặt món</div>
-            <div v-if="drafts[menu.id]" class="field">
+            <div class="field">
               <label>Đặt cho</label>
-              <select v-model="drafts[menu.id].orderFor" class="input">
+              <select v-model="draft.orderFor" class="input">
                 <option value="">Tôi (chính mình)</option>
                 <option v-for="p in profiles" :key="p.id" :value="p.id">
                   {{ p.full_name }}
@@ -320,24 +313,22 @@ onUnmounted(() => {
               </select>
             </div>
             <TextField
-              v-if="drafts[menu.id]"
-              v-model="drafts[menu.id].item_text"
+              v-model="draft.item_text"
               label="Món bạn muốn đặt"
               placeholder="Ví dụ: cơm tấm sườn bì chả"
             />
             <TextField
-              v-if="drafts[menu.id]"
-              v-model="drafts[menu.id].note"
+              v-model="draft.note"
               label="Ghi chú (tuỳ chọn)"
               placeholder="Ví dụ: ít cay, không hành"
             />
-            <p v-if="drafts[menu.id]?.submitError" class="alert">
-              {{ drafts[menu.id].submitError }}
+            <p v-if="draft.submitError" class="alert">
+              {{ draft.submitError }}
             </p>
             <AppButton
               type="submit"
-              :loading="drafts[menu.id]?.submitting"
-              :disabled="!drafts[menu.id]?.item_text?.trim()"
+              :loading="draft.submitting"
+              :disabled="!draft.item_text.trim()"
             >
               Đặt món
             </AppButton>
@@ -363,6 +354,19 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.back-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+.back-link:hover {
+  color: var(--primary-hover);
+}
+
 .poster-name {
   font-weight: 700;
 }
@@ -386,7 +390,7 @@ onUnmounted(() => {
   width: 100%;
   border-radius: var(--radius-sm);
   object-fit: cover;
-  max-height: 260px;
+  max-height: 380px;
 }
 
 .menu-note {
