@@ -221,6 +221,22 @@ h1, h2, h3, p { margin: 0; }
   opacity: 0.92; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
+/* ---- footer ---- */
+.app-footer {
+  text-align: center;
+  padding: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+.build-link {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-decoration: none;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.02em;
+  transition: color 0.15s;
+}
+.build-link:hover { color: var(--ink-soft); }
+
 /* ---- misc ---- */
 .divider { height: 1px; background: var(--line); border: 0; margin: 0; }
 .empty {

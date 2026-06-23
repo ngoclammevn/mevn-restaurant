@@ -65,6 +65,18 @@ người thu tiền thấy **ai chưa trả**. Nhóm **< 25 người, tin tưở
 - `docs/superpowers/specs/2026-06-19-lunch-order-tracker-design.md` — **spec sâu**: data model, RLS SQL đầy đủ, luồng màn hình, query dashboard, kiểm thử.
 - `CLAUDE.md`, `GEMINI.md` — trỏ về file này.
 
+## Changelog — bắt buộc cập nhật trước khi commit
+
+File `src/changelog.json` là lịch sử cập nhật hiển thị cho người dùng. **Trước mỗi lần commit**, AI phải:
+
+1. Đọc diff các file thay đổi
+2. Tóm tắt thành bullet point ngắn gọn, tiếng Việt, dễ hiểu với người dùng cuối (không phải dev)
+3. Nếu hôm nay (`YYYY-MM-DD` giờ VN UTC+7) đã có entry trong changelog → **thêm vào mảng `changes`** của entry đó
+4. Nếu chưa có → **thêm entry mới** vào đầu mảng với `date` là ngày hôm nay
+
+Ví dụ bullet point tốt: `"Sửa lỗi không lưu được đơn khi mạng chậm"`, `"Thêm tính năng đặt hộ người khác"`
+Không viết: `"Fix bug"`, `"Refactor component"`, `"Update vite config"`
+
 ## Khi không chắc
 
 Hỏi chủ dự án trước khi: thêm backend, dùng key bí mật, đổi data model/RLS, đổi hợp đồng hành vi,
