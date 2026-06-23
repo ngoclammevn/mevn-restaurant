@@ -77,6 +77,10 @@ File `src/changelog.json` là lịch sử cập nhật hiển thị cho người
 Ví dụ bullet point tốt: `"Sửa lỗi không lưu được đơn khi mạng chậm"`, `"Thêm tính năng đặt hộ người khác"`
 Không viết: `"Fix bug"`, `"Refactor component"`, `"Update vite config"`
 
+## Quy tắc khi sửa code (AI agent phải tuân)
+
+- **Grep trước khi sửa.** Trước khi thay đổi bất kỳ UI component, composable, hoặc pattern dùng chung, chạy `grep -rn` để tìm **tất cả** file sử dụng pattern đó trong `src/`. Áp dụng thay đổi đồng bộ cho toàn bộ danh sách — không sửa một file rồi bỏ sót file còn lại.
+
 ## Khi không chắc
 
 Hỏi chủ dự án trước khi: thêm backend, dùng key bí mật, đổi data model/RLS, đổi hợp đồng hành vi,

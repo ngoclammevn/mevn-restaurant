@@ -221,21 +221,32 @@ h1, h2, h3, p { margin: 0; }
   opacity: 0.92; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
-/* ---- footer ---- */
-.app-footer {
-  text-align: center;
-  padding: 0.75rem;
-  border-top: 1px solid var(--line);
+/* ---- changelog fab ---- */
+.changelog-fab {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 50;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  text-decoration: none;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 10%, transparent);
+  transition: box-shadow 0.15s, border-color 0.15s;
 }
-.build-link {
+.changelog-fab:hover {
+  border-color: var(--primary);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+.changelog-fab__label {
   font-size: var(--fs-xs);
   color: var(--muted);
-  text-decoration: none;
   font-family: 'Courier New', monospace;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   transition: color 0.15s;
 }
-.build-link:hover { color: var(--ink-soft); }
+.changelog-fab:hover .changelog-fab__label { color: var(--primary); }
 
 /* ---- misc ---- */
 .divider { height: 1px; background: var(--line); border: 0; margin: 0; }

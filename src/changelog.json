@@ -3,7 +3,9 @@
     "date": "2026-06-23",
     "changes": [
       "Thêm hiển thị version ở footer, click vào xem danh sách cập nhật",
-      "Lịch sử đơn có thể click vào để xem chi tiết menu"
+      "Lịch sử đơn có thể click vào để xem chi tiết menu",
+      "Ô nhập món đặt hỗ trợ nhiều dòng",
+      "Có thể sửa lại đơn đã đặt, hiện dấu 'đã sửa lúc HH:mm' cho mọi người thấy"
     ]
   }
 ]

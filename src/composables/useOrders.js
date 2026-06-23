@@ -29,6 +29,14 @@ export function useOrders() {
       .single()
   }
 
+  async function updateOrder({ id, item_text, note = null }) {
+    return sb.from('orders')
+      .update({ item_text, note, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+  }
+
   async function listMyOrders() {
     const uid = user.value?.id
     return sb.from('orders')
@@ -37,5 +45,5 @@ export function useOrders() {
       .order('created_at', { ascending: false })
   }
 
-  return { createOrder, togglePaid, listMyOrders, listProfiles }
+  return { createOrder, updateOrder, togglePaid, listMyOrders, listProfiles }
 }
