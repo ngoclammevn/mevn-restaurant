@@ -9,6 +9,7 @@ const routes = [
   { path: '/dashboard', component: () => import('./pages/DashboardPage.vue') },
   { path: '/history', component: () => import('./pages/HistoryPage.vue') },
   { path: '/profile', component: () => import('./pages/ProfilePage.vue') },
+  { path: '/changelog', component: () => import('./pages/ChangelogPage.vue') },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

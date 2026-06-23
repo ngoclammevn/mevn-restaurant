@@ -2,6 +2,7 @@
 import { watch } from 'vue'
 import { useUser, Show, UserButton } from '@clerk/vue'
 import { useProfile } from './composables/useProfile'
+import changelog from './changelog.json'
 
 const { isSignedIn } = useUser()
 const { ensureProfile } = useProfile()
@@ -14,6 +15,8 @@ const nav = [
   { to: '/history', label: 'Đơn của tôi' },
   { to: '/profile', label: 'Hồ sơ' },
 ]
+
+const latestDate = changelog[0]?.date ?? ''
 </script>
 
 <template>
@@ -36,6 +39,9 @@ const nav = [
       <main class="app-main">
         <router-view />
       </main>
+      <footer class="app-footer">
+        <router-link to="/changelog" class="build-link">{{ latestDate }}</router-link>
+      </footer>
     </div>
 
     <template #fallback>
