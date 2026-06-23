@@ -14,6 +14,9 @@ const nav = [
   { to: '/history', label: 'Đơn của tôi' },
   { to: '/profile', label: 'Hồ sơ' },
 ]
+
+const commitHash = __COMMIT_HASH__
+const commitUrl = `https://github.com/ngoclammevn/mevn-restaurant/commit/${commitHash}`
 </script>
 
 <template>
@@ -36,6 +39,9 @@ const nav = [
       <main class="app-main">
         <router-view />
       </main>
+      <footer class="app-footer">
+        <a :href="commitUrl" target="_blank" rel="noopener" class="build-link">build: {{ commitHash }}</a>
+      </footer>
     </div>
 
     <template #fallback>
