@@ -4,13 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { useOrders } from '../composables/useOrders'
-import { formatVNDate } from '../lib/date'
+import { formatVNDate, formatVNTime } from '../lib/date'
 import { autolink } from '../lib/autolink'
 import {
   AppCard,
   AppButton,
   Avatar,
   TextField,
+  TextArea,
   PageHeader,
   EmptyState,
   PaidStamp,
@@ -23,7 +24,7 @@ const route = useRoute()
 const router = useRouter()
 const { user } = useUser()
 const { getMenu, deleteMenu } = useMenus()
-const { createOrder, togglePaid, listProfiles } = useOrders()
+const { createOrder, updateOrder, togglePaid, listProfiles } = useOrders()
 
 const myId = computed(() => user.value?.id)
 
@@ -43,6 +44,11 @@ const draft = reactive({
 
 const toggleLoading = reactive({})
 const toggleError = reactive({})
+
+const editingOrderId = ref(null)
+const editDraft = reactive({ item_text: '', note: '' })
+const editSaving = ref(false)
+const editError = ref('')
 const deleting = ref(false)
 const deleteError = ref('')
 const copied = ref(false)
@@ -120,6 +126,39 @@ async function handleToggle(order, newVal) {
     }
   }
   toggleLoading[order.id] = false
+}
+
+function startEdit(order) {
+  editingOrderId.value = order.id
+  editDraft.item_text = order.item_text
+  editDraft.note = order.note ?? ''
+  editError.value = ''
+}
+
+function cancelEdit() {
+  editingOrderId.value = null
+  editError.value = ''
+}
+
+async function saveEdit(order) {
+  if (!editDraft.item_text.trim()) return
+  editSaving.value = true
+  editError.value = ''
+  const { data, error } = await updateOrder({
+    id: order.id,
+    item_text: editDraft.item_text.trim(),
+    note: editDraft.note.trim() || null,
+  })
+  if (error) {
+    editError.value = 'Lưu không thành công. Thử lại nhé.'
+  } else if (data) {
+    const idx = menu.value.orders.findIndex((o) => o.id === order.id)
+    if (idx !== -1) {
+      menu.value.orders[idx] = { ...menu.value.orders[idx], ...data }
+    }
+    editingOrderId.value = null
+  }
+  editSaving.value = false
 }
 
 async function confirmDeleteMenu() {
@@ -279,10 +318,52 @@ onUnmounted(() => {
                 />
                 <span class="order-name">{{ order.user?.full_name }}</span>
                 <span class="spacer" />
+                <AppButton
+                  v-if="order.user_id === myId && editingOrderId !== order.id"
+                  variant="ghost"
+                  size="sm"
+                  @click="startEdit(order)"
+                >
+                  Sửa
+                </AppButton>
                 <PaidStamp :paid="order.is_paid" />
               </div>
-              <p class="order-item">{{ order.item_text }}</p>
-              <p v-if="order.note" class="meta order-user-note">{{ order.note }}</p>
+
+              <!-- Edit inline form -->
+              <template v-if="editingOrderId === order.id">
+                <TextArea
+                  v-model="editDraft.item_text"
+                  label="Món bạn muốn đặt"
+                  :rows="3"
+                />
+                <TextField
+                  v-model="editDraft.note"
+                  label="Ghi chú (tuỳ chọn)"
+                />
+                <p v-if="editError" class="alert">{{ editError }}</p>
+                <div class="row" style="gap: 0.5rem;">
+                  <AppButton
+                    size="sm"
+                    :loading="editSaving"
+                    :disabled="!editDraft.item_text.trim()"
+                    @click="saveEdit(order)"
+                  >
+                    Lưu
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" @click="cancelEdit">
+                    Huỷ
+                  </AppButton>
+                </div>
+              </template>
+
+              <!-- Display mode -->
+              <template v-else>
+                <p class="order-item" style="white-space: pre-wrap;">{{ order.item_text }}</p>
+                <p v-if="order.note" class="meta order-user-note">{{ order.note }}</p>
+                <p v-if="order.updated_at" class="meta order-edited-at">
+                  đã sửa lúc {{ formatVNTime(order.updated_at) }}
+                </p>
+              </template>
 
               <!-- Self-tick: only for own order -->
               <PaidToggle
@@ -318,10 +399,11 @@ onUnmounted(() => {
               :image-url="menu.image_url"
               @select-meal="(mealName) => draft.item_text = mealName"
             />
-            <TextField
+            <TextArea
               v-model="draft.item_text"
               label="Món bạn muốn đặt"
               placeholder="Ví dụ: cơm tấm sườn bì chả"
+              :rows="3"
             />
             <TextField
               v-model="draft.note"
@@ -442,6 +524,13 @@ onUnmounted(() => {
 
 .order-user-note {
   padding-left: 0.2rem;
+}
+
+.order-edited-at {
+  padding-left: 0.2rem;
+  font-style: italic;
+  font-size: var(--fs-xs, 0.75rem);
+  color: var(--ink-faint, var(--ink-soft));
 }
 
 .no-orders {

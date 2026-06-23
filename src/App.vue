@@ -39,9 +39,9 @@ const latestDate = changelog[0]?.date ?? ''
       <main class="app-main">
         <router-view />
       </main>
-      <footer class="app-footer">
-        <router-link to="/changelog" class="build-link">{{ latestDate }}</router-link>
-      </footer>
+      <router-link to="/changelog" class="changelog-fab" :title="`Changelog ${latestDate}`">
+        <span class="changelog-fab__label">{{ latestDate }}</span>
+      </router-link>
     </div>
 
     <template #fallback>
