@@ -2,6 +2,7 @@
 import { watch } from 'vue'
 import { useUser, Show, UserButton } from '@clerk/vue'
 import { useProfile } from './composables/useProfile'
+import changelog from './changelog.json'
 
 const { isSignedIn } = useUser()
 const { ensureProfile } = useProfile()
@@ -15,8 +16,7 @@ const nav = [
   { to: '/profile', label: 'Hồ sơ' },
 ]
 
-const commitHash = __COMMIT_HASH__
-const commitUrl = `https://github.com/ngoclammevn/mevn-restaurant/commit/${commitHash}`
+const latestDate = changelog[0]?.date ?? ''
 </script>
 
 <template>
@@ -40,7 +40,7 @@ const commitUrl = `https://github.com/ngoclammevn/mevn-restaurant/commit/${commi
         <router-view />
       </main>
       <footer class="app-footer">
-        <a :href="commitUrl" target="_blank" rel="noopener" class="build-link">build: {{ commitHash }}</a>
+        <router-link to="/changelog" class="build-link">{{ latestDate }}</router-link>
       </footer>
     </div>
 
