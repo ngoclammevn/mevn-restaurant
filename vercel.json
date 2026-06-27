@@ -1,1 +1,9 @@
-{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+{
+  "devCommand": "vite",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/share/:id", "destination": "/api/share/:id" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

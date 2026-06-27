@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s https://inspira-ui.com/docs/llms-full.txt)",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -s https://raw.githubusercontent.com/unovue/inspira-ui/main/components/content/inspira/ui/sparkles/Sparkles.vue)",
+      "Bash(curl -s https://raw.githubusercontent.com/unovue/inspira-ui/main/components/content/inspira/ui/ripple-button/RippleButton.vue)",
+      "Bash(curl -s https://raw.githubusercontent.com/unovue/inspira-ui/main/components/content/inspira/ui/ripple/Ripple.vue)",
+      "Bash(curl -s https://api.github.com/repos/unovue/inspira-ui/contents/components/content/inspira/ui)",
+      "Bash(curl -s \"https://inspira-ui.com/raw\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/main/README.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/main/components/content/inspira/ui/sparkles/Sparkles.vue\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/refs/heads/main/components/content/inspira/ui/sparkles/Sparkles.vue\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/refs/heads/main/components/content/inspira/ui/ripple-button/RippleButton.vue\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/main/app/components/inspira/ui/sparkles/Sparkles.vue\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/main/app/components/inspira/ui/sparkles-text/SparklesText.vue\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/main/app/components/inspira/ui/ripple-button/RippleButton.vue\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/main/app/components/inspira/ui/ripple/Ripple.vue\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/main/app/components/inspira/ui/ripple/RippleCircle.vue\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/unovue/inspira-ui/main/app/components/inspira/ui/ripple/RippleContainer.vue\")",
+      "Bash(curl -L \"https://github.com/unovue/inspira-ui/raw/main/app/components/inspira/ui/sparkles/Sparkles.vue\")",
+      "Bash(curl -s \"https://api.github.com/repos/unovue/inspira-ui/contents/app/components/inspira/ui/sparkles\")",
+      "Bash(curl -s \"https://api.github.com/repos/unovue/inspira-ui/contents/app/components/inspira/ui/sparkles/Sparkles.vue?ref=main\")",
+      "Bash(xargs curl -s)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/AceternityUI/aceternityui/main/src/components/ui/sparkles/sparkles.tsx\")",
+      "Bash(curl -s \"https://registry.inspira-ui.com/sparkles.json\")",
+      "Bash(curl -s \"https://registry.inspira-ui.com/sparkles-text.json\")",
+      "Bash(curl -s \"https://registry.inspira-ui.com/ripple-button.json\")",
+      "Bash(curl -s \"https://registry.inspira-ui.com/ripple.json\")",
+      "Bash(curl -s \"https://test-rest-eosin.vercel.app/menu/5fff706a-2069-43d2-9cfd-d99a0f26206c\")",
+      "Bash(open /private/tmp/claude-502/-Users-nhatminh-Desktop-MEVN-mevn-restaurant/dadba0cd-97d1-436f-9233-957fdb39ce49/scratchpad/presence-v2-mockup.html)",
+      "Bash(npx vercel *)"
+    ]
+  }
+}
