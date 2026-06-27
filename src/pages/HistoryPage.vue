@@ -48,6 +48,36 @@ const groupedByDay = computed(() => {
     .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))
     .map(([date, dayOrders]) => ({ date, orders: dayOrders }))
 })
+
+// ---- Display Helpers ----
+function formatPrice(value) {
+  if (value === undefined || value === null) return ''
+  return new Intl.NumberFormat('vi-VN').format(value) + 'đ'
+}
+
+function displayOrderNote(note) {
+  if (!note) return ''
+  try {
+    const parsed = JSON.parse(note)
+    if (parsed && typeof parsed === 'object') {
+      return parsed.user_note || ''
+    }
+  } catch (e) {}
+  return note
+}
+
+function displayOrderItemText(order) {
+  let suffix = ''
+  if (order.note) {
+    try {
+      const parsed = JSON.parse(order.note)
+      if (parsed?.selected_dish?.price) {
+        suffix = ` [${formatPrice(parsed.selected_dish.price)}]`
+      }
+    } catch (e) {}
+  }
+  return `${order.item_text}${suffix}`
+}
 </script>
 
 <template>
@@ -102,10 +132,10 @@ const groupedByDay = computed(() => {
             </div>
 
             <!-- Item text -->
-            <p class="order-item">{{ order.item_text }}</p>
+            <p class="order-item">{{ displayOrderItemText(order) }}</p>
 
             <!-- Optional note -->
-            <p v-if="order.note" class="meta">{{ order.note }}</p>
+            <p v-if="order.note" class="meta">{{ displayOrderNote(order.note) }}</p>
           </div>
         </router-link>
       </section>
