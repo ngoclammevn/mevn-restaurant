@@ -57,6 +57,9 @@ watch(accountName, (newVal) => {
 })
 
 onMounted(load)
+watch(user, () => {
+  load()
+})
 
 async function load() {
   loading.value = true

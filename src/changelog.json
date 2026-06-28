@@ -2,6 +2,7 @@
   {
     "date": "2026-06-28",
     "changes": [
+      "Khắc phục triệt để lỗi không tải được dữ liệu trên trang Hôm nay, Lịch sử, Hồ sơ và Thu tiền khi tải trang lần đầu nhờ đồng bộ hóa vòng đời khởi tạo của Clerk",
       "Nâng cấp bố cục hộp thoại chuyển tiền QR thành 2 cột hiện đại, rộng rãi trên giao diện máy tính",
       "Bổ sung nhãn cảnh báo trạng thái đang phát triển/thử nghiệm đối với phương thức quét mã chuyển tiền MoMo",
       "Tích hợp tính năng thanh toán bằng mã QR động (VietQR & MoMo) tự động tính toán tổng số tiền dựa theo đơn giá món ăn của thực đơn và điền sẵn nội dung chuyển khoản",

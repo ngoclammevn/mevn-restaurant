@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useOrders } from '../composables/useOrders'
 import { formatVNDate } from '../lib/date'
@@ -13,7 +13,7 @@ import {
 } from '../components/ui'
 
 const { listMyOrders } = useOrders()
-const { isSignedIn } = useUser()
+const { user, isSignedIn } = useUser()
 const showSignIn = ref(false)
 
 const loading = ref(true)
@@ -21,6 +21,9 @@ const errorMsg = ref('')
 const orders = ref([])
 
 onMounted(load)
+watch(user, () => {
+  load()
+})
 
 async function load() {
   if (!isSignedIn.value) {

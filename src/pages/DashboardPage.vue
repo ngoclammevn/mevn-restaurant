@@ -1,9 +1,11 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
+import { useUser } from '@clerk/vue'
 import { useDashboard } from '../composables/useDashboard'
 import { todayInVN, formatVNDate } from '../lib/date'
 import { PageHeader, AppCard, Avatar, Spinner, EmptyState } from '../components/ui'
 
+const { user } = useUser()
 const { unpaidByPersonForMyMenus } = useDashboard()
 
 const date = ref(todayInVN())
@@ -13,6 +15,9 @@ const people = ref([])
 
 onMounted(load)
 watch(date, load)
+watch(user, () => {
+  load()
+})
 
 async function load() {
   loading.value = true
