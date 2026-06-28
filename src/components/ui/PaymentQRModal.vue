@@ -206,8 +206,7 @@ const vietQrUrl = computed(() => {
 })
 
 const momoQrUrl = computed(() => {
-  const payload = `2|99|${payInfo.value.momoPhone}|${payInfo.value.accountName}||0|0|${amount.value}|${memo.value}`
-  return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(payload)}`
+  return `https://img.vietqr.io/image/971025-${payInfo.value.momoPhone}-compact2.png?amount=${amount.value}&addInfo=${encodeURIComponent(memo.value)}&accountName=${encodeURIComponent(payInfo.value.accountName)}`
 })
 
 const momoDeepLink = computed(() => {
