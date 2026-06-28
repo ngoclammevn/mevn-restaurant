@@ -17,3 +17,7 @@ export { default as BorderBeam } from './BorderBeam.vue'
 export { default as DateField } from './DateField.vue'
 export { default as MenuBoard } from './MenuBoard.vue'
 export { default as SparklesText } from './SparklesText.vue'
+export { default as ChangelogModal } from './ChangelogModal.vue'
+export { default as SignInModal } from './SignInModal.vue'
+export { default as PaymentQRModal } from './PaymentQRModal.vue'
+
