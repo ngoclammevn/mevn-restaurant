@@ -28,19 +28,36 @@
 |---|---|---|
 | `profiles` | `id` (PK = Clerk user ID), `full_name`, `avatar_url`, `payment_info` | select: all · insert/update: own |
 | `menus` | `id` (uuid PK), `poster_id` (FK→profiles), `menu_date`, `title`, `image_url`, `note` | select: all · insert/update/delete: poster |
-| `orders` | `id` (uuid PK), `menu_id` (FK→menus CASCADE), `user_id` (FK→profiles), `item_text`, `note`, `is_paid`, `paid_at` | select: all · update/delete: own · insert: authenticated |
+| `orders` | `id` (uuid PK), `menu_id` (FK→menus CASCADE), `user_id` (FK→profiles), `item_text`, `note`, `is_paid`, `paid_at`, `updated_at` | select: all · update/delete: own · insert: authenticated |
 
-### Chạy migrations
+> `orders.updated_at` là cột mới — dùng để hiển thị "đã sửa lúc ..." trong UI.
+
+### Chạy trên production (DB đã có sẵn từ main)
+
+Dùng **`0003_prod_safe.sql`** — script idempotent, an toàn chạy trên DB đã có dữ liệu:
 
 ```bash
-# Option A — Supabase CLI (link project trước)
+# Supabase Dashboard → SQL Editor → New Query
+# Paste toàn bộ nội dung file rồi Run:
+# supabase/migrations/0003_prod_safe.sql
+```
+
+Script này:
+- `CREATE TABLE IF NOT EXISTS` — không lỗi nếu table đã tồn tại
+- `ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at` — thêm cột mới
+- Drop + recreate RLS policies (idempotent)
+- Storage bucket `menus` với `ON CONFLICT DO UPDATE`
+
+### Chạy trên DB mới (fresh Supabase project)
+
+```bash
+# Option A — Supabase CLI
 supabase link --project-ref <PROJECT_REF>
 supabase db push
 
-# Option B — Supabase Dashboard → SQL Editor
-# Paste và run lần lượt:
-# supabase/migrations/0001_schema_rls.sql
-# supabase/migrations/0002_storage.sql
+# Option B — Dashboard SQL Editor, chạy lần lượt:
+# 1. supabase/migrations/0001_schema_rls.sql
+# 2. supabase/migrations/0002_storage.sql
 ```
 
 > **RLS dùng `auth.jwt()->>'sub'` = Clerk user ID.** Cần cấu hình Supabase JWT secret để verify Clerk tokens (xem bước Clerk bên dưới).
