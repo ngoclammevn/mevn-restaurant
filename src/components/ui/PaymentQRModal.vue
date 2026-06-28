@@ -45,7 +45,7 @@
             <div class="payment-details-card stack-xs">
               <div class="detail-row">
                 <span class="detail-label">Ngân hàng</span>
-                <span class="detail-value font-bold">{{ payInfo.bankId }}</span>
+                <span class="detail-value font-bold">{{ fullBankName }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Số tài khoản</span>
@@ -124,6 +124,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import AppButton from './AppButton.vue'
 import MomoQRGenerator from './MomoQRGenerator.vue'
+import { LIST_BANKS } from '../../lib/banks'
 
 const props = defineProps({
   order: { type: Object, required: true },
@@ -179,6 +180,11 @@ const payInfo = computed(() => {
     momoPhone: matchMomo ? matchMomo[1] : '',
     momoPsp: matchMomoPsp ? matchMomoPsp[1] : ''
   }
+})
+
+const fullBankName = computed(() => {
+  const bank = LIST_BANKS.find(b => b.code === payInfo.value.bankId)
+  return bank ? `${bank.name} (${bank.code})` : payInfo.value.bankId
 })
 
 function removeVietnameseTones(str) {

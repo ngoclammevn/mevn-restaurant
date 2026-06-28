@@ -2,7 +2,7 @@
   {
     "date": "2026-06-28",
     "changes": [
-      "Hỗ trợ hiển thị ảnh preview (OpenGraph) đẹp mắt khi chia sẻ trực tiếp đường dẫn thực đơn từ thanh địa chỉ trình duyệt (/menu/uuid)",
+      "Hiển thị đầy đủ tên ngân hàng kèm ký hiệu viết tắt tại hộp thoại chuyển khoản để người chuyển khoản dễ nhận biết",
       "Nâng cấp giao diện quét QR chuyển tiền rộng rãi, thêm chỉ dẫn quét bằng Ngân hàng và MoMo",
       "Tự động tạo mã QR chuyển khoản động (điền sẵn số tiền và nội dung) dựa theo cấu hình trong Hồ sơ của người đăng thực đơn",
       "Hỗ trợ user ẩn danh xem thực đơn, đăng nhập nhanh qua Google không lo bị mất món đã chọn",
