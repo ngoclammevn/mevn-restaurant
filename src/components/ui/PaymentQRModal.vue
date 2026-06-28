@@ -73,7 +73,7 @@
         <div v-show="activeTab === 'momo'" class="tab-content">
           <div class="warning-banner">
             <span class="warning-icon">⚠️</span>
-            <span>Tính năng thanh toán MoMo đang phát triển. Vui lòng ưu tiên sử dụng VietQR hoặc sao chép thông tin bên dưới.</span>
+            <span>MoMo chưa hỗ trợ quét mã QR này trong ứng dụng, bạn hãy mở ứng dụng eBank để quét mã nhé.</span>
           </div>
           <div class="tab-content-grid">
             <div class="qr-container-wrapper">
