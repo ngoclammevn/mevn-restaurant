@@ -21,14 +21,17 @@ import {
   MenuBoard,
   SparklesText,
   ConfettiBurst,
+  SignInModal,
+  PaymentQRModal,
 } from '../components/ui'
 const route = useRoute()
 const router = useRouter()
 const { user } = useUser()
 const { getMenu, deleteMenu } = useMenus()
 const { createOrder, updateOrder, togglePaid, listProfiles } = useOrders()
-const { viewers, setActiveDish, setMyPicks, selfRemotePicks, myPresenceKey } = usePresence(route.params.id)
+const { viewers, setActiveDish, setMyPicks, selfRemotePicks, myPresenceKey, onCartUpdated } = usePresence(route.params.id)
 const confettiRef = ref(null)
+const showSignIn = ref(false)
 
 const myId = computed(() => user.value?.id)
 const otherViewers = computed(() => viewers.value.filter(v => v.presenceKey !== myPresenceKey.value))
@@ -41,6 +44,26 @@ watch(() => viewers.value.length, (newLen, oldLen) => {
 })
 const isGuest = computed(() => !user.value)
 const soloWords = 'Hãy rủ mọi người cùng ăn cơm nhé! 🍱'.split(' ')
+
+const showQRModal = ref(false)
+const selectedQROrder = ref(null)
+
+function openQRModal(order) {
+  selectedQROrder.value = order
+  showQRModal.value = true
+}
+
+function handleQRModalPaid() {
+  if (selectedQROrder.value) {
+    handleToggle(selectedQROrder.value, true)
+  }
+  showQRModal.value = false
+}
+
+function hasQRConfig(poster) {
+  if (!poster?.payment_info) return false
+  return poster.payment_info.includes('STK:') || poster.payment_info.includes('Momo:')
+}
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -80,18 +103,33 @@ function findDishByName(name, menuData) {
   } catch {}
   return null
 }
+
+
+function savePicksToLocal() {
+  if (!menu.value) return
+  try {
+    localStorage.setItem(`picks_menu_${menu.value.id}`, JSON.stringify(Object.keys(picks)))
+  } catch {}
+}
+
 function toggleDish(dish) {
+  let action = 'add'
   if (picks[dish.name]) {
     delete picks[dish.name]
+    action = 'remove'
   } else {
     picks[dish.name] = dish
+    action = 'add'
     setActiveDish(dish.name)
   }
   draft.item_text = Object.values(picks).map(d => d.name).join('\n')
-  setMyPicks(Object.keys(picks))
+  setMyPicks(Object.keys(picks), action, dish.name)
+  savePicksToLocal()
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+})
 
 function applyRemotePicks(remotePicks) {
   if (!remotePicks?.length || !menu.value) return
@@ -105,6 +143,7 @@ function applyRemotePicks(remotePicks) {
   if (changed) {
     draft.item_text = Object.values(picks).map(d => d.name).join('\n')
     setMyPicks(Object.keys(picks))
+    savePicksToLocal()
   }
 }
 
@@ -132,6 +171,39 @@ async function load() {
   // Load profiles for ordering on behalf
   const { data: profileData } = await listProfiles()
   profiles.value = profileData ?? []
+
+  // Khôi phục giỏ hàng đã chọn từ localStorage
+  if (menu.value) {
+    try {
+      const saved = localStorage.getItem(`picks_menu_${menu.value.id}`)
+      if (saved) {
+        const savedNames = JSON.parse(saved)
+        savedNames.forEach(name => {
+          const dish = findDishByName(name, menu.value)
+          if (dish) picks[name] = dish
+        })
+        draft.item_text = Object.values(picks).map(d => d.name).join('\n')
+        setMyPicks(Object.keys(picks))
+      }
+      
+      const savedNote = sessionStorage.getItem(`draft_note_menu_${menu.value.id}`)
+      if (savedNote) draft.note = savedNote
+
+      const savedOrderFor = sessionStorage.getItem(`draft_orderFor_menu_${menu.value.id}`)
+      if (savedOrderFor) draft.orderFor = savedOrderFor
+    } catch (e) {
+      console.error('Failed to restore picks:', e)
+    }
+  }
+
+  watch(() => [draft.note, draft.orderFor], () => {
+    if (!menu.value) return
+    try {
+      sessionStorage.setItem(`draft_note_menu_${menu.value.id}`, draft.note || '')
+      sessionStorage.setItem(`draft_orderFor_menu_${menu.value.id}`, draft.orderFor || '')
+    } catch (e) {}
+  }, { deep: true })
+
   loading.value = false
 }
 
@@ -167,9 +239,22 @@ async function submitOrder() {
     draft.orderFor = ''
     Object.keys(picks).forEach(k => delete picks[k])
     setMyPicks([])
+    localStorage.removeItem(`picks_menu_${menu.value.id}`)
+    try {
+      sessionStorage.removeItem(`draft_note_menu_${menu.value.id}`)
+      sessionStorage.removeItem(`draft_orderFor_menu_${menu.value.id}`)
+    } catch (e) {}
     confettiRef.value?.fire()
   }
   draft.submitting = false
+}
+
+function handleFormSubmit() {
+  if (isGuest.value) {
+    showSignIn.value = true
+  } else {
+    submitOrder()
+  }
 }
 
 async function handleToggle(order, newVal) {
@@ -242,7 +327,7 @@ async function confirmDeleteMenu() {
 
 function copyMenuLink() {
   if (!menu.value) return
-  const url = `${window.location.origin}/menu/${menu.value.id}`
+  const url = `${window.location.origin}/share/${menu.value.id}`
   navigator.clipboard.writeText(url).then(() => {
     copied.value = true
     setTimeout(() => {
@@ -435,12 +520,23 @@ onUnmounted(() => {
               </template>
 
               <!-- Self-tick: only for own order -->
-              <PaidToggle
-                v-if="order.user_id === myId"
-                :paid="order.is_paid"
-                :loading="!!toggleLoading[order.id]"
-                @toggle="(val) => handleToggle(order, val)"
-              />
+              <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
+                <PaidToggle
+                  v-if="order.user_id === myId"
+                  :paid="order.is_paid"
+                  :loading="!!toggleLoading[order.id]"
+                  @toggle="(val) => handleToggle(order, val)"
+                />
+                <AppButton
+                  v-if="order.user_id === myId && !order.is_paid && hasQRConfig(menu?.poster)"
+                  variant="ghost"
+                  size="sm"
+                  style="padding: 0.25rem 0.5rem;"
+                  @click="openQRModal(order)"
+                >
+                  🔗 Quét QR
+                </AppButton>
+              </div>
               <p v-if="order.user_id === myId && toggleError[order.id]" class="alert">
                 {{ toggleError[order.id] }}
               </p>
@@ -452,48 +548,39 @@ onUnmounted(() => {
           <hr class="divider" />
 
           <!-- Order form -->
-          <template v-if="!isGuest">
-            <form class="stack-sm" @submit.prevent="submitOrder">
-              <div class="eyebrow">Đặt món</div>
-              <div class="field">
-                <label>Đặt cho</label>
-                <select v-model="draft.orderFor" class="input">
-                  <option value="">Tôi (chính mình)</option>
-                  <option v-for="p in profiles" :key="p.id" :value="p.id">
-                    {{ p.full_name }}
-                  </option>
-                </select>
-              </div>
-              <TextArea
-                v-model="draft.item_text"
-                label="Món bạn muốn đặt"
-                placeholder="Ví dụ: cơm tấm sườn bì chả"
-                :rows="3"
-              />
-              <TextField
-                v-model="draft.note"
-                label="Ghi chú (tuỳ chọn)"
-                placeholder="Ví dụ: ít cay, không hành"
-              />
-              <p v-if="draft.submitError" class="alert">
-                {{ draft.submitError }}
-              </p>
-              <AppButton
-                type="submit"
-                :loading="draft.submitting"
-                :disabled="!draft.item_text.trim()"
-              >
-                Đặt món
-              </AppButton>
-            </form>
-          </template>
-
-          <template v-else>
-            <div class="guest-banner">
-              <p class="guest-banner-text">🍱 Đăng nhập để đặt cơm trưa cùng mọi người</p>
-              <AppButton :to="'/sign-in'">Đăng nhập</AppButton>
+          <form class="stack-sm" @submit.prevent="handleFormSubmit">
+            <div class="eyebrow">Đặt món</div>
+            <div v-if="!isGuest" class="field">
+              <label>Đặt cho</label>
+              <select v-model="draft.orderFor" class="input">
+                <option value="">Tôi (chính mình)</option>
+                <option v-for="p in profiles" :key="p.id" :value="p.id">
+                  {{ p.full_name }}
+                </option>
+              </select>
             </div>
-          </template>
+            <TextArea
+              v-model="draft.item_text"
+              label="Món bạn muốn đặt"
+              placeholder="Ví dụ: cơm tấm sườn bì chả"
+              :rows="3"
+            />
+            <TextField
+              v-model="draft.note"
+              label="Ghi chú (tuỳ chọn)"
+              placeholder="Ví dụ: ít cay, không hành"
+            />
+            <p v-if="draft.submitError" class="alert">
+              {{ draft.submitError }}
+            </p>
+            <AppButton
+              type="submit"
+              :loading="draft.submitting"
+              :disabled="!draft.item_text.trim()"
+            >
+              {{ isGuest ? 'Đăng nhập để đặt món' : 'Đặt món' }}
+            </AppButton>
+          </form>
         </div>
       </AppCard>
     </div>
@@ -507,11 +594,13 @@ onUnmounted(() => {
         </template>
         <template v-else>
           <div class="presence-avs">
-            <div v-for="(v, i) in otherViewers.slice(0, 4)" :key="v.presenceKey"
+            <div v-for="(v, i) in otherViewers.slice(0, 4)" :key="v.deviceId || v.presenceKey"
               class="pav-wrap pav-wrap--sm" :style="{'--pc': v.color || 'var(--muted)', zIndex: 10 - i}">
               <div class="pav-ring">
-                <img v-if="v.avatar" :src="v.avatar" />
-                <div v-else class="pav-inner">{{ v.emoji ?? v.name?.[0] ?? '?' }}</div>
+                <Transition name="avatar-fade" mode="out-in">
+                  <img v-if="v.avatar" :key="v.avatar" :src="v.avatar" />
+                  <div v-else :key="v.emoji || v.name" class="pav-inner">{{ v.emoji ?? v.name?.[0] ?? '?' }}</div>
+                </Transition>
               </div>
             </div>
           </div>
@@ -531,13 +620,15 @@ onUnmounted(() => {
           <TransitionGroup name="viewer-morph" tag="div" class="presence-card-list">
             <div
               v-for="v in otherViewers.slice(0, 6)"
-              :key="v.presenceKey"
+              :key="v.deviceId || v.presenceKey"
               class="presence-card-row"
             >
               <div class="pav-wrap pav-wrap--md" :style="{'--pc': v.color || 'var(--muted)'}">
                 <div class="pav-ring">
-                  <img v-if="v.avatar" :src="v.avatar" />
-                  <div v-else class="pav-inner">{{ v.emoji ?? v.name?.[0] ?? '?' }}</div>
+                  <Transition name="avatar-fade" mode="out-in">
+                    <img v-if="v.avatar" :key="v.avatar" :src="v.avatar" />
+                    <div v-else :key="v.emoji || v.name" class="pav-inner">{{ v.emoji ?? v.name?.[0] ?? '?' }}</div>
+                  </Transition>
                 </div>
                 <svg v-if="v.presenceKey === menu?.poster?.id" class="pav-chef" viewBox="0 0 28 24" xmlns="http://www.w3.org/2000/svg">
                   <ellipse cx="14" cy="11" rx="9" ry="10" fill="white"/>
@@ -546,7 +637,9 @@ onUnmounted(() => {
                   <line x1="14" y1="3" x2="14" y2="17" stroke="rgba(220,220,220,.4)" stroke-width="1"/>
                 </svg>
               </div>
-              <span class="presence-card-name" :class="{ 'presence-card-name--anon': v.isAnon }">{{ v.name }}</span>
+              <Transition name="text-fade" mode="out-in">
+                <span :key="v.name" class="presence-card-name" :class="{ 'presence-card-name--anon': v.isAnon }">{{ v.name }}</span>
+              </Transition>
             </div>
           </TransitionGroup>
         </div>
@@ -555,7 +648,7 @@ onUnmounted(() => {
 
     <!-- Desktop solo state — only when authenticated user is alone, desktop only -->
     <Transition name="presence-card">
-      <div v-if="viewers.length >= 1 && otherViewers.length === 0 && !isGuest" class="presence-card presence-card--solo">
+      <div v-if="viewers.length >= 1 && otherViewers.length === 0" class="presence-card presence-card--solo">
         <div class="presence-card-grid"></div>
         <div class="presence-card-inner">
           <p class="pc-solo-text">
@@ -574,6 +667,18 @@ onUnmounted(() => {
     </Transition>
 
     <ConfettiBurst ref="confettiRef" />
+
+    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
+
+    <PaymentQRModal
+      v-if="showQRModal && selectedQROrder"
+      :order="selectedQROrder"
+      :poster="menu.poster"
+      :menu-date="menu.menu_date"
+      :menu="menu"
+      @close="showQRModal = false"
+      @paid="handleQRModalPaid"
+    />
 
     <!-- Image Zoom Lightbox Overlay -->
     <div
@@ -781,9 +886,9 @@ onUnmounted(() => {
 .pav-wrap--sm .pav-ring img, .pav-wrap--sm .pav-inner { width: 21px; height: 21px; font-size: 8px; }
 .pav-wrap--md .pav-ring { width: 34px; height: 34px; padding: 2px; }
 .pav-wrap--md .pav-ring img, .pav-wrap--md .pav-inner { width: 30px; height: 30px; font-size: 11px; }
-.pav-ring { border-radius: 50%; background: var(--pc, var(--muted)); display: flex; align-items: center; justify-content: center; }
+.pav-ring { border-radius: 50%; background: var(--pc, var(--muted)); display: flex; align-items: center; justify-content: center; transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
 .pav-ring img { border-radius: 50%; object-fit: cover; }
-.pav-inner { border-radius: 50%; background: var(--pc, var(--muted)); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; overflow: hidden; }
+.pav-inner { border-radius: 50%; background: var(--pc, var(--muted)); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; overflow: hidden; transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
 .pav-chef {
   position: absolute; top: -9px; right: -8px;
   width: 20px; height: 17px; z-index: 2;
@@ -867,6 +972,33 @@ onUnmounted(() => {
 .presence-card-row--morphing .presence-card-name { animation: morph-name-in 0.7s ease forwards; }
 @keyframes morph-name-in { 0%{ filter:blur(8px); opacity:0; } 100%{ filter:blur(0); opacity:1; } }
 
+/* Text & Avatar morph transitions (Inspira UI styled) */
+.text-fade-enter-active, .text-fade-leave-active {
+  transition: opacity 0.35s ease, filter 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.text-fade-enter-from {
+  opacity: 0;
+  filter: blur(2px);
+  transform: translateY(3px);
+}
+.text-fade-leave-to {
+  opacity: 0;
+  filter: blur(2px);
+  transform: translateY(-3px);
+}
+
+.avatar-fade-enter-active, .avatar-fade-leave-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.avatar-fade-enter-from {
+  opacity: 0;
+  transform: scale(0.6) rotate(-15deg);
+}
+.avatar-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.6) rotate(15deg);
+}
+
 /* Pill transitions */
 .presence-enter-active { transition: opacity 0.35s ease, transform 0.35s ease; }
 .presence-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
@@ -910,4 +1042,5 @@ onUnmounted(() => {
   white-space: nowrap;
   font-size: var(--fs-sm);
 }
+
 </style>

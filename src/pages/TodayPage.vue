@@ -17,6 +17,7 @@ import {
   PaidToggle,
   Spinner,
   MenuBoard,
+  PaymentQRModal,
 } from '../components/ui'
 
 const { user } = useUser()
@@ -37,6 +38,28 @@ const menus = ref([])
 // Per-order toggle loading and error keyed by order.id
 const toggleLoading = reactive({})
 const toggleError = reactive({})
+
+const showQRModal = ref(false)
+const selectedQROrder = ref(null)
+const selectedQRMenu = ref(null)
+
+function openQRModal(menu, order) {
+  selectedQRMenu.value = menu
+  selectedQROrder.value = order
+  showQRModal.value = true
+}
+
+function handleQRModalPaid() {
+  if (selectedQROrder.value && selectedQRMenu.value) {
+    handleToggle(selectedQRMenu.value, selectedQROrder.value, true)
+  }
+  showQRModal.value = false
+}
+
+function hasQRConfig(poster) {
+  if (!poster?.payment_info) return false
+  return poster.payment_info.includes('STK:') || poster.payment_info.includes('Momo:')
+}
 
 onMounted(load)
 
@@ -137,7 +160,7 @@ function isStructured(note) {
 const copiedMenuId = ref(null)
 
 function copyMenuLink(menuId) {
-  const url = `${window.location.origin}/menu/${menuId}`
+  const url = `${window.location.origin}/share/${menuId}`
   navigator.clipboard.writeText(url).then(() => {
     copiedMenuId.value = menuId
     setTimeout(() => {
@@ -333,12 +356,23 @@ onUnmounted(() => {
               </template>
 
               <!-- Self-tick: only for own order -->
-              <PaidToggle
-                v-if="order.user_id === myId"
-                :paid="order.is_paid"
-                :loading="!!toggleLoading[order.id]"
-                @toggle="(val) => handleToggle(menu, order, val)"
-              />
+              <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
+                <PaidToggle
+                  v-if="order.user_id === myId"
+                  :paid="order.is_paid"
+                  :loading="!!toggleLoading[order.id]"
+                  @toggle="(val) => handleToggle(menu, order, val)"
+                />
+                <AppButton
+                  v-if="order.user_id === myId && !order.is_paid && hasQRConfig(menu.poster)"
+                  variant="ghost"
+                  size="sm"
+                  style="padding: 0.25rem 0.5rem;"
+                  @click="openQRModal(menu, order)"
+                >
+                  🔗 Quét QR
+                </AppButton>
+              </div>
               <p v-if="order.user_id === myId && toggleError[order.id]" class="alert">
                 {{ toggleError[order.id] }}
               </p>
@@ -355,6 +389,16 @@ onUnmounted(() => {
         </div>
       </AppCard>
     </div>
+
+    <PaymentQRModal
+      v-if="showQRModal && selectedQROrder && selectedQRMenu"
+      :order="selectedQROrder"
+      :poster="selectedQRMenu.poster"
+      :menu-date="selectedQRMenu.menu_date"
+      :menu="selectedQRMenu"
+      @close="showQRModal = false"
+      @paid="handleQRModalPaid"
+    />
 
     <!-- Image Zoom Lightbox Overlay -->
     <div
