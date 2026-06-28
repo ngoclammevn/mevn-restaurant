@@ -2,13 +2,10 @@
   {
     "date": "2026-06-28",
     "changes": [
-      "Tự động xoá trạng thái món đã chọn (uncheck) trên thực đơn sau khi người dùng bấm đặt món thành công",
-      "Hiển thị đầy đủ tên ngân hàng kèm ký hiệu viết tắt tại hộp thoại chuyển khoản để người chuyển khoản dễ nhận biết",
-      "Nâng cấp giao diện quét QR chuyển tiền rộng rãi, thêm chỉ dẫn quét bằng Ngân hàng và MoMo",
       "Tự động tạo mã QR chuyển khoản động (điền sẵn số tiền và nội dung) dựa theo cấu hình trong Hồ sơ của người đăng thực đơn",
-      "Hỗ trợ user ẩn danh xem thực đơn, đăng nhập nhanh qua Google không lo bị mất món đã chọn",
-      "Tải trang siêu tốc và hiển thị dữ liệu tức thì (sửa lỗi màn hình trắng khi load lần đầu)",
-      "Đồng bộ danh sách người đang xem và món ăn đang được chọn của các user khác trong menu"
+      "Đồng bộ danh sách người đang xem và món ăn đang được chọn của các user khác trong menu",
+      "Cập nhật realtime cho tính năng menu: giờ đây bạn có thể xem được ai đang xem thực đơn cùng bạn, và dồng nghiệp đang phân vân nên chọn món nào",
+      "Màu của món ăn sẽ đậm hơn khi nhiều người cùng đang muốn chọn món đó"
     ]
   },
   {
