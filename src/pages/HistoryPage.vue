@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useUser } from '@clerk/vue'
 import { useOrders } from '../composables/useOrders'
 import { formatVNDate } from '../lib/date'
 import {
@@ -8,9 +9,12 @@ import {
   EmptyState,
   AppButton,
   PaidStamp,
+  SignInModal,
 } from '../components/ui'
 
 const { listMyOrders } = useOrders()
+const { isSignedIn } = useUser()
+const showSignIn = ref(false)
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -19,6 +23,10 @@ const orders = ref([])
 onMounted(load)
 
 async function load() {
+  if (!isSignedIn.value) {
+    loading.value = false
+    return
+  }
   loading.value = true
   errorMsg.value = ''
   const { data, error } = await listMyOrders()
@@ -88,7 +96,18 @@ function displayOrderItemText(order) {
       sub="Toàn bộ các đơn bạn đã đặt, mới nhất trước."
     />
 
-    <Spinner v-if="loading" label="Đang tải đơn…" />
+    <div v-if="!isSignedIn" style="margin-top: 1.5rem">
+      <EmptyState
+        title="Chưa đăng nhập"
+        description="Vui lòng đăng nhập để xem lịch sử đặt cơm của bạn."
+        icon="🔒"
+      >
+        <AppButton @click="showSignIn = true">Đăng nhập</AppButton>
+      </EmptyState>
+    </div>
+
+    <div v-else>
+      <Spinner v-if="loading" label="Đang tải đơn…" />
 
     <p v-else-if="errorMsg" class="alert">{{ errorMsg }}</p>
 
@@ -140,6 +159,8 @@ function displayOrderItemText(order) {
         </router-link>
       </section>
     </div>
+    </div>
+    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
   </div>
 </template>
 

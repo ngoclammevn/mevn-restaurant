@@ -1,4 +1,4 @@
-# Tài liệu thiết kế — Tích hợp Thanh toán QR Động (VietQR & MoMo)
+# Tài liệu thiết kế — Tích hợp Chuyển tiền QR (VietQR & MoMo)
 
 ## Tổng quan
 Tài liệu này đặc tả thiết kế kỹ thuật cho tính năng tạo mã QR thanh toán động dựa vào đơn hàng trên ứng dụng Đặt Cơm Trưa. Mục tiêu là giúp người đặt cơm quét QR thanh toán tức thời sang tài khoản của người đăng thực đơn, tự động điền đúng Số tài khoản, Ngân hàng, Số tiền, và Nội dung chuyển khoản mà không cần gõ thủ công.

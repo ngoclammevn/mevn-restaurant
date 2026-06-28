@@ -1,11 +1,16 @@
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
+import { useUser } from '@clerk/vue'
 import { gsap } from 'gsap'
 import { useMenus } from '../composables/useMenus'
 import { todayInVN, formatVNDate } from '../lib/date'
 import { compressImage, extractStructuredMenu } from '../lib/gemini'
 import { useSettings } from '../composables/useSettings'
-import { AppCard, AppButton, TextArea, TextField, PageHeader, FileUpload, DateField, MenuBoard } from '../components/ui'
+import { AppCard, AppButton, TextArea, TextField, PageHeader, FileUpload, DateField, MenuBoard, SignInModal } from '../components/ui'
+
+const { user } = useUser()
+const isGuest = computed(() => !user.value)
+const showSignIn = ref(false)
 
 const { createMenu } = useMenus()
 const { showCalories, setShowCalories } = useSettings()
@@ -51,8 +56,94 @@ watch(imageFile, (newFile) => {
   }
   if (newFile) {
     imagePreview.value = URL.createObjectURL(newFile)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        sessionStorage.setItem('post_menu_image_base64', e.target.result)
+        sessionStorage.setItem('post_menu_image_name', newFile.name)
+      } catch (err) {
+        console.error('Failed to save image to sessionStorage:', err)
+      }
+    }
+    reader.readAsDataURL(newFile)
+  } else {
+    sessionStorage.removeItem('post_menu_image_base64')
+    sessionStorage.removeItem('post_menu_image_name')
   }
 })
+
+function saveFormState() {
+  try {
+    sessionStorage.setItem('post_menu_date', menuDate.value || '')
+    sessionStorage.setItem('post_menu_note', note.value || '')
+    sessionStorage.setItem('post_menu_use_ocr', String(useOcr.value))
+    sessionStorage.setItem('post_menu_ocr_notes', ocrNotes.value || '')
+    if (parsedDishes.value) {
+      sessionStorage.setItem('post_menu_parsed_dishes', JSON.stringify(parsedDishes.value))
+    } else {
+      sessionStorage.removeItem('post_menu_parsed_dishes')
+    }
+  } catch (e) {
+    console.error('Failed to save post form state:', e)
+  }
+}
+
+function restoreFormState() {
+  try {
+    const savedDate = sessionStorage.getItem('post_menu_date')
+    if (savedDate) menuDate.value = savedDate
+
+    const savedNote = sessionStorage.getItem('post_menu_note')
+    if (savedNote) note.value = savedNote
+
+    const savedUseOcr = sessionStorage.getItem('post_menu_use_ocr')
+    if (savedUseOcr) useOcr.value = savedUseOcr === 'true'
+
+    const savedOcrNotes = sessionStorage.getItem('post_menu_ocr_notes')
+    if (savedOcrNotes) ocrNotes.value = savedOcrNotes
+
+    const savedParsed = sessionStorage.getItem('post_menu_parsed_dishes')
+    if (savedParsed) parsedDishes.value = JSON.parse(savedParsed)
+
+    const savedImageBase64 = sessionStorage.getItem('post_menu_image_base64')
+    const savedImageName = sessionStorage.getItem('post_menu_image_name') || 'menu.png'
+    if (savedImageBase64) {
+      imageFile.value = dataURLtoFile(savedImageBase64, savedImageName)
+    }
+  } catch (e) {
+    console.error('Failed to restore post form state:', e)
+  }
+}
+
+function clearFormState() {
+  try {
+    sessionStorage.removeItem('post_menu_date')
+    sessionStorage.removeItem('post_menu_note')
+    sessionStorage.removeItem('post_menu_use_ocr')
+    sessionStorage.removeItem('post_menu_ocr_notes')
+    sessionStorage.removeItem('post_menu_parsed_dishes')
+    sessionStorage.removeItem('post_menu_image_base64')
+    sessionStorage.removeItem('post_menu_image_name')
+  } catch (e) {}
+}
+
+function dataURLtoFile(dataurl, filename) {
+  const arr = dataurl.split(',')
+  const mime = arr[0].match(/:(.*?);/)[1]
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
+  }
+  return new File([u8arr], filename, { type: mime })
+}
+
+watch([menuDate, note, useOcr, ocrNotes, parsedDishes], () => {
+  saveFormState()
+}, { deep: true })
+
+onMounted(restoreFormState)
 
 function resetForm() {
   note.value = ''
@@ -61,6 +152,7 @@ function resetForm() {
   parsedDishes.value = null
   ocrNotes.value = ''
   statusMsg.value = ''
+  clearFormState()
 }
 
 function cancelPreview() {
@@ -68,6 +160,11 @@ function cancelPreview() {
 }
 
 async function submit() {
+  if (isGuest.value) {
+    showSignIn.value = true
+    return
+  }
+
   errorMsg.value = ''
 
   if (!imageFile.value && !note.value.trim() && parsedDishes.value === null) {
@@ -259,7 +356,7 @@ watch(statusMsg, (newVal) => {
             <div class="row">
               <AppButton type="submit" :loading="posting">
                 <span v-if="posting && statusMsg">{{ statusMsg }}</span>
-                <span v-else>Đăng menu</span>
+                <span v-else>{{ isGuest ? 'Đăng nhập để đăng menu' : 'Đăng menu' }}</span>
               </AppButton>
             </div>
           </template>
@@ -326,7 +423,9 @@ watch(statusMsg, (newVal) => {
                 <p v-if="errorMsg" class="alert">{{ errorMsg }}</p>
 
                 <div class="row" style="margin-top: 1rem;">
-                  <AppButton type="submit" :loading="posting">Xác nhận & Đăng menu</AppButton>
+                  <AppButton type="submit" :loading="posting">
+                    {{ isGuest ? 'Đăng nhập để đăng menu' : 'Xác nhận & Đăng menu' }}
+                  </AppButton>
                   <AppButton type="button" variant="ghost" @click="cancelPreview">Quay lại</AppButton>
                 </div>
               </div>
@@ -344,6 +443,7 @@ watch(statusMsg, (newVal) => {
         </form>
       </div>
     </AppCard>
+    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
   </div>
 </template>
 

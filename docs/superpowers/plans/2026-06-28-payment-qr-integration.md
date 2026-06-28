@@ -1,8 +1,8 @@
-# Tích hợp Thanh toán QR Động (VietQR & MoMo) Implementation Plan
+# Tích hợp Chuyển tiền QR (VietQR & MoMo) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Thêm tuỳ chọn thanh toán QR động cho người đặt cơm bằng cách hiển thị mã VietQR/MoMo điền sẵn số tiền tính được từ món đã chọn và nội dung chuyển khoản tự động.
+**Goal:** Thêm tuỳ chọn Chuyển tiền QR cho người đặt cơm bằng cách hiển thị mã VietQR/MoMo điền sẵn số tiền tính được từ món đã chọn và nội dung chuyển khoản tự động.
 
 **Architecture:** 
 1. `ProfilePage.vue` cung cấp form nhập cấu trúc (Ngân hàng, STK, Tên tài khoản, MoMo) tự động gộp thành định dạng text chuẩn lưu vào `payment_info`.
@@ -276,7 +276,7 @@
     <div class="modal-overlay" @click.self="$emit('close')">
       <div class="modal-content stack-sm">
         <div class="row modal-header">
-          <div class="modal-title">Thanh toán QR Động</div>
+          <div class="modal-title">Chuyển tiền QR</div>
           <button class="btn-close" @click="$emit('close')">✕</button>
         </div>
 

@@ -1,5 +1,5 @@
 import { ref, onUnmounted, watch } from 'vue'
-import { useUser } from '@clerk/vue'
+import { useUser, useSession } from '@clerk/vue'
 import { useSupabaseClient } from '../lib/supabase'
 
 const PERSON_COLORS = ['#e85d3a','#3b82f6','#f59e0b','#8b5cf6','#10b981','#ec4899','#f97316','#06b6d4']
@@ -26,13 +26,26 @@ export function getPersonColor(id) {
   return PERSON_COLORS[Math.abs(h) % PERSON_COLORS.length]
 }
 
+function getDeviceId() {
+  try {
+    let id = localStorage.getItem('presence_device_id')
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem('presence_device_id', id)
+    }
+    return id
+  } catch {
+    return crypto.randomUUID()
+  }
+}
+
 function getAnonIdentity() {
   try {
     const s = localStorage.getItem('presence_anon')
     if (s) return JSON.parse(s)
   } catch {}
   const animal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)]
-  const id = crypto.randomUUID()
+  const id = `guest:${crypto.randomUUID()}`
   const identity = { presenceKey: id, name: `${animal} ẩn danh`, emoji: ANIMAL_EMOJI[animal] ?? '❓', color: getPersonColor(id), isAnon: true }
   try { localStorage.setItem('presence_anon', JSON.stringify(identity)) } catch {}
   return identity
@@ -41,6 +54,7 @@ function getAnonIdentity() {
 export function usePresence(menuId) {
   const sb = useSupabaseClient()
   const { user, isLoaded } = useUser()
+  const { session } = useSession()
   const viewers = ref([])
   const isMorphingIn = ref(false)
   const myActiveDish = ref(null)
@@ -52,6 +66,8 @@ export function usePresence(menuId) {
   let keepaliveTimer = null  // periodic re-track to keep presence alive
   let myKey = null
   let bc = null
+  const cartCallbacks = []
+  
   // Grace period: keep departed viewers visible for 10s to hide reconnect flicker
   const viewerGrace = new Map()  // presenceKey → { payload, expiresAt }
 
@@ -80,27 +96,98 @@ export function usePresence(menuId) {
     }, 80)
   }
 
+  function updateMyPresenceKey() {
+    const anon = getAnonIdentity()
+    myPresenceKey.value = user.value?.id ?? anon.presenceKey
+  }
+
+  function onCartUpdated(cb) {
+    cartCallbacks.push(cb)
+  }
+
+  function updateAnonName(newName) {
+    if (!newName?.trim()) return
+    try {
+      const anon = getAnonIdentity()
+      anon.name = newName.trim()
+      localStorage.setItem('presence_anon', JSON.stringify(anon))
+      updateMyPresenceKey()
+      scheduleTrack()
+    } catch (e) {
+      console.error('Failed to update anon name:', e)
+    }
+  }
+
+  function broadcastCartChange(action, itemName) {
+    if (!channel) return
+    channel.send({
+      type: 'broadcast',
+      event: 'cart_updated',
+      payload: {
+        presenceKey: myPresenceKey.value,
+        name: getMyPayload().name,
+        picks: [...currentPicks.value],
+        action,
+        itemName
+      }
+    }).catch(err => console.error('Failed to send broadcast:', err))
+  }
+
   async function connect() {
     if (channel) return Promise.resolve()
     const anon = getAnonIdentity()
-    myKey = user.value?.id ?? anon.presenceKey
-    myPresenceKey.value = myKey
+    myKey = getDeviceId()
+    updateMyPresenceKey()
     const channelName = `menu-presence:${menuId}`
     channel = sb.channel(channelName, { config: { presence: { key: myKey } } })
+    
+    // Register Presence sync
     channel.on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState()
+      const activeState = channel.presenceState()
+      console.log(`[Presence Sync] Key=${myKey} State=`, JSON.stringify(activeState))
 
-      // Extract own remote picks (union across all slots for myKey, before dedup)
-      const mySlots = state[myKey] || []
-      selfRemotePicks.value = [...new Set(mySlots.flatMap(s => s.picks || []))]
+      const state = { ...activeState }
+      const now = Date.now()
+      const GRACE_MS = 10_000
+
+      // 1. Restore departed slots from grace map (mapped by deviceId slot key)
+      for (const [deviceId, grace] of viewerGrace) {
+        if (!state[deviceId]) {
+          if (grace.expiresAt > now) {
+            state[deviceId] = grace.entries
+          } else {
+            viewerGrace.delete(deviceId)
+          }
+        }
+      }
+
+      // 2. Update grace map for currently active slots
+      for (const [deviceId, entries] of Object.entries(activeState)) {
+        viewerGrace.set(deviceId, { entries, expiresAt: now + GRACE_MS })
+      }
+
+      // Extract own remote picks across all devices/slots for my user ID
+      const myUserSlots = []
+      const currentUserId = user.value?.id ?? getAnonIdentity().presenceKey
+      for (const entries of Object.values(state)) {
+        for (const entry of entries) {
+          if (entry.presenceKey === currentUserId) {
+            myUserSlots.push(entry)
+          }
+        }
+      }
+      selfRemotePicks.value = [...new Set(myUserSlots.flatMap(s => s.picks || []))]
 
       // Deduplicate viewers by presenceKey, merging activeDish and picks across slots
       const byKey = new Map()
-      for (const entries of Object.values(state)) {
-        for (const entry of entries) {
+      for (const [deviceId, entries] of Object.entries(state)) {
+        const hasRealUser = entries.some(e => !e.isAnon)
+        const filteredEntries = hasRealUser ? entries.filter(e => !e.isAnon) : entries
+
+        for (const entry of filteredEntries) {
           const existing = byKey.get(entry.presenceKey)
           if (!existing) {
-            byKey.set(entry.presenceKey, { ...entry, picks: [...(entry.picks || [])] })
+            byKey.set(entry.presenceKey, { ...entry, deviceId, picks: [...(entry.picks || [])] })
           } else {
             if (entry.activeDish && !existing.activeDish) existing.activeDish = entry.activeDish
             if (entry.picks?.length) {
@@ -111,28 +198,28 @@ export function usePresence(menuId) {
         }
       }
 
-      // Grace period: keep recently-departed viewers for 10s to hide reconnect flicker
-      const now = Date.now()
-      const GRACE_MS = 10_000
-      for (const [key, grace] of viewerGrace) {
-        if (!byKey.has(key) && grace.expiresAt > now) {
-          byKey.set(key, grace.payload)  // restore temporarily
-        } else if (grace.expiresAt <= now) {
-          viewerGrace.delete(key)  // expired, remove
-        }
-      }
-      // Update grace map for ALL current viewers
-      for (const [key, payload] of byKey) {
-        viewerGrace.set(key, { payload, expiresAt: now + GRACE_MS })
-      }
-
       viewers.value = [...byKey.values()]
     })
+
+    // Register Broadcast listener
+    channel.on('broadcast', { event: 'cart_updated' }, ({ payload }) => {
+      console.log(`[Broadcast Received] Key=${myKey} Payload=`, JSON.stringify(payload))
+      // 1. Optimistic update viewers picks and name
+      viewers.value = viewers.value.map(v => 
+        v.presenceKey === payload.presenceKey ? { ...v, picks: payload.picks, name: payload.name } : v
+      )
+      // 2. Trigger callbacks
+      cartCallbacks.forEach(cb => cb(payload))
+    })
+
     let resolved = false
     return new Promise((resolve) => {
       channel.subscribe(async (status) => {
+        console.log(`[Subscribe Status] Key=${myKey} Status=${status}`)
         if (status === 'SUBSCRIBED') {
-          await channel.track(getMyPayload())
+          const payload = getMyPayload()
+          console.log(`[Subscribed Tracking] Key=${myKey} Payload=`, JSON.stringify(payload))
+          await channel.track(payload)
           // Keepalive: schedule a re-track every 25s through the debounce queue
           if (keepaliveTimer) clearInterval(keepaliveTimer)
           keepaliveTimer = setInterval(() => {
@@ -151,9 +238,19 @@ export function usePresence(menuId) {
     scheduleTrack()
   }
 
-  function setMyPicks(names) {
+  let broadcastDebounceTimer = null
+  function setMyPicks(names, lastAction = null, lastItem = null) {
+    console.log(`[setMyPicks] Key=${myKey} Names=`, names)
     currentPicks.value = [...names]
     scheduleTrack()
+
+    if (lastAction && lastItem) {
+      if (broadcastDebounceTimer) clearTimeout(broadcastDebounceTimer)
+      broadcastDebounceTimer = setTimeout(() => {
+        broadcastCartChange(lastAction, lastItem)
+      }, 300)
+    }
+
     if (bc) {
       const payload = getMyPayload()
       bc.postMessage({ picks: payload.picks, payload })  // payload.picks is already plain array
@@ -167,17 +264,33 @@ export function usePresence(menuId) {
   // Connect once Clerk loads
   watch(isLoaded, (loaded) => { if (loaded && !channel) connect() }, { immediate: true })
 
-  // Re-connect when user signs in (anon → real user)
+  // Re-track when user signs in or out (anon ↔ real user)
   watch(user, async (newUser, oldUser) => {
-    if (!newUser || oldUser || !channel) return
+    updateMyPresenceKey()
+    
+    // Disconnect and reconnect the channel to ensure the new auth context (JWT token) is loaded on the socket connection
+    if (channel) {
+      try {
+        await channel.untrack()
+      } catch (e) {}
+      sb.removeChannel(channel)
+      channel = null
+    }
+
+    try {
+      const token = await session.value?.getToken()
+      if (token) {
+        sb.realtime.setAuth(token)
+      }
+    } catch (e) {
+      console.error('Failed to update realtime auth token:', e)
+    }
+
     isMorphingIn.value = true
     selfRemotePicks.value = []
     setTimeout(() => { isMorphingIn.value = false }, 1600)
-    const oldChannel = channel
-    channel = null          // let connect() proceed
-    myPresenceKey.value = null
-    await connect()         // B appears (subscribed + tracked)
-    await sb.removeChannel(oldChannel)  // Cáo disappears
+    
+    await connect()
   })
 
   if (typeof BroadcastChannel !== 'undefined') {
@@ -203,6 +316,7 @@ export function usePresence(menuId) {
   }
 
   onUnmounted(() => {
+    cartCallbacks.length = 0
     if (bc) { bc.close(); bc = null }
     if (typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', handleVisibility)
@@ -213,5 +327,5 @@ export function usePresence(menuId) {
     if (channel) sb.removeChannel(channel)
   })
 
-  return { viewers, setActiveDish, isMorphingIn, getPersonColor, setMyPicks, selfRemotePicks, myPresenceKey }
+  return { viewers, setActiveDish, isMorphingIn, getPersonColor, setMyPicks, selfRemotePicks, myPresenceKey, updateAnonName, onCartUpdated }
 }
