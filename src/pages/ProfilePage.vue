@@ -2,15 +2,83 @@
 import { ref, onMounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useProfile } from '../composables/useProfile'
-import { AppCard, AppButton, Avatar, TextField, TextArea, PageHeader, Spinner } from '../components/ui'
+import { AppCard, AppButton, Avatar, TextField, TextArea, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
 
-const { user } = useUser()
+const { user, isSignedIn } = useUser()
 const { getProfile, updateProfile } = useProfile()
 const loading = ref(true)
 const saving = ref(false)
 const errorMsg = ref('')
 const saved = ref(false)
 const form = ref({ full_name: '', payment_info: '' })
+const showSignIn = ref(false)
+
+const LIST_BANKS = [
+  { code: 'VCB', name: 'Vietcombank', bin: '970436' },
+  { code: 'TCB', name: 'Techcombank', bin: '970407' },
+  { code: 'MB', name: 'MBBank', bin: '970422' },
+  { code: 'BIDV', name: 'BIDV', bin: '970418' },
+  { code: 'CTG', name: 'VietinBank', bin: '970415' },
+  { code: 'ACB', name: 'ACB', bin: '970416' },
+  { code: 'TPB', name: 'TPBank', bin: '970423' },
+  { code: 'VPB', name: 'VPBank', bin: '970432' },
+  { code: 'OCB', name: 'OCB', bin: '970448' },
+  { code: 'VIB', name: 'VIB', bin: '970441' },
+  { code: 'MSB', name: 'MSB', bin: '970426' },
+  { code: 'STB', name: 'Sacombank', bin: '970403' }
+]
+
+const useStructured = ref(true)
+const bankCode = ref('')
+const accountNumber = ref('')
+const accountName = ref('')
+const momoPhone = ref('')
+const lookingUp = ref(false)
+
+function removeVietnameseTones(str) {
+  if (!str) return '';
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g,"a"); 
+  str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g,"e"); 
+  str = str.replace(/ì|í|ị|ỉ|ĩ/g,"i"); 
+  str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g,"o"); 
+  str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g,"u"); 
+  str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g,"y"); 
+  str = str.replace(/đ/g,"d");
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+  str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+  str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+  str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Đ/g, "D");
+  return str.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, " ");
+}
+
+async function handleLookupAccount() {
+  if (!bankCode.value || !accountNumber.value) return
+  const bank = LIST_BANKS.find(b => b.code === bankCode.value)
+  if (!bank) return
+  lookingUp.value = true
+  try {
+    const token = await window.Clerk?.session?.getToken()
+    const res = await fetch('/api/lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ bin: bank.bin, accountNumber: accountNumber.value })
+    })
+    const data = await res.json()
+    if (data.accountName) {
+      accountName.value = removeVietnameseTones(data.accountName).toUpperCase()
+    }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    lookingUp.value = false
+  }
+}
 
 onMounted(load)
 
@@ -24,6 +92,23 @@ async function load() {
       full_name: data.full_name ?? '',
       payment_info: data.payment_info ?? '',
     }
+    
+    // Parse structured payment info
+    const text = data.payment_info ?? ''
+    const matchStk = text.match(/STK:\s*([a-zA-Z0-9]+)/)
+    const matchNh = text.match(/NH:\s*([a-zA-Z0-9]+)/)
+    const matchCtk = text.match(/CTK:\s*(.+)/)
+    const matchMomo = text.match(/Momo:\s*([0-9]+)/)
+
+    if (matchStk && matchNh) {
+      useStructured.value = true
+      accountNumber.value = matchStk[1]
+      bankCode.value = matchNh[1]
+      accountName.value = matchCtk ? matchCtk[1].trim() : ''
+      momoPhone.value = matchMomo ? matchMomo[1].trim() : ''
+    } else {
+      useStructured.value = false
+    }
   }
   loading.value = false
 }
@@ -32,6 +117,17 @@ async function save() {
   saving.value = true
   errorMsg.value = ''
   saved.value = false
+
+  if (useStructured.value) {
+    const parts = [
+      `STK: ${accountNumber.value.trim()}`,
+      `NH: ${bankCode.value.trim()}`,
+      accountName.value.trim() ? `CTK: ${accountName.value.trim()}` : '',
+      momoPhone.value.trim() ? `Momo: ${momoPhone.value.trim()}` : ''
+    ].filter(Boolean)
+    form.value.payment_info = parts.join('\n')
+  }
+
   const { error } = await updateProfile({
     full_name: form.value.full_name,
     payment_info: form.value.payment_info,
@@ -53,9 +149,20 @@ async function save() {
       sub="Tên và thông tin chuyển khoản này hiện trên mọi menu bạn đăng."
     />
 
-    <Spinner v-if="loading" />
+    <div v-if="!isSignedIn" style="margin-top: 1.5rem">
+      <EmptyState
+        title="Chưa đăng nhập"
+        description="Đăng nhập để cập nhật tên hiển thị và thông tin chuyển khoản của bạn."
+        icon="👤"
+      >
+        <AppButton @click="showSignIn = true">Đăng nhập</AppButton>
+      </EmptyState>
+    </div>
 
-    <AppCard v-else>
+    <div v-else>
+      <Spinner v-if="loading" />
+
+      <AppCard v-else>
       <div class="stack">
         <div class="row">
           <Avatar :src="user?.imageUrl" :name="user?.fullName || form.full_name" :size="46" />
@@ -73,13 +180,49 @@ async function save() {
             label="Tên hiển thị"
             placeholder="Nguyễn Văn A"
           />
-          <TextArea
-            v-model="form.payment_info"
-            label="Thông tin chuyển khoản"
-            placeholder="VCB 0123456789 — Nguyễn Văn A&#10;Momo 0907xxxxxx"
-            hint="Mọi người xem thông tin này trên menu bạn đăng để chuyển khoản cho bạn."
-            :rows="3"
-          />
+          <div class="field">
+            <label class="label-toggle">
+              <input type="checkbox" v-model="useStructured" />
+              <span>Tự động tạo mã QR khi thanh toán</span>
+            </label>
+          </div>
+
+          <template v-if="useStructured">
+            <div class="row row-equal">
+              <div class="field flex-1">
+                <label class="label">Ngân hàng</label>
+                <select v-model="bankCode" class="select-field">
+                  <option value="">Chọn ngân hàng</option>
+                  <option v-for="b in LIST_BANKS" :key="b.code" :value="b.code">{{ b.name }} ({{ b.code }})</option>
+                </select>
+              </div>
+              <div class="field flex-1">
+                <label class="label">Số tài khoản</label>
+                <div class="row" style="gap: 0.5rem;">
+                  <input type="text" class="input-field flex-1" v-model="accountNumber" placeholder="Nhập STK" @blur="handleLookupAccount" />
+                  <AppButton type="button" size="sm" :loading="lookingUp" @click="handleLookupAccount">Check</AppButton>
+                </div>
+              </div>
+            </div>
+            <TextField v-model="accountName" label="Tên chủ tài khoản (Viết hoa không dấu)" placeholder="NGUYEN VAN A" />
+            <TextField v-model="momoPhone" label="Số điện thoại MoMo (Tùy chọn)" placeholder="0907123456" />
+
+            <!-- QR Preview -->
+            <div v-if="bankCode && accountNumber" class="qr-preview-box">
+              <div class="eyebrow">Xem trước mã QR của bạn (giá trị mặc định 10.000 đ):</div>
+              <img :src="`https://img.vietqr.io/image/${bankCode}-${accountNumber}-compact2.png?amount=10000&addInfo=TEST%20QR&accountName=${encodeURIComponent(accountName)}`" class="qr-preview-img" />
+              <div class="meta text-center">Hãy quét thử bằng app ngân hàng để kiểm tra tính chính xác.</div>
+            </div>
+          </template>
+          <template v-else>
+            <TextArea
+              v-model="form.payment_info"
+              label="Thông tin chuyển khoản tự do"
+              placeholder="VCB 0123456789 — Nguyễn Văn A&#10;Momo 0907xxxxxx"
+              hint="Mọi người xem thông tin này trên menu bạn đăng để chuyển khoản cho bạn."
+              :rows="3"
+            />
+          </template>
           <p v-if="errorMsg" class="alert">{{ errorMsg }}</p>
 
           <div class="row">
@@ -89,6 +232,8 @@ async function save() {
         </form>
       </div>
     </AppCard>
+    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
+    </div>
   </div>
 </template>
 
@@ -222,5 +367,50 @@ async function save() {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px dashed var(--line);
+}
+
+.label-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.row-equal {
+  display: flex;
+  gap: 1rem;
+}
+.flex-1 {
+  flex: 1;
+}
+.select-field {
+  width: 100%;
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+}
+.qr-preview-box {
+  border: 1px dashed var(--line);
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.qr-preview-img {
+  max-width: 200px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.text-center {
+  text-align: center;
 }
 </style>
