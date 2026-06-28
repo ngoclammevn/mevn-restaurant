@@ -84,7 +84,6 @@
               <div class="qr-container">
                 <img :src="momoQrUrl" class="qr-img" />
               </div>
-              <a :href="momoDeepLink" target="_blank" class="btn-momo">Mở nhanh app MoMo</a>
             </div>
 
             <!-- Structured momo details card -->

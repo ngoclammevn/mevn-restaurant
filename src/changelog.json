@@ -2,33 +2,21 @@
   {
     "date": "2026-06-28",
     "changes": [
-      "Tích hợp tính năng trích xuất QR MoMo Đa Năng P2P: cho phép người dùng tải lên ảnh mã QR tại trang Hồ sơ để tự động giải mã và tách tài khoản ảo PSP",
-      "Cập nhật chỉ dẫn chi tiết trên hộp thoại chuyển tiền QR: chỉ rõ tab VietQR (ngân hàng) chuyển được từ cả ngân hàng và ví MoMo, tab ví MoMo chỉ chuyển được từ ứng dụng ngân hàng",
-      "Nâng cấp bố cục hộp thoại chuyển tiền QR thành 2 cột hiện đại, rộng rãi trên giao diện máy tính",
-      "Bổ sung nhãn cảnh báo trạng thái đang phát triển/thử nghiệm đối với phương thức quét mã chuyển tiền MoMo",
-      "Tích hợp tính năng thanh toán bằng mã QR động (VietQR & MoMo) tự động tính toán tổng số tiền dựa theo đơn giá món ăn của thực đơn và điền sẵn nội dung chuyển khoản",
-      "Bổ sung mục thiết lập tài khoản chuyển khoản có cấu trúc, tự động định dạng tên viết hoa không dấu và xem trước QR ngay tại trang Hồ sơ",
-      "Sửa lỗi đăng nhập từ popup xong bị tự động chuyển hướng về trang chủ nhờ gán động đường dẫn hiện tại vào force-redirect-url của Clerk",
-      "Hiển thị khung Chia sẻ thực đơn và lời chào kêu gọi đặt cơm cho cả tài khoản Khách khi họ ở một mình",
-      "Đồng nhất khung ứng dụng (App Shell) và mở khóa các trang điều hướng cho tài khoản khách (Guest)",
-      "Tự động lưu và khôi phục form đăng thực đơn từ sessionStorage khi tải lại hoặc chuyển hướng đăng nhập",
-      "Tự động lưu nháp lời nhắn và thông tin đặt hộ khi đang đặt cơm để không bị mất dữ liệu",
-      "Sửa lỗi không cập nhật realtime danh tính người dùng (từ khách sang thành viên) sang máy người khác khi đăng nhập thành công nhờ cơ chế tái tạo kết nối realtime socket",
-      "Đồng bộ vị trí chọn món của mọi người tức thời, giảm độ trễ tối đa nhờ Supabase Broadcast",
-      "Sửa triệt để lỗi trùng lặp/hiển thị nhân đôi người online khi đăng nhập",
-      "Khôi phục giỏ hàng món đã chọn (picks) tự động sau khi đăng nhập thành công",
-      "Sửa lỗi hiển thị đè/trùng lặp avatar khi chuyển đổi từ Khách (Guest) sang tài khoản đăng nhập",
-      "Tích hợp bảng đặt món và đăng nhập dạng Popup trực tiếp trên trang thực đơn giúp giữ nguyên giỏ hàng đang chọn"
+      "Tích hợp quét ảnh QR MoMo để tự động trích xuất mã ví ảo (PSP), sửa lỗi 'Ví chưa xác thực' khi thanh toán",
+      "Nâng cấp giao diện quét QR chuyển tiền rộng rãi, thêm chỉ dẫn quét bằng Ngân hàng và MoMo",
+      "Tự động tạo mã QR chuyển khoản động (điền sẵn số tiền và nội dung) dựa theo cấu hình trong Hồ sơ",
+      "Hỗ trợ khách ẩn danh xem thực đơn, đăng nhập nhanh qua Google không lo bị mất món đã chọn",
+      "Tải trang siêu tốc và hiển thị dữ liệu tức thì (sửa lỗi màn hình trắng khi load lần đầu)",
+      "Đồng bộ danh sách người online và món ăn đang chọn tức thời trong nhóm"
     ]
   },
   {
     "date": "2026-06-26",
     "changes": [
-      "Chọn món từ danh sách OCR ngay trên trang Hôm nay: click món để tự điền vào ô đặt, chọn nhiều món mỗi món một dòng, bỏ chọn sau khi đặt xong",
-      "Thay ô nhập ngày bằng date picker tùy chỉnh (flatpickr, giao diện tiếng Việt)",
-      "Sửa lỗi ảnh xem trước và nút AI OCR bị vỡ ra ngoài thẻ sau khi chọn ảnh",
-      "Bỏ nút gợi ý AI OCR khỏi trang đặt món, chỉ giữ ở trang đăng menu",
-      "Thêm ảnh xem trước khi chia sẻ link menu (OG image 1200×630, nền giấy ấm, hiển thị danh sách món, người đăng và ngày)"
+      "Chọn nhanh món ăn bằng cách bấm chọn trực tiếp từ thực đơn AI",
+      "Chọn ngày đăng thực đơn bằng lịch trực quan hỗ trợ tiếng Việt",
+      "Tự động tạo ảnh xem trước (Preview) đẹp mắt khi chia sẻ liên kết thực đơn qua Slack/Zalo",
+      "Sửa lỗi bố cục hiển thị ảnh thực đơn và căn chỉnh giao diện rõ đẹp hơn"
     ]
   },
   {
