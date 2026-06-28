@@ -18,7 +18,7 @@
           <div class="row-between">
             <label class="label-sm">Chỉnh sửa số tiền:</label>
             <div class="input-wrapper">
-              <input type="number" class="amount-input-neat" v-model.number="amount" min="0" step="1000" />
+              <input type="text" class="amount-input-neat" :value="inputAmountStr" @input="handleAmountInput" placeholder="0" />
               <span class="currency-suffix">đ</span>
             </div>
           </div>
@@ -108,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import AppButton from './AppButton.vue'
 
 const props = defineProps({
@@ -122,6 +122,34 @@ const emit = defineEmits(['close', 'paid'])
 const activeTab = ref('vietqr')
 const amount = ref(0)
 const copiedField = ref('')
+const inputAmountStr = ref('')
+
+watch(amount, (newVal) => {
+  const formatted = new Intl.NumberFormat('vi-VN').format(newVal || 0)
+  if (inputAmountStr.value !== formatted) {
+    inputAmountStr.value = formatted
+  }
+}, { immediate: true })
+
+function handleAmountInput(e) {
+  const cursorPosition = e.target.selectionStart
+  const originalLength = e.target.value.length
+  
+  const rawVal = e.target.value.replace(/[^0-9]/g, '')
+  const parsedNum = Number(rawVal) || 0
+  amount.value = parsedNum
+  
+  const formatted = new Intl.NumberFormat('vi-VN').format(parsedNum)
+  inputAmountStr.value = formatted
+  
+  nextTick(() => {
+    const newLength = formatted.length
+    const diff = newLength - originalLength
+    let newPos = cursorPosition + diff
+    if (newPos < 0) newPos = 0
+    e.target.setSelectionRange(newPos, newPos)
+  })
+}
 
 const payInfo = computed(() => {
   const text = props.poster?.payment_info || ''
@@ -238,8 +266,11 @@ function confirmPaid() {
   padding: 24px;
   width: 90%;
   max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 .modal-header {
   border-bottom: 1px solid var(--border);
