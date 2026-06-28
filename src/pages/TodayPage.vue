@@ -262,8 +262,8 @@ onUnmounted(() => {
             {{ deleteErrors[menu.id] }}
           </p>
 
-          <!-- Payment info (shown only when set) -->
-          <div v-if="menu.poster?.payment_info" class="payment-info-block">
+          <!-- Payment info (shown only when set and structured QR is not configured) -->
+          <div v-if="menu.poster?.payment_info && !hasQRConfig(menu.poster)" class="payment-info-block">
             <span class="eyebrow">Thông tin chuyển khoản</span>
             <p class="payment-info">{{ menu.poster.payment_info }}</p>
           </div>
