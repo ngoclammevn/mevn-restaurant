@@ -2,20 +2,20 @@
   {
     "date": "2026-06-28",
     "changes": [
-      "Tích hợp quét ảnh QR MoMo để tự động trích xuất mã ví ảo (PSP), sửa lỗi 'Ví chưa xác thực' khi thanh toán",
+      "Hỗ trợ hiển thị ảnh preview (OpenGraph) đẹp mắt khi chia sẻ trực tiếp đường dẫn thực đơn từ thanh địa chỉ trình duyệt (/menu/uuid)",
       "Nâng cấp giao diện quét QR chuyển tiền rộng rãi, thêm chỉ dẫn quét bằng Ngân hàng và MoMo",
-      "Tự động tạo mã QR chuyển khoản động (điền sẵn số tiền và nội dung) dựa theo cấu hình trong Hồ sơ",
-      "Hỗ trợ khách ẩn danh xem thực đơn, đăng nhập nhanh qua Google không lo bị mất món đã chọn",
+      "Tự động tạo mã QR chuyển khoản động (điền sẵn số tiền và nội dung) dựa theo cấu hình trong Hồ sơ của người đăng thực đơn",
+      "Hỗ trợ user ẩn danh xem thực đơn, đăng nhập nhanh qua Google không lo bị mất món đã chọn",
       "Tải trang siêu tốc và hiển thị dữ liệu tức thì (sửa lỗi màn hình trắng khi load lần đầu)",
-      "Đồng bộ danh sách người online và món ăn đang chọn tức thời trong nhóm"
+      "Đồng bộ danh sách người đang xem và món ăn đang được chọn của các user khác trong menu"
     ]
   },
   {
     "date": "2026-06-26",
     "changes": [
+      "Cập nhật OCR trích xuất thông tin món ăn từ ảnh ",
       "Chọn nhanh món ăn bằng cách bấm chọn trực tiếp từ thực đơn AI",
-      "Chọn ngày đăng thực đơn bằng lịch trực quan hỗ trợ tiếng Việt",
-      "Tự động tạo ảnh xem trước (Preview) đẹp mắt khi chia sẻ liên kết thực đơn qua Slack/Zalo",
+      "Tạo ảnh menu xem trước khi chia sẻ link (og-image) trên Slack",
       "Sửa lỗi bố cục hiển thị ảnh thực đơn và căn chỉnh giao diện rõ đẹp hơn"
     ]
   },

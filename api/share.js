@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
+import fs from 'fs'
+import path from 'path'
 
 const sb = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -72,26 +74,43 @@ export default async function handler(req, res) {
   const ogImage = `${origin}/api/og-image?id=${id}`
   const menuUrl = `/menu/${id}`
 
+  // Read the built SPA HTML file
+  let html = ''
+  try {
+    const indexPath = path.join(process.cwd(), 'dist', 'index.html')
+    html = fs.readFileSync(indexPath, 'utf8')
+  } catch (err) {
+    try {
+      const rootIndexPath = path.join(process.cwd(), 'index.html')
+      html = fs.readFileSync(rootIndexPath, 'utf8')
+    } catch (e) {
+      html = `<!DOCTYPE html><html lang="vi"><head><title>Cơm Trưa</title></head><body><div id="app"></div></body></html>`
+    }
+  }
+
+  // Define dynamic OpenGraph meta tags
+  const metaTags = `
+    <title>${escapeHtml(ogTitle)}</title>
+    <meta property="og:title"        content="${escapeHtml(ogTitle)}" />
+    <meta property="og:description"  content="${escapeHtml(ogDesc)}" />
+    <meta property="og:image"        content="${escapeHtml(ogImage)}" />
+    <meta property="og:url"          content="${escapeHtml(origin + menuUrl)}" />
+    <meta property="og:type"         content="website" />
+    <meta property="og:site_name"    content="Cơm Trưa" />
+    <meta name="description"         content="${escapeHtml(seoDesc)}" />
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:title"       content="${escapeHtml(ogTitle)}" />
+    <meta name="twitter:description" content="${escapeHtml(ogDesc)}" />
+    <meta name="twitter:image"       content="${escapeHtml(ogImage)}" />
+  `
+
+  // Remove existing title if present to avoid duplicates
+  html = html.replace(/<title>.*?<\/title>/gi, '')
+
+  // Inject meta tags inside the head tag
+  html = html.replace('</head>', `${metaTags}\n</head>`)
+
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60')
-  res.send(`<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeHtml(ogTitle)}</title>
-  <meta property="og:title"        content="${escapeHtml(ogTitle)}" />
-  <meta property="og:description"  content="${escapeHtml(ogDesc)}" />
-  <meta property="og:image"        content="${escapeHtml(ogImage)}" />
-  <meta property="og:url"          content="${escapeHtml(origin + menuUrl)}" />
-  <meta property="og:type"         content="website" />
-  <meta property="og:site_name"    content="Cơm Trưa" />
-  <meta name="description"         content="${escapeHtml(seoDesc)}" />
-  <meta name="twitter:card"        content="summary_large_image" />
-  <meta name="twitter:title"       content="${escapeHtml(ogTitle)}" />
-  <meta name="twitter:description" content="${escapeHtml(ogDesc)}" />
-  <meta name="twitter:image"       content="${escapeHtml(ogImage)}" />
-  <script>location.replace(${JSON.stringify(menuUrl)})</script>
-</head>
-<body></body>
-</html>`)
+  res.status(200).send(html)
 }
