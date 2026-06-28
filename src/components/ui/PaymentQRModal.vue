@@ -2,7 +2,7 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content stack-sm">
       <div class="row modal-header">
-        <div class="modal-title">Thanh toán QR Động</div>
+        <div class="modal-title">Chuyển tiền QR</div>
         <button class="btn-close" @click="$emit('close')">✕</button>
       </div>
 
@@ -264,8 +264,8 @@ function confirmPaid() {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 24px;
-  width: 90%;
-  max-width: 420px;
+  width: 95%;
+  max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -394,7 +394,7 @@ function confirmPaid() {
   margin-bottom: 16px;
 }
 .qr-img {
-  max-width: 200px;
+  max-width: 240px;
   height: auto;
 }
 
