@@ -2,6 +2,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useProfile } from '../composables/useProfile'
+import { decodeQRCode, extractPSP } from '../lib/qr'
 import { AppCard, AppButton, Avatar, TextField, TextArea, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
 
 const { user, isSignedIn } = useUser()
@@ -56,6 +57,34 @@ watch(accountName, (newVal) => {
   accountName.value = removeVietnameseTones(newVal).toUpperCase()
 })
 
+const momoPsp = ref('')
+const qrLoading = ref(false)
+const qrSuccessMsg = ref('')
+const qrErrorMsg = ref('')
+
+async function handleQRUpload(e) {
+  qrSuccessMsg.value = ''
+  qrErrorMsg.value = ''
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  qrLoading.value = true
+  try {
+    const emvcoText = await decodeQRCode(file)
+    const psp = extractPSP(emvcoText)
+    if (psp) {
+      momoPsp.value = psp
+      qrSuccessMsg.value = `Trích xuất thành công tài khoản ảo: ${psp}. Vui lòng bấm "Lưu hồ sơ" để hoàn tất.`
+    } else {
+      qrErrorMsg.value = 'Ảnh QR hợp lệ nhưng không tìm thấy thông tin tài khoản ảo MoMo (PSP).'
+    }
+  } catch (err) {
+    qrErrorMsg.value = err.message || 'Lỗi khi giải mã ảnh QR. Vui lòng chụp/chọn ảnh rõ nét hơn.'
+  } finally {
+    qrLoading.value = false
+  }
+}
+
 onMounted(load)
 watch(user, () => {
   load()
@@ -78,6 +107,7 @@ async function load() {
     const matchNh = text.match(/NH:\s*([a-zA-Z0-9]+)/)
     const matchCtk = text.match(/CTK:\s*(.+)/)
     const matchMomo = text.match(/Momo:\s*([0-9]+)/)
+    const matchMomoPsp = text.match(/MomoPSP:\s*([a-zA-Z0-9]+)/)
 
     if (matchStk && matchNh) {
       useStructured.value = true
@@ -85,8 +115,10 @@ async function load() {
       bankCode.value = matchNh[1]
       accountName.value = matchCtk ? matchCtk[1].trim() : ''
       momoPhone.value = matchMomo ? matchMomo[1].trim() : ''
+      momoPsp.value = matchMomoPsp ? matchMomoPsp[1].trim() : ''
     } else {
       useStructured.value = false
+      momoPsp.value = ''
     }
   }
   loading.value = false
@@ -102,7 +134,8 @@ async function save() {
       `STK: ${accountNumber.value.trim()}`,
       `NH: ${bankCode.value.trim()}`,
       accountName.value.trim() ? `CTK: ${accountName.value.trim()}` : '',
-      momoPhone.value.trim() ? `Momo: ${momoPhone.value.trim()}` : ''
+      momoPhone.value.trim() ? `Momo: ${momoPhone.value.trim()}` : '',
+      momoPsp.value.trim() ? `MomoPSP: ${momoPsp.value.trim()}` : ''
     ].filter(Boolean)
     form.value.payment_info = parts.join('\n')
   }
@@ -182,6 +215,49 @@ async function save() {
             </div>
             <TextField v-model="accountName" label="Tên chủ tài khoản (Viết hoa không dấu)" placeholder="NGUYEN VAN A" />
             <TextField v-model="momoPhone" label="Số điện thoại MoMo (Tùy chọn)" placeholder="0907123456" />
+
+            <!-- MoMo QR Onboarding Section -->
+            <div class="field momo-onboarding-section">
+              <label class="label">Xác thực MoMo QR Đa Năng (Nhận tiền P2P mới)</label>
+              <div class="momo-onboarding-card">
+                <p class="momo-onboarding-desc">
+                  MoMo đã thay đổi cơ chế nhận tiền bằng QR P2P mới. Hãy tải lên ảnh QR MoMo của bạn để trích xuất mã tài khoản ảo (PSP), giúp người thanh toán không còn bị báo lỗi "Ví chưa xác thực".
+                </p>
+                
+                <div class="momo-upload-zone">
+                  <input 
+                    type="file" 
+                    id="momo-qr-file" 
+                    accept="image/*" 
+                    class="momo-file-input" 
+                    @change="handleQRUpload" 
+                    :disabled="qrLoading"
+                  />
+                  <label for="momo-qr-file" class="momo-upload-btn">
+                    <span v-if="qrLoading">⏳ Đang xử lý ảnh...</span>
+                    <span v-else>📁 Chọn ảnh QR MoMo</span>
+                  </label>
+                </div>
+
+                <!-- Feedbacks -->
+                <div v-if="qrLoading" class="momo-qr-loader text-center" style="margin-top: 0.75rem">
+                  <Spinner />
+                </div>
+                
+                <div v-if="qrSuccessMsg" class="alert alert-success">
+                  {{ qrSuccessMsg }}
+                </div>
+                
+                <div v-if="qrErrorMsg" class="alert alert-danger">
+                  {{ qrErrorMsg }}
+                </div>
+
+                <div v-if="momoPsp" class="psp-account-display">
+                  <span class="psp-label">Mã tài khoản ảo MoMo (PSP):</span>
+                  <code class="psp-value font-mono font-bold">{{ momoPsp }}</code>
+                </div>
+              </div>
+            </div>
 
             <!-- QR Preview -->
             <div v-if="bankCode && accountNumber" class="qr-preview-box">
@@ -379,5 +455,90 @@ async function save() {
 }
 .text-center {
   text-align: center;
+}
+
+.momo-onboarding-section {
+  margin-top: 1.5rem;
+}
+.momo-onboarding-card {
+  background: var(--bg, #fff);
+  border: 1px solid var(--line, #e6dfd5);
+  border-radius: var(--radius, 8px);
+  padding: 1.25rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01);
+}
+.momo-onboarding-desc {
+  font-size: var(--fs-xs, 12px);
+  color: var(--ink-soft, #706b60);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+.momo-upload-zone {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+.momo-file-input {
+  display: none;
+}
+.momo-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary, #dcb464);
+  color: #fff;
+  font-weight: 700;
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: var(--fs-sm, 14px);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(220, 180, 100, 0.2);
+}
+.momo-upload-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.psp-account-display {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(220, 180, 100, 0.08);
+  border: 1px dashed rgba(220, 180, 100, 0.3);
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-sm, 14px);
+}
+.psp-label {
+  font-weight: 600;
+  color: var(--primary-ink, #4a473f);
+}
+.psp-value {
+  color: var(--primary, #dcb464);
+  font-family: monospace;
+  font-size: var(--fs-sm, 14px);
+}
+.alert-success {
+  background: rgba(46, 117, 89, 0.08);
+  color: #2e7559;
+  border: 1px solid rgba(46, 117, 89, 0.2);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: var(--fs-xs, 12px);
+  margin-top: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.alert-danger {
+  background: rgba(239, 68, 68, 0.05);
+  color: #c53030;
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: var(--fs-xs, 12px);
+  margin-top: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
 }
 </style>
