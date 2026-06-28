@@ -60,6 +60,7 @@ export function usePresence(menuId) {
   const myActiveDish = ref(null)
   const currentPicks = ref([])
   const selfRemotePicks = ref([])
+  const isPresenceReady = ref(false)
   const myPresenceKey = ref(null)
   let channel = null
   let trackTimer = null  // unified debounce for all track calls
@@ -177,6 +178,7 @@ export function usePresence(menuId) {
         }
       }
       selfRemotePicks.value = [...new Set(myUserSlots.flatMap(s => s.picks || []))]
+      isPresenceReady.value = true
 
       // Deduplicate viewers by presenceKey, merging activeDish and picks across slots
       const byKey = new Map()
@@ -288,6 +290,7 @@ export function usePresence(menuId) {
 
     isMorphingIn.value = true
     selfRemotePicks.value = []
+    isPresenceReady.value = false
     setTimeout(() => { isMorphingIn.value = false }, 1600)
     
     await connect()
@@ -327,5 +330,5 @@ export function usePresence(menuId) {
     if (channel) sb.removeChannel(channel)
   })
 
-  return { viewers, setActiveDish, isMorphingIn, getPersonColor, setMyPicks, selfRemotePicks, myPresenceKey, updateAnonName, onCartUpdated }
+  return { viewers, setActiveDish, isMorphingIn, getPersonColor, setMyPicks, selfRemotePicks, myPresenceKey, updateAnonName, onCartUpdated, isPresenceReady }
 }

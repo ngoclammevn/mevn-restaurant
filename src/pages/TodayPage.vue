@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { useOrders } from '../composables/useOrders'
@@ -62,6 +62,11 @@ function hasQRConfig(poster) {
 }
 
 onMounted(load)
+
+// Reload when Clerk auth state changes (hydration, sign-in, sign-out)
+watch(user, () => {
+  load()
+})
 
 async function load() {
   loading.value = true

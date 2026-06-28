@@ -32,6 +32,10 @@
 
         <!-- VietQR tab -->
         <div v-show="activeTab === 'vietqr'" class="tab-content">
+          <div class="info-banner">
+            <span class="info-icon">💡</span>
+            <span>Hỗ trợ quét và chuyển khoản từ mọi ứng dụng Ngân hàng (eBank) & Ví MoMo.</span>
+          </div>
           <div class="tab-content-grid">
             <div class="qr-container">
               <img :src="vietQrUrl" class="qr-img" />
@@ -41,7 +45,7 @@
             <div class="payment-details-card stack-xs">
               <div class="detail-row">
                 <span class="detail-label">Ngân hàng</span>
-                <span class="detail-value font-bold">{{ payInfo.bankId }}</span>
+                <span class="detail-value font-bold">{{ fullBankName }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">Số tài khoản</span>
@@ -73,14 +77,13 @@
         <div v-show="activeTab === 'momo'" class="tab-content">
           <div class="warning-banner">
             <span class="warning-icon">⚠️</span>
-            <span>MoMo chưa hỗ trợ quét mã QR này trong ứng dụng, bạn hãy mở ứng dụng eBank để quét mã nhé.</span>
+            <span>Mã QR MoMo này chỉ quét được bằng ứng dụng Ngân hàng (eBank), không quét được bằng app MoMo.</span>
           </div>
           <div class="tab-content-grid">
             <div class="qr-container-wrapper">
               <div class="qr-container">
                 <img :src="momoQrUrl" class="qr-img" />
               </div>
-              <a :href="momoDeepLink" target="_blank" class="btn-momo">Mở nhanh app MoMo</a>
             </div>
 
             <!-- Structured momo details card -->
@@ -120,6 +123,8 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import AppButton from './AppButton.vue'
+import MomoQRGenerator from './MomoQRGenerator.vue'
+import { LIST_BANKS } from '../../lib/banks'
 
 const props = defineProps({
   order: { type: Object, required: true },
@@ -167,12 +172,19 @@ const payInfo = computed(() => {
   const matchNh = text.match(/NH:\s*([a-zA-Z0-9]+)/)
   const matchCtk = text.match(/CTK:\s*(.+)/)
   const matchMomo = text.match(/Momo:\s*([0-9]+)/)
+  const matchMomoPsp = text.match(/MomoPSP:\s*([a-zA-Z0-9]+)/)
   return {
     bankId: matchNh ? matchNh[1] : '',
     accountNumber: matchStk ? matchStk[1] : '',
     accountName: matchCtk ? matchCtk[1].trim() : '',
-    momoPhone: matchMomo ? matchMomo[1] : ''
+    momoPhone: matchMomo ? matchMomo[1] : '',
+    momoPsp: matchMomoPsp ? matchMomoPsp[1] : ''
   }
+})
+
+const fullBankName = computed(() => {
+  const bank = LIST_BANKS.find(b => b.code === payInfo.value.bankId)
+  return bank ? `${bank.name} (${bank.code})` : payInfo.value.bankId
 })
 
 function removeVietnameseTones(str) {
@@ -526,6 +538,25 @@ function confirmPaid() {
   line-height: 1.4;
 }
 .warning-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.info-banner {
+  background: rgba(46, 117, 89, 0.08);
+  border: 1px solid rgba(46, 117, 89, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  color: #2e7559;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.info-icon {
   font-size: 16px;
   flex-shrink: 0;
 }
