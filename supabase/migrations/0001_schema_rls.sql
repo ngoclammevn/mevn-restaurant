@@ -54,9 +54,14 @@ create policy menus_delete on menus for delete to authenticated
 alter table orders enable row level security;
 create policy orders_select on orders for select to authenticated using (true);
 create policy orders_insert on orders for insert to authenticated
-  with check (user_id = (select auth.jwt()->>'sub'));
+  with check (true);
 create policy orders_update on orders for update to authenticated
   using (user_id = (select auth.jwt()->>'sub'))
   with check (user_id = (select auth.jwt()->>'sub'));
 create policy orders_delete on orders for delete to authenticated
   using (user_id = (select auth.jwt()->>'sub'));
+
+-- Grant table privileges to public roles
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role;
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;

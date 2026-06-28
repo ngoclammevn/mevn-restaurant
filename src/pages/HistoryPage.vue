@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useUser } from '@clerk/vue'
 import { useOrders } from '../composables/useOrders'
 import { formatVNDate } from '../lib/date'
 import {
@@ -8,9 +9,12 @@ import {
   EmptyState,
   AppButton,
   PaidStamp,
+  SignInModal,
 } from '../components/ui'
 
 const { listMyOrders } = useOrders()
+const { isSignedIn } = useUser()
+const showSignIn = ref(false)
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -19,6 +23,10 @@ const orders = ref([])
 onMounted(load)
 
 async function load() {
+  if (!isSignedIn.value) {
+    loading.value = false
+    return
+  }
   loading.value = true
   errorMsg.value = ''
   const { data, error } = await listMyOrders()
@@ -48,6 +56,36 @@ const groupedByDay = computed(() => {
     .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))
     .map(([date, dayOrders]) => ({ date, orders: dayOrders }))
 })
+
+// ---- Display Helpers ----
+function formatPrice(value) {
+  if (value === undefined || value === null) return ''
+  return new Intl.NumberFormat('vi-VN').format(value) + 'đ'
+}
+
+function displayOrderNote(note) {
+  if (!note) return ''
+  try {
+    const parsed = JSON.parse(note)
+    if (parsed && typeof parsed === 'object') {
+      return parsed.user_note || ''
+    }
+  } catch (e) {}
+  return note
+}
+
+function displayOrderItemText(order) {
+  let suffix = ''
+  if (order.note) {
+    try {
+      const parsed = JSON.parse(order.note)
+      if (parsed?.selected_dish?.price) {
+        suffix = ` [${formatPrice(parsed.selected_dish.price)}]`
+      }
+    } catch (e) {}
+  }
+  return `${order.item_text}${suffix}`
+}
 </script>
 
 <template>
@@ -58,7 +96,18 @@ const groupedByDay = computed(() => {
       sub="Toàn bộ các đơn bạn đã đặt, mới nhất trước."
     />
 
-    <Spinner v-if="loading" label="Đang tải đơn…" />
+    <div v-if="!isSignedIn" style="margin-top: 1.5rem">
+      <EmptyState
+        title="Chưa đăng nhập"
+        description="Vui lòng đăng nhập để xem lịch sử đặt cơm của bạn."
+        icon="🔒"
+      >
+        <AppButton @click="showSignIn = true">Đăng nhập</AppButton>
+      </EmptyState>
+    </div>
+
+    <div v-else>
+      <Spinner v-if="loading" label="Đang tải đơn…" />
 
     <p v-else-if="errorMsg" class="alert">{{ errorMsg }}</p>
 
@@ -102,14 +151,16 @@ const groupedByDay = computed(() => {
             </div>
 
             <!-- Item text -->
-            <p class="order-item">{{ order.item_text }}</p>
+            <p class="order-item">{{ displayOrderItemText(order) }}</p>
 
             <!-- Optional note -->
-            <p v-if="order.note" class="meta">{{ order.note }}</p>
+            <p v-if="order.note" class="meta">{{ displayOrderNote(order.note) }}</p>
           </div>
         </router-link>
       </section>
     </div>
+    </div>
+    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
   </div>
 </template>
 

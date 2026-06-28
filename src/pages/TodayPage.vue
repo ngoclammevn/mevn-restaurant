@@ -16,12 +16,13 @@ import {
   PaidStamp,
   PaidToggle,
   Spinner,
+  MenuBoard,
+  PaymentQRModal,
 } from '../components/ui'
-import OcrHelper from '../components/OcrHelper.vue'
 
 const { user } = useUser()
 const { listMenusByDate, deleteMenu } = useMenus()
-const { createOrder, updateOrder, togglePaid, listProfiles } = useOrders()
+const { updateOrder, togglePaid } = useOrders()
 
 // Reactive current user id — Clerk may not be hydrated at setup time
 const myId = computed(() => user.value?.id)
@@ -33,20 +34,31 @@ const todayDisplay = formatVNDate(todayStr)
 const loading = ref(true)
 const errorMsg = ref('')
 const menus = ref([])
-const profiles = ref([])
-
-// Per-menu form drafts keyed by menu.id
-// drafts[menuId] = { item_text, note, orderFor, submitting, submitError }
-const drafts = reactive({})
 
 // Per-order toggle loading and error keyed by order.id
 const toggleLoading = reactive({})
 const toggleError = reactive({})
 
-function initDraft(menuId) {
-  if (!drafts[menuId]) {
-    drafts[menuId] = { item_text: '', note: '', orderFor: '', submitting: false, submitError: '' }
+const showQRModal = ref(false)
+const selectedQROrder = ref(null)
+const selectedQRMenu = ref(null)
+
+function openQRModal(menu, order) {
+  selectedQRMenu.value = menu
+  selectedQROrder.value = order
+  showQRModal.value = true
+}
+
+function handleQRModalPaid() {
+  if (selectedQROrder.value && selectedQRMenu.value) {
+    handleToggle(selectedQRMenu.value, selectedQROrder.value, true)
   }
+  showQRModal.value = false
+}
+
+function hasQRConfig(poster) {
+  if (!poster?.payment_info) return false
+  return poster.payment_info.includes('STK:') || poster.payment_info.includes('Momo:')
 }
 
 onMounted(load)
@@ -59,51 +71,8 @@ async function load() {
     errorMsg.value = 'Không tải được menu hôm nay. Kiểm tra kết nối rồi thử lại.'
   } else {
     menus.value = data ?? []
-    // Initialise drafts for each menu
-    for (const m of menus.value) {
-      initDraft(m.id)
-    }
   }
-  // Load people for the "order on behalf" picker; failure is non-blocking.
-  const { data: profileData } = await listProfiles()
-  profiles.value = profileData ?? []
   loading.value = false
-}
-
-async function submitOrder(menu) {
-  const draft = drafts[menu.id]
-  if (!draft || !draft.item_text.trim()) return
-  draft.submitting = true
-  draft.submitError = ''
-
-  const { data, error } = await createOrder({
-    menu_id: menu.id,
-    item_text: draft.item_text.trim(),
-    note: draft.note.trim() || null,
-    user_id: draft.orderFor || null,
-  })
-
-  if (error) {
-    draft.submitError = 'Đặt món không thành công. Thử lại nhé.'
-  } else {
-    // Resolve who the order is for, so the list renders immediately.
-    const orderedFor = draft.orderFor
-      ? profiles.value.find((p) => p.id === draft.orderFor)
-      : null
-    const newOrder = {
-      ...data,
-      user: orderedFor ?? {
-        id: user.value?.id,
-        full_name: user.value?.fullName ?? '',
-        avatar_url: user.value?.imageUrl ?? '',
-      },
-    }
-    menu.orders = [...(menu.orders ?? []), newOrder]
-    draft.item_text = ''
-    draft.note = ''
-    draft.orderFor = ''
-  }
-  draft.submitting = false
 }
 
 async function handleToggle(menu, order, newVal) {
@@ -182,10 +151,16 @@ async function confirmDeleteMenu(menu) {
   }
 }
 
+// ── OCR helpers ──
+function isStructured(note) {
+  if (!note) return false
+  try { const d = JSON.parse(note); return d && Array.isArray(d.dishes) } catch { return false }
+}
+
 const copiedMenuId = ref(null)
 
 function copyMenuLink(menuId) {
-  const url = `${window.location.origin}/menu/${menuId}`
+  const url = `${window.location.origin}/share/${menuId}`
   navigator.clipboard.writeText(url).then(() => {
     copiedMenuId.value = menuId
     setTimeout(() => {
@@ -224,7 +199,7 @@ onUnmounted(() => {
     <PageHeader
       eyebrow="Hôm nay"
       :title="`Menu ngày ${todayDisplay}`"
-      sub="Đặt món bằng cách gõ vào form bên dưới mỗi menu."
+      sub="Xem ai đang đặt gì — click vào menu để chọn món."
     />
 
     <!-- Loading -->
@@ -287,8 +262,8 @@ onUnmounted(() => {
             {{ deleteErrors[menu.id] }}
           </p>
 
-          <!-- Payment info (shown only when set) -->
-          <div v-if="menu.poster?.payment_info" class="payment-info-block">
+          <!-- Payment info (shown only when set and structured QR is not configured) -->
+          <div v-if="menu.poster?.payment_info && !hasQRConfig(menu.poster)" class="payment-info-block">
             <span class="eyebrow">Thông tin chuyển khoản</span>
             <p class="payment-info">{{ menu.poster.payment_info }}</p>
           </div>
@@ -298,7 +273,7 @@ onUnmounted(() => {
           <!-- Menu title -->
           <h2 class="section-title">{{ menu.title }}</h2>
 
-          <!-- Image or note -->
+          <!-- Image -->
           <img
             v-if="menu.image_url"
             :src="menu.image_url"
@@ -306,6 +281,14 @@ onUnmounted(() => {
             class="menu-image clickable"
             @click="zoomImage(menu.image_url)"
           />
+
+          <!-- OCR board -->
+          <MenuBoard
+            v-if="isStructured(menu.note)"
+            :note="menu.note"
+          />
+
+          <!-- Plain text note (khi không có OCR) -->
           <!-- eslint-disable-next-line vue/no-v-html -- autolink() escapes all input; only generated <a> tags are emitted -->
           <p v-else-if="menu.note" class="menu-note" v-html="autolink(menu.note)"></p>
 
@@ -373,12 +356,23 @@ onUnmounted(() => {
               </template>
 
               <!-- Self-tick: only for own order -->
-              <PaidToggle
-                v-if="order.user_id === myId"
-                :paid="order.is_paid"
-                :loading="!!toggleLoading[order.id]"
-                @toggle="(val) => handleToggle(menu, order, val)"
-              />
+              <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
+                <PaidToggle
+                  v-if="order.user_id === myId"
+                  :paid="order.is_paid"
+                  :loading="!!toggleLoading[order.id]"
+                  @toggle="(val) => handleToggle(menu, order, val)"
+                />
+                <AppButton
+                  v-if="order.user_id === myId && !order.is_paid && hasQRConfig(menu.poster)"
+                  variant="ghost"
+                  size="sm"
+                  style="padding: 0.25rem 0.5rem;"
+                  @click="openQRModal(menu, order)"
+                >
+                  🔗 Quét QR
+                </AppButton>
+              </div>
               <p v-if="order.user_id === myId && toggleError[order.id]" class="alert">
                 {{ toggleError[order.id] }}
               </p>
@@ -389,50 +383,22 @@ onUnmounted(() => {
 
           <hr class="divider" />
 
-          <!-- Order form -->
-          <form class="stack-sm" @submit.prevent="submitOrder(menu)">
-            <div class="eyebrow">Đặt món</div>
-            <div v-if="drafts[menu.id]" class="field">
-              <label>Đặt cho</label>
-              <select v-model="drafts[menu.id].orderFor" class="input">
-                <option value="">Tôi (chính mình)</option>
-                <option v-for="p in profiles" :key="p.id" :value="p.id">
-                  {{ p.full_name }}
-                </option>
-              </select>
-            </div>
-            <OcrHelper
-              v-if="menu.image_url"
-              :image-url="menu.image_url"
-              @select-meal="(mealName) => { if (drafts[menu.id]) drafts[menu.id].item_text = mealName }"
-            />
-            <TextArea
-              v-if="drafts[menu.id]"
-              v-model="drafts[menu.id].item_text"
-              label="Món bạn muốn đặt"
-              placeholder="Ví dụ: cơm tấm sườn bì chả"
-              :rows="3"
-            />
-            <TextField
-              v-if="drafts[menu.id]"
-              v-model="drafts[menu.id].note"
-              label="Ghi chú (tuỳ chọn)"
-              placeholder="Ví dụ: ít cay, không hành"
-            />
-            <p v-if="drafts[menu.id]?.submitError" class="alert">
-              {{ drafts[menu.id].submitError }}
-            </p>
-            <AppButton
-              type="submit"
-              :loading="drafts[menu.id]?.submitting"
-              :disabled="!drafts[menu.id]?.item_text?.trim()"
-            >
-              Đặt món
-            </AppButton>
-          </form>
+          <AppButton :to="`/menu/${menu.id}`" size="sm">
+            Vào chọn món →
+          </AppButton>
         </div>
       </AppCard>
     </div>
+
+    <PaymentQRModal
+      v-if="showQRModal && selectedQROrder && selectedQRMenu"
+      :order="selectedQROrder"
+      :poster="selectedQRMenu.poster"
+      :menu-date="selectedQRMenu.menu_date"
+      :menu="selectedQRMenu"
+      @close="showQRModal = false"
+      @paid="handleQRModalPaid"
+    />
 
     <!-- Image Zoom Lightbox Overlay -->
     <div
