@@ -167,14 +167,14 @@ async function save() {
             <div class="row row-equal">
               <div class="field flex-1">
                 <label class="label">Ngân hàng</label>
-                <select v-model="bankCode" class="select-field">
+                <select v-model="bankCode" class="input">
                   <option value="">Chọn ngân hàng</option>
                   <option v-for="b in LIST_BANKS" :key="b.code" :value="b.code">{{ b.name }} ({{ b.code }})</option>
                 </select>
               </div>
               <div class="field flex-1">
                 <label class="label">Số tài khoản</label>
-                <input type="text" class="input-field" v-model="accountNumber" placeholder="Nhập STK" />
+                <input type="text" class="input" v-model="accountNumber" placeholder="Nhập STK" />
               </div>
             </div>
             <TextField v-model="accountName" label="Tên chủ tài khoản (Viết hoa không dấu)" placeholder="NGUYEN VAN A" />
@@ -356,16 +356,7 @@ async function save() {
 .flex-1 {
   flex: 1;
 }
-.select-field {
-  width: 100%;
-  padding: 0.55rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--ink);
-  font-family: inherit;
-  font-size: var(--fs-sm);
-}
+
 .qr-preview-box {
   border: 1px dashed var(--line);
   padding: 1.25rem;
