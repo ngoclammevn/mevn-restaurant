@@ -31,72 +31,78 @@
         </div>
 
         <!-- VietQR tab -->
-        <div v-show="activeTab === 'vietqr'" class="tab-content stack-sm">
-          <div class="qr-container">
-            <img :src="vietQrUrl" class="qr-img" />
-          </div>
+        <div v-show="activeTab === 'vietqr'" class="tab-content">
+          <div class="tab-content-grid">
+            <div class="qr-container">
+              <img :src="vietQrUrl" class="qr-img" />
+            </div>
 
-          <!-- Structured payment details card -->
-          <div class="payment-details-card stack-xs">
-            <div class="detail-row">
-              <span class="detail-label">Ngân hàng</span>
-              <span class="detail-value font-bold">{{ payInfo.bankId }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Số tài khoản</span>
-              <span class="detail-value">
-                <span class="font-mono font-bold">{{ payInfo.accountNumber }}</span>
-                <button class="btn-copy" type="button" @click="copyText(payInfo.accountNumber, 'stk')">
-                  {{ copiedField === 'stk' ? 'Đã chép ✓' : 'Sao chép' }}
-                </button>
-              </span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Chủ tài khoản</span>
-              <span class="detail-value font-bold">{{ payInfo.accountName }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Nội dung CK</span>
-              <span class="detail-value">
-                <code class="memo-code font-bold">{{ memo }}</code>
-                <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
-                  {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
-                </button>
-              </span>
+            <!-- Structured payment details card -->
+            <div class="payment-details-card stack-xs">
+              <div class="detail-row">
+                <span class="detail-label">Ngân hàng</span>
+                <span class="detail-value font-bold">{{ payInfo.bankId }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Số tài khoản</span>
+                <span class="detail-value">
+                  <span class="font-mono font-bold">{{ payInfo.accountNumber }}</span>
+                  <button class="btn-copy" type="button" @click="copyText(payInfo.accountNumber, 'stk')">
+                    {{ copiedField === 'stk' ? 'Đã chép ✓' : 'Sao chép' }}
+                  </button>
+                </span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Chủ tài khoản</span>
+                <span class="detail-value font-bold">{{ payInfo.accountName }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Nội dung CK</span>
+                <span class="detail-value">
+                  <code class="memo-code font-bold">{{ memo }}</code>
+                  <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
+                    {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
+                  </button>
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- MoMo tab -->
-        <div v-show="activeTab === 'momo'" class="tab-content stack-sm">
-          <div class="qr-container">
-            <img :src="momoQrUrl" class="qr-img" />
-          </div>
-          <a :href="momoDeepLink" target="_blank" class="btn-momo">Mở nhanh app MoMo</a>
+        <div v-show="activeTab === 'momo'" class="tab-content">
+          <div class="tab-content-grid">
+            <div class="qr-container-wrapper">
+              <div class="qr-container">
+                <img :src="momoQrUrl" class="qr-img" />
+              </div>
+              <a :href="momoDeepLink" target="_blank" class="btn-momo">Mở nhanh app MoMo</a>
+            </div>
 
-          <!-- Structured momo details card -->
-          <div class="payment-details-card stack-xs">
-            <div class="detail-row">
-              <span class="detail-label">Số điện thoại</span>
-              <span class="detail-value">
-                <span class="font-mono font-bold">{{ payInfo.momoPhone }}</span>
-                <button class="btn-copy" type="button" @click="copyText(payInfo.momoPhone, 'momo')">
-                  {{ copiedField === 'momo' ? 'Đã chép ✓' : 'Sao chép' }}
-                </button>
-              </span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Người nhận</span>
-              <span class="detail-value font-bold">{{ payInfo.accountName }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Nội dung</span>
-              <span class="detail-value">
-                <code class="memo-code font-bold">{{ memo }}</code>
-                <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
-                  {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
-                </button>
-              </span>
+            <!-- Structured momo details card -->
+            <div class="payment-details-card stack-xs">
+              <div class="detail-row">
+                <span class="detail-label">Số điện thoại</span>
+                <span class="detail-value">
+                  <span class="font-mono font-bold">{{ payInfo.momoPhone }}</span>
+                  <button class="btn-copy" type="button" @click="copyText(payInfo.momoPhone, 'momo')">
+                    {{ copiedField === 'momo' ? 'Đã chép ✓' : 'Sao chép' }}
+                  </button>
+                </span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Người nhận</span>
+                <span class="detail-value font-bold">{{ payInfo.accountName }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Nội dung</span>
+                <span class="detail-value">
+                  <code class="memo-code font-bold">{{ memo }}</code>
+                  <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
+                    {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
+                  </button>
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -265,7 +271,7 @@ function confirmPaid() {
   border-radius: 16px;
   padding: 24px;
   width: 95%;
-  max-width: 480px;
+  max-width: 680px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -384,6 +390,25 @@ function confirmPaid() {
   box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 }
 
+/* Grid layout for QR + details */
+.tab-content-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (min-width: 600px) {
+  .tab-content-grid {
+    grid-template-columns: 240px 1fr;
+    align-items: stretch;
+  }
+}
+
+.qr-container-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
 .qr-container {
   display: flex;
   justify-content: center;
@@ -391,25 +416,30 @@ function confirmPaid() {
   background: #fff;
   border-radius: 12px;
   border: 1px solid var(--border);
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 .qr-img {
   max-width: 240px;
+  width: 100%;
   height: auto;
 }
 
 .payment-details-card {
   background: var(--bg-soft);
   border-radius: 10px;
-  padding: 12px 16px;
+  padding: 16px;
   border: 1px solid var(--line);
-  margin-bottom: 8px;
+  margin-bottom: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .detail-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 10px 0;
   border-bottom: 1px solid rgba(0,0,0,0.03);
 }
 .detail-row:last-child {
@@ -464,7 +494,8 @@ function confirmPaid() {
   border-radius: 8px;
   font-weight: 700;
   text-decoration: none;
-  margin-bottom: 12px;
+  margin-top: 12px;
+  margin-bottom: 0;
   transition: opacity 0.2s;
   font-size: var(--fs-sm);
 }
