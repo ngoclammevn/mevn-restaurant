@@ -3,7 +3,7 @@
     "date": "2026-06-28",
     "changes": [
       "Tích hợp tính năng thanh toán bằng mã QR động (VietQR & MoMo) tự động tính toán tổng số tiền dựa theo đơn giá món ăn của thực đơn và điền sẵn nội dung chuyển khoản",
-      "Bổ sung mục thiết lập tài khoản chuyển khoản có cấu trúc, tự động tra cứu xác thực chủ tài khoản ngân hàng và xem trước QR ngay tại trang Hồ sơ",
+      "Bổ sung mục thiết lập tài khoản chuyển khoản có cấu trúc, tự động định dạng tên viết hoa không dấu và xem trước QR ngay tại trang Hồ sơ",
       "Sửa lỗi đăng nhập từ popup xong bị tự động chuyển hướng về trang chủ nhờ gán động đường dẫn hiện tại vào force-redirect-url của Clerk",
       "Hiển thị khung Chia sẻ thực đơn và lời chào kêu gọi đặt cơm cho cả tài khoản Khách khi họ ở một mình",
       "Đồng nhất khung ứng dụng (App Shell) và mở khóa các trang điều hướng cho tài khoản khách (Guest)",
