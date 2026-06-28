@@ -29,7 +29,7 @@ const router = useRouter()
 const { user } = useUser()
 const { getMenu, deleteMenu } = useMenus()
 const { createOrder, updateOrder, togglePaid, listProfiles } = useOrders()
-const { viewers, setActiveDish, setMyPicks, selfRemotePicks, myPresenceKey, onCartUpdated } = usePresence(route.params.id)
+const { viewers, setActiveDish, setMyPicks, selfRemotePicks, myPresenceKey, onCartUpdated, isPresenceReady } = usePresence(route.params.id)
 const confettiRef = ref(null)
 const showSignIn = ref(false)
 
@@ -132,23 +132,41 @@ onMounted(() => {
 })
 
 function applyRemotePicks(remotePicks) {
-  if (!remotePicks?.length || !menu.value) return
+  if (!menu.value || !isPresenceReady.value) return
+  const safeRemotePicks = remotePicks || []
   let changed = false
-  for (const name of remotePicks) {
-    if (!picks[name]) {
-      const dish = findDishByName(name, menu.value)
-      if (dish) { picks[name] = dish; changed = true }
+
+  // 1. Remove dishes from picks that are no longer in remotePicks
+  const remotePicksSet = new Set(safeRemotePicks)
+  for (const name of Object.keys(picks)) {
+    if (!remotePicksSet.has(name)) {
+      delete picks[name]
+      changed = true
     }
   }
+
+  // 2. Add dishes to picks that are in remotePicks but not in picks
+  for (const name of safeRemotePicks) {
+    if (!picks[name]) {
+      const dish = findDishByName(name, menu.value)
+      if (dish) {
+        picks[name] = dish
+        changed = true
+      }
+    }
+  }
+
   if (changed) {
     draft.item_text = Object.values(picks).map(d => d.name).join('\n')
-    setMyPicks(Object.keys(picks))
     savePicksToLocal()
   }
 }
 
 watch(selfRemotePicks, applyRemotePicks)
 watch(menu, () => applyRemotePicks(selfRemotePicks.value))
+watch(isPresenceReady, (ready) => {
+  if (ready) applyRemotePicks(selfRemotePicks.value)
+})
 
 async function load() {
   loading.value = true
