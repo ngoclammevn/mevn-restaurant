@@ -71,6 +71,10 @@
 
         <!-- MoMo tab -->
         <div v-show="activeTab === 'momo'" class="tab-content">
+          <div class="warning-banner">
+            <span class="warning-icon">⚠️</span>
+            <span>Tính năng thanh toán MoMo đang phát triển. Vui lòng ưu tiên sử dụng VietQR hoặc sao chép thông tin bên dưới.</span>
+          </div>
           <div class="tab-content-grid">
             <div class="qr-container-wrapper">
               <div class="qr-container">
@@ -206,7 +210,7 @@ const vietQrUrl = computed(() => {
 })
 
 const momoQrUrl = computed(() => {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(momoDeepLink.value)}`
+  return `https://img.vietqr.io/image/971025-${payInfo.value.momoPhone}-compact2.png?amount=${amount.value}&addInfo=${encodeURIComponent(memo.value)}&accountName=${encodeURIComponent(payInfo.value.accountName)}`
 })
 
 const momoDeepLink = computed(() => {
@@ -505,6 +509,25 @@ function confirmPaid() {
 .btn-confirm {
   width: 100%;
   margin-top: 8px;
+}
+
+.warning-banner {
+  background: rgba(220, 180, 100, 0.08);
+  border: 1px solid rgba(220, 180, 100, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  color: var(--primary);
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.warning-icon {
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 @keyframes fadeIn {
