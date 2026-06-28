@@ -2,6 +2,8 @@
   {
     "date": "2026-06-28",
     "changes": [
+      "Nâng cấp bố cục hộp thoại chuyển tiền QR thành 2 cột hiện đại, rộng rãi trên giao diện máy tính",
+      "Bổ sung nhãn cảnh báo trạng thái đang phát triển/thử nghiệm đối với phương thức quét mã chuyển tiền MoMo",
       "Tích hợp tính năng thanh toán bằng mã QR động (VietQR & MoMo) tự động tính toán tổng số tiền dựa theo đơn giá món ăn của thực đơn và điền sẵn nội dung chuyển khoản",
       "Bổ sung mục thiết lập tài khoản chuyển khoản có cấu trúc, tự động định dạng tên viết hoa không dấu và xem trước QR ngay tại trang Hồ sơ",
       "Sửa lỗi đăng nhập từ popup xong bị tự động chuyển hướng về trang chủ nhờ gán động đường dẫn hiện tại vào force-redirect-url của Clerk",
