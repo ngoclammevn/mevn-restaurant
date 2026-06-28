@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useProfile } from '../composables/useProfile'
 import { AppCard, AppButton, Avatar, TextField, TextArea, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
@@ -33,8 +33,6 @@ const bankCode = ref('')
 const accountNumber = ref('')
 const accountName = ref('')
 const momoPhone = ref('')
-const lookingUp = ref(false)
-
 function removeVietnameseTones(str) {
   if (!str) return '';
   str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g,"a"); 
@@ -54,31 +52,9 @@ function removeVietnameseTones(str) {
   return str.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, " ");
 }
 
-async function handleLookupAccount() {
-  if (!bankCode.value || !accountNumber.value) return
-  const bank = LIST_BANKS.find(b => b.code === bankCode.value)
-  if (!bank) return
-  lookingUp.value = true
-  try {
-    const token = await window.Clerk?.session?.getToken()
-    const res = await fetch('/api/lookup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ bin: bank.bin, accountNumber: accountNumber.value })
-    })
-    const data = await res.json()
-    if (data.accountName) {
-      accountName.value = removeVietnameseTones(data.accountName).toUpperCase()
-    }
-  } catch (e) {
-    console.error(e)
-  } finally {
-    lookingUp.value = false
-  }
-}
+watch(accountName, (newVal) => {
+  accountName.value = removeVietnameseTones(newVal).toUpperCase()
+})
 
 onMounted(load)
 
@@ -198,10 +174,7 @@ async function save() {
               </div>
               <div class="field flex-1">
                 <label class="label">Số tài khoản</label>
-                <div class="row" style="gap: 0.5rem;">
-                  <input type="text" class="input-field flex-1" v-model="accountNumber" placeholder="Nhập STK" @blur="handleLookupAccount" />
-                  <AppButton type="button" size="sm" :loading="lookingUp" @click="handleLookupAccount">Check</AppButton>
-                </div>
+                <input type="text" class="input-field" v-model="accountNumber" placeholder="Nhập STK" />
               </div>
             </div>
             <TextField v-model="accountName" label="Tên chủ tài khoản (Viết hoa không dấu)" placeholder="NGUYEN VAN A" />
