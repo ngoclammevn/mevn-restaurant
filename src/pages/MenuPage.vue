@@ -15,6 +15,7 @@ import {
   TextArea,
   PageHeader,
   EmptyState,
+  OrderSummaryPanel,
   PaidStamp,
   PaidToggle,
   Spinner,
@@ -473,6 +474,13 @@ onUnmounted(() => {
           />
           <!-- eslint-disable-next-line vue/no-v-html -- autolink() escapes all input; only generated <a> tags are emitted -->
           <p v-else-if="menu.note" class="menu-note" v-html="autolink(menu.note)"></p>
+
+          <!-- Shopping list — chỉ hiện cho chủ menu -->
+          <OrderSummaryPanel
+            v-if="menu.poster_id === myId"
+            :orders="menu.orders ?? []"
+            :menu-note="menu.note ?? ''"
+          />
 
           <!-- Orders list -->
           <div v-if="menu.orders && menu.orders.length > 0" class="stack-sm orders-section">
