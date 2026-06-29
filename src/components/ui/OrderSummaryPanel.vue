@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue'
 import BorderBeam from './BorderBeam.vue'
-import NumberTicker from './NumberTicker.vue'
 import BlurReveal from './BlurReveal.vue'
 
 const props = defineProps({
@@ -56,6 +55,7 @@ const summary = computed(() => {
 const totalParts = computed(() => summary.value.reduce((s, e) => s + e.count, 0))
 
 const grandTotal = computed(() => {
+  if (!summary.value.length) return null
   const totals = summary.value.map(e => e.total)
   if (totals.some(t => t === null)) return null
   return totals.reduce((s, t) => s + t, 0)
@@ -74,9 +74,7 @@ function fmt(val) {
     <!-- Header -->
     <div class="osp-header">
       <span class="eyebrow">🛒 Danh sách cần mua</span>
-      <span class="badge badge--paid osp-badge">
-        <NumberTicker :value="totalParts" /> phần
-      </span>
+      <span class="badge badge--paid osp-badge">{{ totalParts }} phần</span>
     </div>
 
     <div class="osp-divider" />
@@ -85,7 +83,7 @@ function fmt(val) {
     <div class="osp-body">
       <BlurReveal
         v-for="(item, i) in summary"
-        :key="item.displayName"
+        :key="i"
         :delay="i * 0.05"
       >
         <div class="osp-row">
@@ -102,9 +100,7 @@ function fmt(val) {
       <div class="osp-divider" />
       <div class="osp-total">
         <span>Tổng {{ totalParts }} phần</span>
-        <span class="osp-total-price">
-          <NumberTicker :value="grandTotal" />đ
-        </span>
+        <span class="osp-total-price">{{ fmt(grandTotal) }}</span>
       </div>
     </template>
   </div>

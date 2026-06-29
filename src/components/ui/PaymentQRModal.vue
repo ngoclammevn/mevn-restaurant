@@ -160,7 +160,6 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import AppButton from './AppButton.vue'
 import BlurReveal from './BlurReveal.vue'
-import MomoQRGenerator from './MomoQRGenerator.vue'
 import NumberTicker from './NumberTicker.vue'
 import { LIST_BANKS } from '../../lib/banks'
 
