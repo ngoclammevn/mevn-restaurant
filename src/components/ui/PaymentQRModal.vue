@@ -6,64 +6,70 @@
         <button class="btn-close" @click="$emit('close')">✕</button>
       </div>
 
-      <div class="modal-body stack-sm">
-        <!-- Prominent formatted price display -->
-        <div class="amount-display-container">
-          <div class="amount-label">Số tiền cần thanh toán</div>
-          <div class="amount-val">{{ formatVNCurrency(amount) }}</div>
-        </div>
+      <div class="modal-body modal-body-layout">
 
-        <!-- Order breakdown -->
-        <BlurReveal :duration="0.4" :delay="0.1">
-          <div class="breakdown-card">
-            <div class="breakdown-title">Món bạn đặt</div>
-            <div class="breakdown-hr" />
-
-            <!-- Mode: có giá (structured menu, tất cả dòng match) -->
-            <template v-if="breakdown.mode === 'priced'">
-              <div v-for="(item, i) in breakdown.items" :key="i" class="breakdown-row">
-                <span class="breakdown-name">{{ item.name }}</span>
-                <div class="breakdown-dots" />
-                <span class="breakdown-price">
-                  <NumberTicker :value="item.price" />đ
-                </span>
-              </div>
+        <div class="modal-top-grid">
+          <!-- Left: Món bạn đặt breakdown -->
+          <BlurReveal :duration="0.4" :delay="0.1">
+            <div class="breakdown-card">
+              <div class="breakdown-title">Món bạn đặt</div>
               <div class="breakdown-hr" />
-              <div class="breakdown-row breakdown-row--total">
-                <span>Tổng</span>
-                <div class="breakdown-dots" />
-                <span class="breakdown-price breakdown-price--total">
-                  <NumberTicker :value="breakdown.total" />đ
-                </span>
-              </div>
-            </template>
 
-            <!-- Mode: free text (không có giá) -->
-            <template v-else>
-              <div v-for="(line, i) in breakdown.lines" :key="i" class="breakdown-free-line">
-                {{ line }}
-              </div>
-              <div class="breakdown-hr" />
-              <div class="breakdown-hint">💡 Nhập số tiền bên trên theo thỏa thuận</div>
-            </template>
-          </div>
-        </BlurReveal>
+              <!-- Mode: có giá (structured menu, tất cả dòng match) -->
+              <template v-if="breakdown.mode === 'priced'">
+                <div v-for="(item, i) in breakdown.items" :key="i" class="breakdown-row">
+                  <span class="breakdown-name">{{ item.name }}</span>
+                  <div class="breakdown-dots" />
+                  <span class="breakdown-price">
+                    <NumberTicker :value="item.price" />đ
+                  </span>
+                </div>
+                <div class="breakdown-hr" />
+                <div class="breakdown-row breakdown-row--total">
+                  <span>Tổng</span>
+                  <div class="breakdown-dots" />
+                  <span class="breakdown-price breakdown-price--total">
+                    <NumberTicker :value="breakdown.total" />đ
+                  </span>
+                </div>
+              </template>
 
-        <!-- Sleek amount adjustment field -->
-        <div class="field amount-adjust-field">
-          <div class="row-between">
-            <label class="label-sm">Chỉnh sửa số tiền:</label>
-            <div class="input-wrapper">
-              <input type="text" class="amount-input-neat" :value="inputAmountStr" @input="handleAmountInput" placeholder="0" />
-              <span class="currency-suffix">đ</span>
+              <!-- Mode: free text (không có giá) -->
+              <template v-else>
+                <div v-for="(line, i) in breakdown.lines" :key="i" class="breakdown-free-line">
+                  {{ line }}
+                </div>
+                <div class="breakdown-hr" />
+                <div class="breakdown-hint">💡 Nhập số tiền bên trên theo thỏa thuận</div>
+              </template>
+            </div>
+          </BlurReveal>
+
+          <!-- Right: amount + controls -->
+          <div class="stack-sm">
+            <!-- Prominent formatted price display -->
+            <div class="amount-display-container">
+              <div class="amount-label">Số tiền cần thanh toán</div>
+              <div class="amount-val">{{ formatVNCurrency(amount) }}</div>
+            </div>
+
+            <!-- Sleek amount adjustment field -->
+            <div class="field amount-adjust-field">
+              <div class="row-between">
+                <label class="label-sm">Chỉnh sửa số tiền:</label>
+                <div class="input-wrapper">
+                  <input type="text" class="amount-input-neat" :value="inputAmountStr" @input="handleAmountInput" placeholder="0" />
+                  <span class="currency-suffix">đ</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Segmented Tab selector -->
+            <div class="tabs-row">
+              <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'vietqr' }" @click="activeTab = 'vietqr'">VietQR (Ngân hàng)</button>
+              <button v-if="payInfo.momoPhone" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'momo' }" @click="activeTab = 'momo'">Ví MoMo</button>
             </div>
           </div>
-        </div>
-
-        <!-- Segmented Tab selector -->
-        <div class="tabs-row">
-          <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'vietqr' }" @click="activeTab = 'vietqr'">VietQR (Ngân hàng)</button>
-          <button v-if="payInfo.momoPhone" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'momo' }" @click="activeTab = 'momo'">Ví MoMo</button>
         </div>
 
         <!-- VietQR tab -->
@@ -382,12 +388,30 @@ function confirmPaid() {
   line-height: 1;
 }
 
+.modal-body-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-top-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 560px) {
+  .modal-top-grid {
+    grid-template-columns: 1fr 1.1fr;
+  }
+}
+
 .amount-display-container {
   text-align: center;
   background: rgba(220, 180, 100, 0.08);
   padding: 18px;
   border-radius: 12px;
-  margin-bottom: 16px;
   border: 1px solid rgba(220, 180, 100, 0.18);
 }
 .amount-label {
@@ -404,9 +428,6 @@ function confirmPaid() {
   color: var(--primary);
 }
 
-.amount-adjust-field {
-  margin-bottom: 16px;
-}
 .row-between {
   display: flex;
   justify-content: space-between;
@@ -450,7 +471,6 @@ function confirmPaid() {
   background: var(--bg-soft);
   padding: 4px;
   border-radius: 8px;
-  margin-bottom: 16px;
   border: 1px solid var(--line);
 }
 .tab-btn {
