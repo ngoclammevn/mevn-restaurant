@@ -21,7 +21,7 @@
 
             <!-- Mode: có giá (structured menu, tất cả dòng match) -->
             <template v-if="breakdown.mode === 'priced'">
-              <div v-for="item in breakdown.items" :key="item.name" class="breakdown-row">
+              <div v-for="(item, i) in breakdown.items" :key="i" class="breakdown-row">
                 <span class="breakdown-name">{{ item.name }}</span>
                 <div class="breakdown-dots" />
                 <span class="breakdown-price">
@@ -40,7 +40,7 @@
 
             <!-- Mode: free text (không có giá) -->
             <template v-else>
-              <div v-for="line in breakdown.lines" :key="line" class="breakdown-free-line">
+              <div v-for="(line, i) in breakdown.lines" :key="i" class="breakdown-free-line">
                 {{ line }}
               </div>
               <div class="breakdown-hr" />
@@ -270,6 +270,7 @@ const breakdown = computed(() => {
       return { name: line, price: dish?.price != null ? Number(dish.price) : null }
     })
 
+    if (items.length === 0) return { mode: 'free-text', lines: [] }
     if (items.every(item => item.price !== null)) {
       return {
         mode: 'priced',
