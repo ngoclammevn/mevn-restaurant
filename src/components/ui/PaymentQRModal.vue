@@ -13,6 +13,42 @@
           <div class="amount-val">{{ formatVNCurrency(amount) }}</div>
         </div>
 
+        <!-- Order breakdown -->
+        <BlurReveal :duration="0.4" :delay="0.1">
+          <div class="breakdown-card">
+            <div class="breakdown-title">Món bạn đặt</div>
+            <div class="breakdown-hr" />
+
+            <!-- Mode: có giá (structured menu, tất cả dòng match) -->
+            <template v-if="breakdown.mode === 'priced'">
+              <div v-for="item in breakdown.items" :key="item.name" class="breakdown-row">
+                <span class="breakdown-name">{{ item.name }}</span>
+                <div class="breakdown-dots" />
+                <span class="breakdown-price">
+                  <NumberTicker :value="item.price" />đ
+                </span>
+              </div>
+              <div class="breakdown-hr" />
+              <div class="breakdown-row breakdown-row--total">
+                <span>Tổng</span>
+                <div class="breakdown-dots" />
+                <span class="breakdown-price breakdown-price--total">
+                  <NumberTicker :value="breakdown.total" />đ
+                </span>
+              </div>
+            </template>
+
+            <!-- Mode: free text (không có giá) -->
+            <template v-else>
+              <div v-for="line in breakdown.lines" :key="line" class="breakdown-free-line">
+                {{ line }}
+              </div>
+              <div class="breakdown-hr" />
+              <div class="breakdown-hint">💡 Nhập số tiền bên trên theo thỏa thuận</div>
+            </template>
+          </div>
+        </BlurReveal>
+
         <!-- Sleek amount adjustment field -->
         <div class="field amount-adjust-field">
           <div class="row-between">
@@ -123,7 +159,9 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import AppButton from './AppButton.vue'
+import BlurReveal from './BlurReveal.vue'
 import MomoQRGenerator from './MomoQRGenerator.vue'
+import NumberTicker from './NumberTicker.vue'
 import { LIST_BANKS } from '../../lib/banks'
 
 const props = defineProps({
@@ -215,6 +253,34 @@ const memo = computed(() => {
   }
   const note = `${name} com ${dateStr}`
   return note.substring(0, 24)
+})
+
+const orderLines = computed(() =>
+  (props.order?.item_text || '').split('\n').map(l => l.trim()).filter(Boolean)
+)
+
+const breakdown = computed(() => {
+  if (!props.menu?.note) return { mode: 'free-text', lines: orderLines.value }
+  try {
+    const parsed = JSON.parse(props.menu.note)
+    if (!Array.isArray(parsed.dishes)) return { mode: 'free-text', lines: orderLines.value }
+
+    const items = orderLines.value.map(line => {
+      const dish = parsed.dishes.find(d => d.name === line)
+      return { name: line, price: dish?.price != null ? Number(dish.price) : null }
+    })
+
+    if (items.every(item => item.price !== null)) {
+      return {
+        mode: 'priced',
+        items,
+        total: items.reduce((s, i) => s + i.price, 0),
+      }
+    }
+    return { mode: 'free-text', lines: orderLines.value }
+  } catch {
+    return { mode: 'free-text', lines: orderLines.value }
+  }
 })
 
 const vietQrUrl = computed(() => {
@@ -568,5 +634,75 @@ function confirmPaid() {
 @keyframes slideUp {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Order breakdown ── */
+.breakdown-card {
+  background: var(--bg-tint);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breakdown-title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.breakdown-hr {
+  height: 1px;
+  background: var(--line);
+}
+
+.breakdown-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.breakdown-row--total {
+  font-weight: 700;
+}
+
+.breakdown-name {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.breakdown-dots {
+  flex: 1;
+  border-bottom: 1px dashed rgba(140, 110, 51, 0.35);
+  margin-bottom: 3px;
+  min-width: 1rem;
+}
+
+.breakdown-price {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.breakdown-price--total {
+  color: var(--primary-ink);
+  font-weight: 700;
+}
+
+.breakdown-free-line {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.breakdown-hint {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.4;
 }
 </style>
