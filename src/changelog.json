@@ -2,21 +2,17 @@
   {
     "date": "2026-07-01",
     "changes": [
-      "Ảnh preview khi share link lên Slack hiển thị nhanh hơn"
+      "Tiếp tục fix bug",
+      "Ảnh preview khi share link lên Slack hiển thị nhanh hơn",
+      "Người đăng menu có thể thống kê được tổng số lượng món cần mua",
+      "Người mua có thể xem được chi tiết món mua của mình trong màn hình quét QR Code",
+      "Fix bug"
     ]
   },
   {
     "date": "2026-06-30",
     "changes": [
       "Thêm trang \"Menu của tôi\": xem lại menu đã đăng, số đơn, số người đã trả, chỉnh sửa hoặc xoá nhanh"
-    ]
-  },
-  {
-    "date": "2026-06-29",
-    "changes": [
-      "Chủ đơn thấy bảng tổng hợp cần mua: món nào, bao nhiêu phần, ai đặt, tổng tiền",
-      "Popup quét QR hiện chi tiết từng món và giá, layout 2 cột trên màn hình rộng",
-      "Menu có thực đơn OCR: bắt buộc chọn món từ danh sách, không nhập tay tự do"
     ]
   },
   {
