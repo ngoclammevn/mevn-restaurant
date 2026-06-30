@@ -42,7 +42,6 @@
               </template>
             </div>
           </BlurReveal>
-          <AppButton class="btn-confirm" @click="confirmPaid">Tôi đã chuyển tiền xong ✓</AppButton>
           </div>
 
           <!-- RIGHT: all payment content -->
@@ -153,6 +152,8 @@
                 </div>
               </div>
             </div>
+
+            <AppButton class="btn-confirm" @click="confirmPaid">Tôi đã chuyển tiền xong ✓</AppButton>
           </div>
 
         </div>
