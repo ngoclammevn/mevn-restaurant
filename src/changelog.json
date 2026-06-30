@@ -1,5 +1,13 @@
 [
   {
+    "date": "2026-06-30",
+    "changes": [
+      "Thêm trang \"Menu của tôi\": người đăng menu xem lại toàn bộ menu mình đã đăng theo từng ngày",
+      "Mỗi menu hiển thị số đơn đã đặt và số người đã chuyển khoản (đã trả Y/X)",
+      "Sửa nhanh tiêu đề và ghi chú của menu ngay trên trang, hoặc xoá menu, sao chép link, mở chi tiết"
+    ]
+  },
+  {
     "date": "2026-06-29",
     "changes": [
       "Thêm bảng tổng hợp đơn cần mua cho người đăng menu (tên món, số lượng, ai đặt, tổng tiền)",
