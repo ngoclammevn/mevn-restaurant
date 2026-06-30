@@ -7,6 +7,7 @@ const routes = [
   { path: '/menu/:id', component: () => import('./pages/MenuPage.vue'), meta: { public: true } },
   { path: '/share/:id', redirect: to => `/menu/${to.params.id}`, meta: { public: true } },
   { path: '/post', component: () => import('./pages/PostMenuPage.vue') },
+  { path: '/my-menus', component: () => import('./pages/MyMenusPage.vue') },
   { path: '/dashboard', component: () => import('./pages/DashboardPage.vue') },
   { path: '/history', component: () => import('./pages/HistoryPage.vue') },
   { path: '/profile', component: () => import('./pages/ProfilePage.vue') },

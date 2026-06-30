@@ -38,6 +38,27 @@ export function useMenus() {
       .single()
   }
 
+  // All menus the current user has posted, across every date, with each
+  // order's id + is_paid so the page can show "X đơn · đã trả Y/X".
+  async function listMyMenus() {
+    const uid = user.value?.id
+    if (!uid) return { error: new Error('not signed in') }
+    return sb.from('menus')
+      .select('*, orders(id, is_paid)')
+      .eq('poster_id', uid)
+      .order('menu_date', { ascending: false })
+      .order('created_at', { ascending: false })
+  }
+
+  // Edit a menu's title/note. RLS menus_update already limits this to the poster.
+  async function updateMenu({ id, title, note = null }) {
+    return sb.from('menus')
+      .update({ title, note })
+      .eq('id', id)
+      .select()
+      .single()
+  }
+
   async function deleteMenu(menuId, imageUrl = null) {
     const uid = user.value?.id
     if (!uid) return { error: new Error('not signed in') }
@@ -65,5 +86,5 @@ export function useMenus() {
     return { error: null }
   }
 
-  return { createMenu, listMenusByDate, getMenu, deleteMenu }
+  return { createMenu, listMenusByDate, getMenu, listMyMenus, updateMenu, deleteMenu }
 }
