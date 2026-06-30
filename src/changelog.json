@@ -2,24 +2,21 @@
   {
     "date": "2026-07-01",
     "changes": [
-      "Hình ảnh preview (og-image) khi chia sẻ link lên Slack nay hiển thị nhanh hơn — tự tạo sẵn ngay sau khi đăng menu"
+      "Ảnh preview khi share link lên Slack hiển thị nhanh hơn"
     ]
   },
   {
     "date": "2026-06-30",
     "changes": [
-      "Thêm trang \"Menu của tôi\": người đăng menu xem lại toàn bộ menu mình đã đăng theo từng ngày",
-      "Mỗi menu hiển thị số đơn đã đặt và số người đã chuyển khoản (đã trả Y/X)",
-      "Sửa nhanh tiêu đề và ghi chú của menu ngay trên trang, hoặc xoá menu, sao chép link, mở chi tiết"
+      "Thêm trang \"Menu của tôi\": xem lại menu đã đăng, số đơn, số người đã trả, chỉnh sửa hoặc xoá nhanh"
     ]
   },
   {
     "date": "2026-06-29",
     "changes": [
-      "Thêm bảng tổng hợp đơn cần mua cho người đăng menu (tên món, số lượng, ai đặt, tổng tiền)",
-      "Hiển thị chi tiết món và giá ngay trong popup quét QR để rõ hơn cơ sở tính tiền",
-      "Popup QR chuyển sang layout 2 cột rộng hơn trên máy tính",
-      "Khi menu có thực đơn cấu trúc (đã quét OCR), bắt buộc chọn món từ bảng thực đơn thay vì nhập tay — đảm bảo tính tiền chính xác"
+      "Chủ đơn thấy bảng tổng hợp cần mua: món nào, bao nhiêu phần, ai đặt, tổng tiền",
+      "Popup quét QR hiện chi tiết từng món và giá, layout 2 cột trên màn hình rộng",
+      "Menu có thực đơn OCR: bắt buộc chọn món từ danh sách, không nhập tay tự do"
     ]
   },
   {
