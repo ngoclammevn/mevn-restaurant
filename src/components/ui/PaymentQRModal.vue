@@ -10,7 +10,8 @@
 
         <div class="modal-two-col">
 
-          <!-- LEFT: breakdown card -->
+          <!-- LEFT: breakdown card + confirm button -->
+          <div class="left-col">
           <BlurReveal :duration="0.4" :delay="0.1">
             <div class="breakdown-card breakdown-card--full">
               <div class="breakdown-title">Món bạn đặt</div>
@@ -41,6 +42,8 @@
               </template>
             </div>
           </BlurReveal>
+          <AppButton class="btn-confirm" @click="confirmPaid">Tôi đã chuyển tiền xong ✓</AppButton>
+          </div>
 
           <!-- RIGHT: all payment content -->
           <div class="payment-col stack-sm">
@@ -154,8 +157,6 @@
 
         </div>
 
-        <!-- Confirm button — full width below both columns -->
-        <AppButton class="btn-confirm" @click="confirmPaid">Tôi đã chuyển tiền xong ✓</AppButton>
       </div>
     </div>
   </div>
@@ -412,8 +413,14 @@ function confirmPaid() {
   }
 }
 
+.left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .breakdown-card--full {
-  height: 100%;
+  flex: 1;
   box-sizing: border-box;
 }
 
