@@ -262,7 +262,7 @@ export default async function handler(req, res) {
     const png = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 1200, height: 630 } })
 
     res.setHeader('Content-Type', 'image/png')
-    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60')
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300')
     res.send(png)
   } finally {
     await browser.close()

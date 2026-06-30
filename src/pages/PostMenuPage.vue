@@ -237,6 +237,8 @@ async function submit() {
 
   posted.value = true
   createdMenuId.value = createdMenu?.id ?? null
+  // Pre-warm og-image so Vercel CDN caches it before user shares to Slack
+  if (createdMenu?.id) fetch(`/api/og-image?id=${createdMenu.id}`).catch(() => {})
   resetForm()
 }
 

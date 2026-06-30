@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-07-01",
+    "changes": [
+      "Hình ảnh preview (og-image) khi chia sẻ link lên Slack nay hiển thị nhanh hơn — tự tạo sẵn ngay sau khi đăng menu"
+    ]
+  },
+  {
     "date": "2026-06-30",
     "changes": [
       "Thêm trang \"Menu của tôi\": người đăng menu xem lại toàn bộ menu mình đã đăng theo từng ngày",
