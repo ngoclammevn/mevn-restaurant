@@ -15,6 +15,7 @@ watch(isSignedIn, (v) => { if (v) ensureProfile() }, { immediate: true })
 const nav = [
   { to: '/', label: 'Hôm nay' },
   { to: '/post', label: 'Đăng cơm' },
+  { to: '/my-menus', label: 'Menu của tôi' },
   { to: '/dashboard', label: 'Thu tiền' },
   { to: '/history', label: 'Đơn của tôi' },
   { to: '/profile', label: 'Hồ sơ' },
