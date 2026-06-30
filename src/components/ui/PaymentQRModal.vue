@@ -8,10 +8,11 @@
 
       <div class="modal-body modal-body-layout">
 
-        <div class="modal-top-grid">
-          <!-- Left: Món bạn đặt breakdown -->
+        <div class="modal-two-col">
+
+          <!-- LEFT: breakdown card -->
           <BlurReveal :duration="0.4" :delay="0.1">
-            <div class="breakdown-card">
+            <div class="breakdown-card breakdown-card--full">
               <div class="breakdown-title">Món bạn đặt</div>
               <div class="breakdown-hr" />
 
@@ -20,17 +21,13 @@
                 <div v-for="(item, i) in breakdown.items" :key="i" class="breakdown-row">
                   <span class="breakdown-name">{{ item.name }}</span>
                   <div class="breakdown-dots" />
-                  <span class="breakdown-price">
-                    <NumberTicker :value="item.price" />đ
-                  </span>
+                  <span class="breakdown-price">{{ fmt(item.price) }}</span>
                 </div>
                 <div class="breakdown-hr" />
                 <div class="breakdown-row breakdown-row--total">
                   <span>Tổng</span>
                   <div class="breakdown-dots" />
-                  <span class="breakdown-price breakdown-price--total">
-                    <NumberTicker :value="breakdown.total" />đ
-                  </span>
+                  <span class="breakdown-price breakdown-price--total">{{ fmt(breakdown.total) }}</span>
                 </div>
               </template>
 
@@ -45,8 +42,8 @@
             </div>
           </BlurReveal>
 
-          <!-- Right: amount + controls -->
-          <div class="stack-sm">
+          <!-- RIGHT: all payment content -->
+          <div class="payment-col stack-sm">
             <!-- Prominent formatted price display -->
             <div class="amount-display-container">
               <div class="amount-label">Số tiền cần thanh toán</div>
@@ -69,93 +66,95 @@
               <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'vietqr' }" @click="activeTab = 'vietqr'">VietQR (Ngân hàng)</button>
               <button v-if="payInfo.momoPhone" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'momo' }" @click="activeTab = 'momo'">Ví MoMo</button>
             </div>
+
+            <!-- VietQR tab content -->
+            <div v-show="activeTab === 'vietqr'" class="tab-content">
+              <div class="info-banner">
+                <span class="info-icon">💡</span>
+                <span>Hỗ trợ quét và chuyển khoản từ mọi ứng dụng Ngân hàng (eBank) & Ví MoMo.</span>
+              </div>
+              <div class="tab-content-grid">
+                <div class="qr-container">
+                  <img :src="vietQrUrl" class="qr-img" />
+                </div>
+
+                <!-- Structured payment details card -->
+                <div class="payment-details-card stack-xs">
+                  <div class="detail-row">
+                    <span class="detail-label">Ngân hàng</span>
+                    <span class="detail-value font-bold">{{ fullBankName }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Số tài khoản</span>
+                    <span class="detail-value">
+                      <span class="font-mono font-bold">{{ payInfo.accountNumber }}</span>
+                      <button class="btn-copy" type="button" @click="copyText(payInfo.accountNumber, 'stk')">
+                        {{ copiedField === 'stk' ? 'Đã chép ✓' : 'Sao chép' }}
+                      </button>
+                    </span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Chủ tài khoản</span>
+                    <span class="detail-value font-bold">{{ payInfo.accountName }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Nội dung CK</span>
+                    <span class="detail-value">
+                      <code class="memo-code font-bold">{{ memo }}</code>
+                      <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
+                        {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- MoMo tab content -->
+            <div v-show="activeTab === 'momo'" class="tab-content">
+              <div class="warning-banner">
+                <span class="warning-icon">⚠️</span>
+                <span>Mã QR MoMo này chỉ quét được bằng ứng dụng Ngân hàng (eBank), không quét được bằng app MoMo.</span>
+              </div>
+              <div class="tab-content-grid">
+                <div class="qr-container-wrapper">
+                  <div class="qr-container">
+                    <img :src="momoQrUrl" class="qr-img" />
+                  </div>
+                </div>
+
+                <!-- Structured momo details card -->
+                <div class="payment-details-card stack-xs">
+                  <div class="detail-row">
+                    <span class="detail-label">Số điện thoại</span>
+                    <span class="detail-value">
+                      <span class="font-mono font-bold">{{ payInfo.momoPhone }}</span>
+                      <button class="btn-copy" type="button" @click="copyText(payInfo.momoPhone, 'momo')">
+                        {{ copiedField === 'momo' ? 'Đã chép ✓' : 'Sao chép' }}
+                      </button>
+                    </span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Người nhận</span>
+                    <span class="detail-value font-bold">{{ payInfo.accountName }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Nội dung</span>
+                    <span class="detail-value">
+                      <code class="memo-code font-bold">{{ memo }}</code>
+                      <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
+                        {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
         </div>
 
-        <!-- VietQR tab -->
-        <div v-show="activeTab === 'vietqr'" class="tab-content">
-          <div class="info-banner">
-            <span class="info-icon">💡</span>
-            <span>Hỗ trợ quét và chuyển khoản từ mọi ứng dụng Ngân hàng (eBank) & Ví MoMo.</span>
-          </div>
-          <div class="tab-content-grid">
-            <div class="qr-container">
-              <img :src="vietQrUrl" class="qr-img" />
-            </div>
-
-            <!-- Structured payment details card -->
-            <div class="payment-details-card stack-xs">
-              <div class="detail-row">
-                <span class="detail-label">Ngân hàng</span>
-                <span class="detail-value font-bold">{{ fullBankName }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Số tài khoản</span>
-                <span class="detail-value">
-                  <span class="font-mono font-bold">{{ payInfo.accountNumber }}</span>
-                  <button class="btn-copy" type="button" @click="copyText(payInfo.accountNumber, 'stk')">
-                    {{ copiedField === 'stk' ? 'Đã chép ✓' : 'Sao chép' }}
-                  </button>
-                </span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Chủ tài khoản</span>
-                <span class="detail-value font-bold">{{ payInfo.accountName }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Nội dung CK</span>
-                <span class="detail-value">
-                  <code class="memo-code font-bold">{{ memo }}</code>
-                  <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
-                    {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
-                  </button>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- MoMo tab -->
-        <div v-show="activeTab === 'momo'" class="tab-content">
-          <div class="warning-banner">
-            <span class="warning-icon">⚠️</span>
-            <span>Mã QR MoMo này chỉ quét được bằng ứng dụng Ngân hàng (eBank), không quét được bằng app MoMo.</span>
-          </div>
-          <div class="tab-content-grid">
-            <div class="qr-container-wrapper">
-              <div class="qr-container">
-                <img :src="momoQrUrl" class="qr-img" />
-              </div>
-            </div>
-
-            <!-- Structured momo details card -->
-            <div class="payment-details-card stack-xs">
-              <div class="detail-row">
-                <span class="detail-label">Số điện thoại</span>
-                <span class="detail-value">
-                  <span class="font-mono font-bold">{{ payInfo.momoPhone }}</span>
-                  <button class="btn-copy" type="button" @click="copyText(payInfo.momoPhone, 'momo')">
-                    {{ copiedField === 'momo' ? 'Đã chép ✓' : 'Sao chép' }}
-                  </button>
-                </span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Người nhận</span>
-                <span class="detail-value font-bold">{{ payInfo.accountName }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Nội dung</span>
-                <span class="detail-value">
-                  <code class="memo-code font-bold">{{ memo }}</code>
-                  <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
-                    {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
-                  </button>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
+        <!-- Confirm button — full width below both columns -->
         <AppButton class="btn-confirm" @click="confirmPaid">Tôi đã chuyển tiền xong ✓</AppButton>
       </div>
     </div>
@@ -166,7 +165,6 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import AppButton from './AppButton.vue'
 import BlurReveal from './BlurReveal.vue'
-import NumberTicker from './NumberTicker.vue'
 import { LIST_BANKS } from '../../lib/banks'
 
 const props = defineProps({
@@ -271,7 +269,8 @@ const breakdown = computed(() => {
     if (!Array.isArray(parsed.dishes)) return { mode: 'free-text', lines: orderLines.value }
 
     const items = orderLines.value.map(line => {
-      const dish = parsed.dishes.find(d => d.name === line)
+      const cleanLine = line.trim().toLowerCase()
+      const dish = parsed.dishes.find(d => d.name?.trim().toLowerCase() === cleanLine)
       return { name: line, price: dish?.price != null ? Number(dish.price) : null }
     })
 
@@ -306,6 +305,11 @@ function formatVNCurrency(val) {
   return new Intl.NumberFormat('vi-VN').format(val) + ' đ'
 }
 
+function fmt(val) {
+  if (val == null) return ''
+  return new Intl.NumberFormat('vi-VN').format(val) + 'đ'
+}
+
 function copyText(text, field) {
   if (!text) return
   navigator.clipboard.writeText(text)
@@ -323,7 +327,8 @@ onMounted(() => {
         const lines = props.order.item_text.split('\n').map(l => l.trim()).filter(Boolean)
         let total = 0
         for (const line of lines) {
-          const dish = parsed.dishes.find(d => d.name === line)
+          const cleanLine = line.trim().toLowerCase()
+          const dish = parsed.dishes.find(d => d.name?.trim().toLowerCase() === cleanLine)
           if (dish && dish.price) total += Number(dish.price)
         }
         amount.value = total
@@ -358,7 +363,7 @@ function confirmPaid() {
   border-radius: 16px;
   padding: 24px;
   width: 95%;
-  max-width: 680px;
+  max-width: 860px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -394,17 +399,28 @@ function confirmPaid() {
   gap: 16px;
 }
 
-.modal-top-grid {
+.modal-two-col {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
 }
 
-@media (min-width: 560px) {
-  .modal-top-grid {
-    grid-template-columns: 1fr 1.1fr;
+@media (min-width: 600px) {
+  .modal-two-col {
+    grid-template-columns: 1fr 1.4fr;
   }
+}
+
+.breakdown-card--full {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.payment-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .amount-display-container {
