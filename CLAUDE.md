@@ -11,7 +11,7 @@ Tóm tắt cực ngắn: app đặt cơm trưa nội bộ (<25 người). Stack:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **mevn-restaurant** (838 symbols, 1076 relationships, 14 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **mevn-restaurant** (1096 symbols, 1410 relationships, 20 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
