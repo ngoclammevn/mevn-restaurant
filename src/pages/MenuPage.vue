@@ -87,14 +87,26 @@ const editingOrderId = ref(null)
 const editDraft = reactive({ item_text: '', note: '' })
 const editSaving = ref(false)
 const editError = ref('')
+const editPicks = reactive({})
 const deleting = ref(false)
 const deleteError = ref('')
 const copied = ref(false)
 const picks = reactive({})
+const picksTotal = computed(() => {
+  const dishes = Object.values(picks)
+  if (!dishes.length) return null
+  if (!dishes.every(d => d.price)) return null
+  return dishes.reduce((s, d) => s + Number(d.price), 0)
+})
 
 function isStructured(note) {
   if (!note) return false
   try { const d = JSON.parse(note); return d && Array.isArray(d.dishes) } catch { return false }
+}
+
+function fmt(val) {
+  if (!val) return ''
+  return new Intl.NumberFormat('vi-VN').format(val) + 'đ'
 }
 function findDishByName(name, menuData) {
   if (!menuData?.note) return null
@@ -103,6 +115,16 @@ function findDishByName(name, menuData) {
     return (parsed.dishes ?? []).find(d => d.name === name) ?? null
   } catch {}
   return null
+}
+
+function getAllDishes() {
+  if (!menu.value?.note) return []
+  try {
+    const parsed = JSON.parse(menu.value.note)
+    return Array.isArray(parsed.dishes) ? parsed.dishes : []
+  } catch {
+    return []
+  }
 }
 
 
@@ -296,11 +318,29 @@ function startEdit(order) {
   editDraft.item_text = order.item_text
   editDraft.note = order.note ?? ''
   editError.value = ''
+  Object.keys(editPicks).forEach(k => delete editPicks[k])
+  if (isStructured(menu.value?.note)) {
+    const dishes = getAllDishes()
+    const lines = (order.item_text || '').split('\n').map(l => l.trim()).filter(Boolean)
+    for (const line of lines) {
+      const dish = dishes.find(d => d.name === line)
+      if (dish) editPicks[dish.name] = dish
+    }
+  }
 }
 
 function cancelEdit() {
   editingOrderId.value = null
   editError.value = ''
+}
+
+function toggleEditDish(dish) {
+  if (editPicks[dish.name]) {
+    delete editPicks[dish.name]
+  } else {
+    editPicks[dish.name] = dish
+  }
+  editDraft.item_text = Object.values(editPicks).map(d => d.name).join('\n')
 }
 
 async function saveEdit(order) {
@@ -511,11 +551,31 @@ onUnmounted(() => {
 
               <!-- Edit inline form -->
               <template v-if="editingOrderId === order.id">
-                <TextArea
-                  v-model="editDraft.item_text"
-                  label="Món bạn muốn đặt"
-                  :rows="3"
-                />
+                <template v-if="isStructured(menu.note)">
+                  <div class="field">
+                    <label>Món bạn muốn đặt</label>
+                    <div class="edit-dish-picker">
+                      <div
+                        v-for="dish in getAllDishes()"
+                        :key="dish.name"
+                        class="edit-dish-row"
+                        :class="{ 'edit-dish-row--selected': editPicks[dish.name] }"
+                        @click="toggleEditDish(dish)"
+                      >
+                        <span class="edit-dish-check">{{ editPicks[dish.name] ? '✓' : '' }}</span>
+                        <span class="edit-dish-name">{{ dish.name }}</span>
+                        <span v-if="dish.price" class="edit-dish-price">{{ fmt(dish.price) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <template v-else>
+                  <TextArea
+                    v-model="editDraft.item_text"
+                    label="Món bạn muốn đặt"
+                    :rows="3"
+                  />
+                </template>
                 <TextField
                   v-model="editDraft.note"
                   label="Ghi chú (tuỳ chọn)"
@@ -525,7 +585,7 @@ onUnmounted(() => {
                   <AppButton
                     size="sm"
                     :loading="editSaving"
-                    :disabled="!editDraft.item_text.trim()"
+                    :disabled="isStructured(menu.note) ? !Object.keys(editPicks).length : !editDraft.item_text.trim()"
                     @click="saveEdit(order)"
                   >
                     Lưu
@@ -585,12 +645,30 @@ onUnmounted(() => {
                 </option>
               </select>
             </div>
-            <TextArea
-              v-model="draft.item_text"
-              label="Món bạn muốn đặt"
-              placeholder="Ví dụ: cơm tấm sườn bì chả"
-              :rows="3"
-            />
+            <template v-if="isStructured(menu.note)">
+              <div class="field">
+                <label>Món bạn muốn đặt</label>
+                <div v-if="!Object.keys(picks).length" class="picks-empty">
+                  Chưa chọn món nào — nhấp vào thực đơn bên trên để chọn
+                </div>
+                <div v-else class="picks-summary">
+                  <div v-for="dish in Object.values(picks)" :key="dish.name" class="pick-row">
+                    <span class="pick-name">{{ dish.name }}</span>
+                    <span v-if="dish.price" class="pick-price">{{ fmt(dish.price) }}</span>
+                    <button type="button" class="pick-remove" @click="toggleDish(dish)">✕</button>
+                  </div>
+                  <div v-if="picksTotal" class="picks-total">Tổng: {{ fmt(picksTotal) }}</div>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <TextArea
+                v-model="draft.item_text"
+                label="Món bạn muốn đặt"
+                placeholder="Ví dụ: cơm tấm sườn bì chả"
+                :rows="3"
+              />
+            </template>
             <TextField
               v-model="draft.note"
               label="Ghi chú (tuỳ chọn)"
@@ -602,7 +680,7 @@ onUnmounted(() => {
             <AppButton
               type="submit"
               :loading="draft.submitting"
-              :disabled="!draft.item_text.trim()"
+              :disabled="isStructured(menu.note) ? !Object.keys(picks).length : !draft.item_text.trim()"
             >
               {{ isGuest ? 'Đăng nhập để đặt món' : 'Đặt món' }}
             </AppButton>
@@ -1067,6 +1145,112 @@ onUnmounted(() => {
 .pc-solo-btn {
   white-space: nowrap;
   font-size: var(--fs-sm);
+}
+
+.picks-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-style: italic;
+  padding: 0.5rem 0.8rem;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.picks-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: var(--bg-tint);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.8rem;
+  border: 1.5px solid var(--line-strong);
+}
+
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pick-name {
+  flex: 1;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.pick-price {
+  font-size: var(--fs-sm);
+  color: var(--primary-ink);
+  font-weight: 600;
+}
+
+.pick-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.pick-remove:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.picks-total {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--primary-ink);
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+  margin-top: 0.1rem;
+}
+
+.edit-dish-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem;
+  background: var(--bg);
+}
+
+.edit-dish-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.32rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+.edit-dish-row:hover { background: var(--bg-tint); }
+.edit-dish-row--selected { background: var(--primary-soft); }
+
+.edit-dish-check {
+  width: 1rem;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  flex-shrink: 0;
+}
+
+.edit-dish-name {
+  flex: 1;
+  font-size: var(--fs-sm);
+}
+
+.edit-dish-price {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  flex-shrink: 0;
 }
 
 </style>
