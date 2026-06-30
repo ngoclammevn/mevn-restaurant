@@ -3,7 +3,9 @@
     "date": "2026-06-29",
     "changes": [
       "Thêm bảng tổng hợp đơn cần mua cho người đăng menu (tên món, số lượng, ai đặt, tổng tiền)",
-      "Hiển thị chi tiết món và giá ngay trong popup quét QR để rõ hơn cơ sở tính tiền"
+      "Hiển thị chi tiết món và giá ngay trong popup quét QR để rõ hơn cơ sở tính tiền",
+      "Popup QR chuyển sang layout 2 cột rộng hơn trên máy tính",
+      "Khi menu có thực đơn cấu trúc (đã quét OCR), bắt buộc chọn món từ bảng thực đơn thay vì nhập tay — đảm bảo tính tiền chính xác"
     ]
   },
   {
