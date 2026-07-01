@@ -29,7 +29,7 @@ const slackCopied   = ref(false)
 
 function copySlackLink() {
   if (!createdMenuId.value) return
-  const url = `${window.location.origin}/api/share?id=${createdMenuId.value}`
+  const url = `${window.location.origin}/share/${createdMenuId.value}`
   navigator.clipboard.writeText(url).then(() => {
     slackCopied.value = true
     setTimeout(() => { slackCopied.value = false }, 2000)
@@ -237,6 +237,8 @@ async function submit() {
 
   posted.value = true
   createdMenuId.value = createdMenu?.id ?? null
+  // Pre-warm og-image so Vercel CDN caches it before user shares to Slack
+  if (createdMenu?.id) fetch(`/api/og-image?id=${createdMenu.id}`).catch(() => {})
   resetForm()
 }
 
@@ -296,7 +298,7 @@ watch(statusMsg, (newVal) => {
           <div class="row" style="flex-wrap: wrap; gap: 0.5rem;">
             <AppButton :to="'/'">Xem menu hôm nay</AppButton>
             <AppButton variant="ghost" @click="copySlackLink" :disabled="!createdMenuId">
-              {{ slackCopied ? '✓ Đã copy!' : '📋 Copy link Slack' }}
+              {{ slackCopied ? '✓ Đã copy!' : 'Copy link Slack' }}
             </AppButton>
             <AppButton variant="ghost" @click="posted = false; createdMenuId = null">Đăng thêm menu</AppButton>
           </div>

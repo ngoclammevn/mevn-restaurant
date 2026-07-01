@@ -31,7 +31,7 @@ export function useOrders() {
 
   async function updateOrder({ id, item_text, note = null }) {
     return sb.from('orders')
-      .update({ item_text, note, updated_at: new Date().toISOString() })
+      .update({ item_text, note })
       .eq('id', id)
       .select()
       .single()

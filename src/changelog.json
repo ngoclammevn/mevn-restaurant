@@ -1,10 +1,18 @@
 [
   {
+    "date": "2026-07-01",
+    "changes": [
+      "Tiếp tục fix bug",
+      "Ảnh preview khi share link lên Slack hiển thị nhanh hơn",
+      "Người đăng menu có thể thống kê được tổng số lượng món cần mua",
+      "Người mua có thể xem được chi tiết món mua của mình trong màn hình quét QR Code",
+      "Fix bug"
+    ]
+  },
+  {
     "date": "2026-06-30",
     "changes": [
-      "Thêm trang \"Menu của tôi\": người đăng menu xem lại toàn bộ menu mình đã đăng theo từng ngày",
-      "Mỗi menu hiển thị số đơn đã đặt và số người đã chuyển khoản (đã trả Y/X)",
-      "Sửa nhanh tiêu đề và ghi chú của menu ngay trên trang, hoặc xoá menu, sao chép link, mở chi tiết"
+      "Thêm trang \"Menu của tôi\": xem lại menu đã đăng, số đơn, số người đã trả, chỉnh sửa hoặc xoá nhanh"
     ]
   },
   {

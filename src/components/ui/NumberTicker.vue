@@ -1,6 +1,6 @@
 <script setup>
 import { TransitionPresets, useElementVisibility, useTransition } from '@vueuse/core'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 
 const props = withDefaults(defineProps(), {
   value: 0,
@@ -41,6 +41,17 @@ watch(() => props.value, (newVal) => {
     transitionValue.value = props.direction === 'down' ? 0 : newVal
   }
 })
+
+onMounted(() => {
+  setTimeout(() => {
+    if (!hasBeenInView.value) {
+      hasBeenInView.value = true
+      transitionValue.value = props.direction === 'down' ? 0 : props.value
+      if (typeof stopWatcher === 'function') stopWatcher()
+    }
+  }, 400)
+})
+
 </script>
 
 <template>
