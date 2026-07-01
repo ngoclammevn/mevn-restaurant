@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import BorderBeam from './BorderBeam.vue'
 import BlurReveal from './BlurReveal.vue'
 
@@ -65,6 +65,28 @@ function fmt(val) {
   if (val == null) return ''
   return new Intl.NumberFormat('vi-VN').format(val) + 'đ'
 }
+
+const copied = ref(false)
+
+const copyText = computed(() => {
+  const lines = summary.value.map(e =>
+    `• ${e.displayName} ×${e.count}${e.total != null ? ` — ${fmt(e.total)}` : ''}`
+  )
+  const head = `🛒 DANH SÁCH CẦN MUA — ${totalParts.value} phần`
+  const tail = grandTotal.value != null ? `Tổng ${totalParts.value} phần: ${fmt(grandTotal.value)}` : ''
+  return [head, ...lines, tail].filter(Boolean).join('\n')
+})
+
+async function copyList() {
+  try {
+    await navigator.clipboard.writeText(copyText.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 1500)
+  } catch {
+    // ponytail: clipboard blocked (http / denied) — báo cho user tự copy tay
+    alert('Không copy được (trình duyệt chặn clipboard). Vui lòng copy thủ công.')
+  }
+}
 </script>
 
 <template>
@@ -74,7 +96,16 @@ function fmt(val) {
     <!-- Header -->
     <div class="osp-header">
       <span class="eyebrow">🛒 Danh sách cần mua</span>
-      <span class="badge badge--paid osp-badge">{{ totalParts }} phần</span>
+      <span class="osp-header-right">
+        <button
+          type="button"
+          class="osp-copy"
+          :class="{ 'osp-copy--done': copied }"
+          :title="copied ? 'Đã copy' : 'Copy danh sách'"
+          @click="copyList"
+        >{{ copied ? '✓' : '📋' }}</button>
+        <span class="badge badge--paid osp-badge">{{ totalParts }} phần</span>
+      </span>
     </div>
 
     <div class="osp-divider" />
@@ -125,6 +156,32 @@ function fmt(val) {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.4rem;
+}
+
+.osp-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.osp-copy {
+  border: 1px solid rgba(31, 110, 69, 0.3);
+  background: transparent;
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.45rem;
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.osp-copy:hover {
+  background: rgba(31, 110, 69, 0.1);
+}
+
+.osp-copy--done {
+  color: var(--primary-ink);
+  border-color: var(--primary);
 }
 
 .osp-badge {
