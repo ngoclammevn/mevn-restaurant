@@ -76,8 +76,11 @@
                 <span>Hỗ trợ quét và chuyển khoản từ mọi ứng dụng Ngân hàng (eBank) & Ví MoMo.</span>
               </div>
               <div class="tab-content-grid">
-                <div class="qr-container">
-                  <img :src="vietQrUrl" class="qr-img" />
+                <div class="qr-container-wrapper">
+                  <div class="qr-container">
+                    <img :src="vietQrUrl" class="qr-img" />
+                  </div>
+                  <button class="btn-download" type="button" @click="downloadQr('vietqr')">⬇ Tải mã QR</button>
                 </div>
 
                 <!-- Structured payment details card -->
@@ -123,6 +126,7 @@
                   <div class="qr-container">
                     <img :src="momoQrUrl" class="qr-img" />
                   </div>
+                  <button class="btn-download" type="button" @click="downloadQr('momo')">⬇ Tải mã QR</button>
                 </div>
 
                 <!-- Structured momo details card -->
@@ -339,6 +343,27 @@ onMounted(() => {
   }
 })
 
+async function downloadQr(tab) {
+  const url = tab === 'momo' ? momoQrUrl.value : vietQrUrl.value
+  const filename = `QR-${(memo.value || 'thanh-toan').replace(/\s+/g, '-')}.png`
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error('fetch failed')
+    const blob = await res.blob()
+    const objUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objUrl
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(objUrl)
+  } catch {
+    // ponytail: CORS/offline can block fetch → open image so user can save manually
+    window.open(url, '_blank')
+  }
+}
+
 function confirmPaid() {
   emit('paid')
 }
@@ -532,6 +557,7 @@ function confirmPaid() {
 .qr-container-wrapper {
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
 .qr-container {
@@ -549,6 +575,28 @@ function confirmPaid() {
   height: auto;
 }
 
+.btn-download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-soft);
+  color: var(--primary);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-download:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
 .payment-details-card {
   background: var(--bg-soft);
   border-radius: 10px;
@@ -562,24 +610,35 @@ function confirmPaid() {
 }
 .detail-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(0,0,0,0.03);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 .detail-row:last-child {
   border-bottom: none;
 }
 .detail-label {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
 }
 .detail-value {
   font-size: var(--fs-sm);
   color: var(--ink);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  min-width: 0;
+}
+.detail-value > .font-mono,
+.detail-value > .font-bold {
+  word-break: break-word;
+  min-width: 0;
 }
 .font-bold {
   font-weight: 700;
@@ -603,6 +662,7 @@ function confirmPaid() {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 .btn-copy:hover {

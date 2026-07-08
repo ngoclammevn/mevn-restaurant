@@ -1,5 +1,13 @@
 [
   {
+    "date": "2026-07-08",
+    "changes": [
+      "Thêm nút tải mã QR chuyển khoản (VietQR & MoMo) về máy",
+      "Sửa bố cục màn hình quét QR bị vỡ trên điện thoại, thông tin chuyển khoản hiển thị gọn gàng hơn",
+      "Sửa lỗi nút đặt món bị che trên điện thoại"
+    ]
+  },
+  {
     "date": "2026-07-01",
     "changes": [
       "Tiếp tục fix bug",

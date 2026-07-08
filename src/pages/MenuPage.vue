@@ -419,7 +419,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div>
+  <div class="menu-page">
     <div style="margin-bottom: 1.5rem;">
       <router-link to="/" class="back-link">
         ← Quay lại trang Hôm nay
@@ -1008,6 +1008,10 @@ onUnmounted(() => {
   flex-shrink: 0; animation: pdot 2s ease-in-out infinite;
 }
 @keyframes pdot { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+/* Mobile: clear space so the fixed presence-pill never covers the order form */
+.menu-page { padding-bottom: 8rem; }
+@media (min-width: 1080px) { .menu-page { padding-bottom: 0; } }
 
 /* Mobile pill */
 .presence-avs { display: flex; }
