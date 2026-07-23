@@ -264,6 +264,23 @@ describe('menu deadline UX', () => {
     wrapper.unmount()
   })
 
+  it('keeps valid legacy note data when legacy picks JSON is invalid', async () => {
+    getMenu.mockResolvedValue({
+      data: makeMenu({ order_deadline: '2026-07-23T04:00:00.000Z', orders: [] }),
+      error: null,
+    })
+    localStorage.setItem('picks_menu_menu_1', '{invalid-json')
+    sessionStorage.setItem('draft_note_menu_menu_1', 'Ít cơm')
+
+    const wrapper = mount(MenuPage, { global })
+    await flushPromises()
+
+    expect(wrapper.vm.draft.note).toBe('Ít cơm')
+    expect(localStorage.getItem('picks_menu_menu_1')).toBeNull()
+    expect(sessionStorage.getItem('draft_note_menu_menu_1')).toBeNull()
+    wrapper.unmount()
+  })
+
   it('shows a deadline and keeps payment available while hiding Today order editing after close', async () => {
     const wrapper = mount(TodayPage, { global })
     await flushPromises()

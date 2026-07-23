@@ -254,7 +254,12 @@ function migrateLegacyDraft() {
 
   try {
     if (localStorage.getItem(`lunch-order-draft:v1:${menu.value.id}`)) return
-    const parsedLegacyPicks = JSON.parse(localStorage.getItem(`picks_menu_${menu.value.id}`) || '[]')
+    let parsedLegacyPicks = []
+    try {
+      parsedLegacyPicks = JSON.parse(localStorage.getItem(`picks_menu_${menu.value.id}`) || '[]')
+    } catch {
+      parsedLegacyPicks = []
+    }
     const legacyPicks = Array.isArray(parsedLegacyPicks)
       ? parsedLegacyPicks.filter((name) => typeof name === 'string')
       : []
