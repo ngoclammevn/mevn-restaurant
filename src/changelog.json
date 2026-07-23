@@ -25,7 +25,8 @@
       "Cải thiện kiểm tra định dạng thời hạn đặt món để giờ có múi giờ vẫn hoạt động đúng",
       "Chuẩn hoá giá món từ menu OCR khi lưu chỉnh sửa",
       "Cơ sở dữ liệu tự chặn đơn mới và sửa đơn sau hạn chót",
-      "Đồng bộ payload tạo/sửa menu với hạn chót đặt món"
+      "Đồng bộ payload tạo/sửa menu với hạn chót đặt món",
+      "Sửa lỗi cập nhật tiêu đề hoặc ghi chú không làm mất hạn chót đặt món"
     ]
   },
   {

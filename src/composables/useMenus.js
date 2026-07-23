@@ -52,9 +52,15 @@ export function useMenus() {
   }
 
   // RLS menus_update already limits title, note, and deadline edits to the poster.
-  async function updateMenu({ id, title, note = null, order_deadline = null }) {
+  async function updateMenu(input) {
+    const { id, title, note = null } = input
+    const payload = { title, note }
+    if (Object.hasOwn(input, 'order_deadline')) {
+      payload.order_deadline = input.order_deadline
+    }
+
     return sb.from('menus')
-      .update({ title, note, order_deadline })
+      .update(payload)
       .eq('id', id)
       .select()
       .single()

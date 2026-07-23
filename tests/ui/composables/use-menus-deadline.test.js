@@ -73,6 +73,19 @@ describe('useMenus deadline payloads', () => {
     })
   })
 
+  it('preserves the deadline when an existing caller omits it', async () => {
+    await useMenus().updateMenu({
+      id: 'menu_1',
+      title: 'Cơm trưa',
+      note: 'Chỉ sửa ghi chú',
+    })
+
+    expect(api.update).toHaveBeenCalledWith({
+      title: 'Cơm trưa',
+      note: 'Chỉ sửa ghi chú',
+    })
+  })
+
   it('loads ordered item text for the menu editor usage locks', async () => {
     await useMenus().listMyMenus()
 
