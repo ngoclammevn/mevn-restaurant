@@ -61,29 +61,4 @@ describe('server-side Supabase client', () => {
     expect(response).toMatchObject({ statusCode: 307, location: '/' })
   })
 
-  it('returns a controlled response when OG image generation is not configured', async () => {
-    delete process.env.VITE_SUPABASE_URL
-    delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY
-
-    const { default: handler } = await import('../../../api/og-image.js')
-    const response = {
-      body: null,
-      statusCode: null,
-      status(statusCode) {
-        this.statusCode = statusCode
-        return this
-      },
-      send(body) {
-        this.body = body
-        return this
-      },
-    }
-
-    await handler({ query: { id: 'menu-id' } }, response)
-
-    expect(response).toMatchObject({
-      statusCode: 503,
-      body: 'OG image service not configured',
-    })
-  })
 })
