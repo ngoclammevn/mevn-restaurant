@@ -23,6 +23,19 @@ describe('AppBottomNav', () => {
       'Quản lý',
     ])
   })
+
+  it.each(['/manage/menus', '/manage/payments'])(
+    'keeps Quản lý active at %s',
+    async (path) => {
+      await router.push(path)
+      await router.isReady()
+      const wrapper = mount(AppBottomNav, {
+        global: { plugins: [router] },
+      })
+
+      expect(wrapper.get('a[href="/manage"]').classes()).toContain('router-link-active')
+    },
+  )
 })
 
 describe('ManageTabs', () => {

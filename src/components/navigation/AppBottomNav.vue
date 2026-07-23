@@ -3,7 +3,7 @@ const items = [
   { to: '/', label: 'Hôm nay', icon: '🍱' },
   { to: '/post', label: 'Đăng menu', icon: '＋' },
   { to: '/history', label: 'Đơn của tôi', icon: '◷' },
-  { to: '/manage/menus', label: 'Quản lý', icon: '☰' },
+  { to: '/manage', label: 'Quản lý', icon: '☰' },
 ]
 </script>
 

@@ -21,7 +21,7 @@ const nav = [
   { to: '/', label: 'Hôm nay' },
   { to: '/post', label: 'Đăng menu' },
   { to: '/history', label: 'Đơn của tôi' },
-  { to: '/manage/menus', label: 'Quản lý' },
+  { to: '/manage', label: 'Quản lý' },
 ]
 
 const latestDate = changelog[0]?.date ?? ''
@@ -37,7 +37,7 @@ const showSignIn = ref(false)
         <span class="brand-dot">🍱</span> Cơm Trưa
       </router-link>
       <nav class="app-nav">
-        <router-link v-for="l in nav" :key="l.to" :to="l.to" class="nav-link" exact-active-class="router-link-active">
+        <router-link v-for="l in nav" :key="l.to" :to="l.to" class="nav-link">
           {{ l.label }}
         </router-link>
       </nav>
