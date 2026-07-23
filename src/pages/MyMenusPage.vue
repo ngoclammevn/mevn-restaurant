@@ -1,5 +1,6 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { formatVNDate } from '../lib/date'
 import {
@@ -8,19 +9,31 @@ import {
   AppButton,
   TextField,
   TextArea,
-  Spinner,
-  EmptyState,
+  AsyncState,
+  SignedOutState,
+  SignInModal,
 } from '../components/ui'
 
 const { listMyMenus, updateMenu, deleteMenu } = useMenus()
+const { isLoaded, isSignedIn } = useUser()
 
 const loading = ref(true)
 const errorMsg = ref('')
 const menus = ref([])
+const showSignIn = ref(false)
 
 onMounted(load)
+watch([isLoaded, isSignedIn], ([loaded]) => {
+  if (loaded) load()
+})
 
 async function load() {
+  if (!isLoaded.value || !isSignedIn.value) {
+    loading.value = false
+    menus.value = []
+    return
+  }
+
   loading.value = true
   errorMsg.value = ''
   const { data, error } = await listMyMenus()
@@ -135,20 +148,27 @@ async function confirmDeleteMenu(menu) {
       sub="Các menu bạn đã đăng và tình hình đặt món của mỗi menu."
     />
 
-    <Spinner v-if="loading" label="Đang tải menu…" />
+    <SignedOutState
+      v-if="isLoaded && !isSignedIn"
+      description="Đăng nhập để xem và quản lý các menu bạn đã đăng."
+      @sign-in="showSignIn = true"
+    />
 
-    <p v-else-if="errorMsg" class="alert">{{ errorMsg }}</p>
-
-    <EmptyState
-      v-else-if="menus.length === 0"
-      icon="🍱"
-      title="Bạn chưa đăng menu nào"
-      description="Đăng một menu để mọi người đặt cơm trưa."
+    <AsyncState
+      v-else
+      :loading="!isLoaded || loading"
+      loading-label="Đang tải menu…"
+      :error="errorMsg"
+      :empty="menus.length === 0"
+      empty-icon="🍱"
+      empty-title="Bạn chưa đăng menu nào"
+      empty-description="Đăng một menu để mọi người đặt cơm trưa."
+      @retry="load"
     >
-      <AppButton :to="'/post'">Đăng cơm</AppButton>
-    </EmptyState>
-
-    <div v-else class="stack">
+      <template #empty-action>
+        <AppButton :to="'/post'">Đăng cơm</AppButton>
+      </template>
+      <div class="stack">
       <section
         v-for="group in groupedByDay"
         :key="group.date"
@@ -233,7 +253,9 @@ async function confirmDeleteMenu(menu) {
           </div>
         </AppCard>
       </section>
-    </div>
+      </div>
+    </AsyncState>
+    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
   </div>
 </template>
 

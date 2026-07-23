@@ -7,7 +7,8 @@
       "Hoàn thiện ba kế hoạch triển khai cho giao diện, đặt món nhanh và khu quản lý",
       "Chuẩn bị nhánh triển khai riêng để cải thiện giao diện an toàn",
       "Sửa bộ kiểm thử bảo mật để chạy ổn định với Supabase local mới",
-      "Cải thiện khả năng đọc và sử dụng bàn phím cho biểu mẫu"
+      "Cải thiện khả năng đọc và sử dụng bàn phím cho biểu mẫu",
+      "Hiển thị hướng dẫn đăng nhập và nút thử lại nhất quán trên mọi màn hình"
     ]
   },
   {

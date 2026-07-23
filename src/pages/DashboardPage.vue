@@ -3,23 +3,37 @@ import { ref, watch, onMounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useDashboard } from '../composables/useDashboard'
 import { todayInVN, formatVNDate } from '../lib/date'
-import { PageHeader, AppCard, Avatar, Spinner, EmptyState } from '../components/ui'
+import {
+  PageHeader,
+  AppCard,
+  Avatar,
+  AsyncState,
+  SignedOutState,
+  SignInModal,
+} from '../components/ui'
 
-const { user } = useUser()
+const { isLoaded, isSignedIn } = useUser()
 const { unpaidByPersonForMyMenus } = useDashboard()
 
 const date = ref(todayInVN())
 const loading = ref(true)
 const errorMsg = ref('')
 const people = ref([])
+const showSignIn = ref(false)
 
 onMounted(load)
 watch(date, load)
-watch(user, () => {
-  load()
+watch([isLoaded, isSignedIn], ([loaded]) => {
+  if (loaded) load()
 })
 
 async function load() {
+  if (!isLoaded.value || !isSignedIn.value) {
+    loading.value = false
+    people.value = []
+    return
+  }
+
   loading.value = true
   errorMsg.value = ''
   const { data, error } = await unpaidByPersonForMyMenus(date.value)
@@ -41,34 +55,34 @@ async function load() {
       sub="Danh sách người chưa trả trên các menu bạn đăng."
     />
 
-    <!-- Date picker -->
-    <div class="field" style="max-width: 18rem; margin-bottom: 1.5rem;">
-      <label for="dashboard-date">Ngày</label>
-      <input
-        id="dashboard-date"
-        v-model="date"
-        type="date"
-        class="input"
-      />
-    </div>
-
-    <!-- Loading -->
-    <Spinner v-if="loading" label="Đang tải…" />
+    <SignedOutState
+      v-if="isLoaded && !isSignedIn"
+      description="Đăng nhập để xem các khoản chưa thanh toán trên menu bạn đăng."
+      @sign-in="showSignIn = true"
+    />
 
     <template v-else>
-      <!-- Error -->
-      <p v-if="errorMsg" class="alert">{{ errorMsg }}</p>
+      <div v-if="isLoaded" class="field" style="max-width: 18rem; margin-bottom: 1.5rem;">
+        <label for="dashboard-date">Ngày</label>
+        <input
+          id="dashboard-date"
+          v-model="date"
+          type="date"
+          class="input"
+        />
+      </div>
 
-      <!-- Empty state -->
-      <EmptyState
-        v-else-if="people.length === 0"
-        icon="🎉"
-        title="Không có ai chưa trả cho ngày này"
-        :description="`${formatVNDate(date)} — mọi người đã chuyển khoản hoặc chưa có đơn nào.`"
+      <AsyncState
+        :loading="!isLoaded || loading"
+        :error="errorMsg"
+        :empty="people.length === 0"
+        empty-icon="🎉"
+        empty-title="Không có ai chưa trả cho ngày này"
+        :empty-description="`${formatVNDate(date)} — mọi người đã chuyển khoản hoặc chưa có đơn nào.`"
+        @retry="load"
       />
 
-      <!-- Unpaid list -->
-      <template v-else>
+      <template v-if="isLoaded && !loading && !errorMsg && people.length">
         <!-- Summary count -->
         <div class="row-wrap" style="margin-bottom: 1rem;">
           <span class="badge badge--unpaid">{{ people.length }} người chưa chuyển khoản</span>
@@ -109,5 +123,6 @@ async function load() {
         </div>
       </template>
     </template>
+    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
   </div>
 </template>

@@ -5,15 +5,15 @@ import { useOrders } from '../composables/useOrders'
 import { formatVNDate } from '../lib/date'
 import {
   PageHeader,
-  Spinner,
-  EmptyState,
+  AsyncState,
+  SignedOutState,
   AppButton,
   PaidStamp,
   SignInModal,
 } from '../components/ui'
 
 const { listMyOrders } = useOrders()
-const { user, isSignedIn } = useUser()
+const { user, isLoaded, isSignedIn } = useUser()
 const showSignIn = ref(false)
 
 const loading = ref(true)
@@ -26,8 +26,9 @@ watch(user, () => {
 })
 
 async function load() {
-  if (!isSignedIn.value) {
+  if (!isLoaded.value || !isSignedIn.value) {
     loading.value = false
+    orders.value = []
     return
   }
   loading.value = true
@@ -99,31 +100,28 @@ function displayOrderItemText(order) {
       sub="Toàn bộ các đơn bạn đã đặt, mới nhất trước."
     />
 
-    <div v-if="!isSignedIn" style="margin-top: 1.5rem">
-      <EmptyState
-        title="Chưa đăng nhập"
-        description="Vui lòng đăng nhập để xem lịch sử đặt cơm của bạn."
-        icon="🔒"
-      >
-        <AppButton @click="showSignIn = true">Đăng nhập</AppButton>
-      </EmptyState>
-    </div>
+    <SignedOutState
+      v-if="isLoaded && !isSignedIn"
+      description="Đăng nhập để xem lịch sử đặt cơm của bạn."
+      @sign-in="showSignIn = true"
+    />
 
-    <div v-else>
-      <Spinner v-if="loading" label="Đang tải đơn…" />
-
-    <p v-else-if="errorMsg" class="alert">{{ errorMsg }}</p>
-
-    <EmptyState
-      v-else-if="groupedByDay.length === 0"
-      icon="🍱"
-      title="Bạn chưa đặt món nào"
-      description="Vào màn hình Hôm nay để đặt cơm trưa đầu tiên của bạn."
+    <AsyncState
+      v-else
+      :loading="!isLoaded || loading"
+      loading-label="Đang tải đơn…"
+      :error="errorMsg"
+      :empty="groupedByDay.length === 0"
+      empty-icon="🍱"
+      empty-title="Bạn chưa đặt món nào"
+      empty-description="Vào màn hình Hôm nay để đặt cơm trưa đầu tiên của bạn."
+      @retry="load"
     >
-      <AppButton :to="'/'">Đến Hôm nay</AppButton>
-    </EmptyState>
+      <template #empty-action>
+        <AppButton :to="'/'">Đến Hôm nay</AppButton>
+      </template>
 
-    <div v-else class="stack">
+    <div class="stack">
       <p v-if="unpaidCount > 0" class="unpaid-banner">
         Bạn còn {{ unpaidCount }} đơn chưa trả
       </p>
@@ -162,7 +160,7 @@ function displayOrderItemText(order) {
         </router-link>
       </section>
     </div>
-    </div>
+    </AsyncState>
     <SignInModal v-if="showSignIn" @close="showSignIn = false" />
   </div>
 </template>

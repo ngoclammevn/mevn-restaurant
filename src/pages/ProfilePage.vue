@@ -2,11 +2,22 @@
 import { ref, watch, onMounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useProfile } from '../composables/useProfile'
-import { AppCard, AppButton, Avatar, TextField, TextArea, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
+import {
+  AppCard,
+  AppButton,
+  Avatar,
+  TextField,
+  TextArea,
+  PageHeader,
+  AsyncState,
+  SignedOutState,
+  SignInModal,
+} from '../components/ui'
 
-const { user, isSignedIn } = useUser()
+const { user, isLoaded, isSignedIn } = useUser()
 const { getProfile, updateProfile } = useProfile()
 const loading = ref(true)
+const loadError = ref('')
 const saving = ref(false)
 const errorMsg = ref('')
 const saved = ref(false)
@@ -49,10 +60,19 @@ watch(user, () => {
 })
 
 async function load() {
+  if (!isLoaded.value || !isSignedIn.value) {
+    loading.value = false
+    return
+  }
+
   loading.value = true
+  loadError.value = ''
   const uid = user.value?.id
   if (!uid) { loading.value = false; return }
-  const { data } = await getProfile(uid)
+  const { data, error } = await getProfile(uid)
+  if (error) {
+    loadError.value = 'Không tải được hồ sơ. Kiểm tra kết nối rồi thử lại.'
+  }
   if (data) {
     form.value = {
       full_name: data.full_name ?? '',
@@ -115,20 +135,21 @@ async function save() {
       sub="Tên và thông tin chuyển khoản này hiện trên mọi menu bạn đăng."
     />
 
-    <div v-if="!isSignedIn" style="margin-top: 1.5rem">
-      <EmptyState
-        title="Chưa đăng nhập"
-        description="Đăng nhập để cập nhật tên hiển thị và thông tin chuyển khoản của bạn."
-        icon="👤"
-      >
-        <AppButton @click="showSignIn = true">Đăng nhập</AppButton>
-      </EmptyState>
-    </div>
+    <SignedOutState
+      v-if="isLoaded && !isSignedIn"
+      description="Đăng nhập để cập nhật tên hiển thị và thông tin chuyển khoản của bạn."
+      icon="👤"
+      @sign-in="showSignIn = true"
+    />
 
-    <div v-else>
-      <Spinner v-if="loading" />
-
-      <AppCard v-else>
+    <AsyncState
+      v-else
+      :loading="!isLoaded || loading"
+      loading-label="Đang tải hồ sơ…"
+      :error="loadError"
+      @retry="load"
+    >
+      <AppCard>
       <div class="stack">
         <div class="row">
           <Avatar :src="user?.imageUrl" :name="user?.fullName || form.full_name" :size="46" />
@@ -195,8 +216,8 @@ async function save() {
         </form>
       </div>
     </AppCard>
+    </AsyncState>
     <SignInModal v-if="showSignIn" @close="showSignIn = false" />
-    </div>
   </div>
 </template>
 
