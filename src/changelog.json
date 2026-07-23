@@ -11,7 +11,8 @@
       "Hiển thị hướng dẫn đăng nhập và nút thử lại nhất quán trên mọi màn hình",
       "Thay thanh điều hướng mobile bằng 4 mục rõ ràng và gom chức năng quản lý vào một nơi",
       "Việt hoá màn hình đăng nhập và đưa Hồ sơ, cập nhật mới vào menu tài khoản",
-      "Giữ mục Quản lý được tô sáng khi chuyển giữa Menu của tôi và Thu tiền"
+      "Giữ mục Quản lý được tô sáng khi chuyển giữa Menu của tôi và Thu tiền",
+      "Sửa lỗi trang trắng khi chạy local và link chia sẻ bị lỗi trên một số phiên bản Node.js"
     ]
   },
   {

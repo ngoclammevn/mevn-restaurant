@@ -1,11 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
 import fs from 'fs'
 import path from 'path'
-
-const sb = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY
-)
+import { createServerSupabaseClient } from './_supabase.js'
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -27,6 +22,14 @@ export default async function handler(req, res) {
   const { id } = req.query
 
   if (!id) {
+    res.redirect(307, '/')
+    return
+  }
+
+  let sb
+  try {
+    sb = createServerSupabaseClient()
+  } catch {
     res.redirect(307, '/')
     return
   }

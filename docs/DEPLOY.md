@@ -129,12 +129,16 @@ vercel --prod
 
 ```json
 {
-  "devCommand": "vite",
+  "devCommand": "vite --port $PORT",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/share/:id", "destination": "/api/share/:id" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/share/:id", "destination": "/api/share?id=:id" },
+    { "source": "/menu/:id", "destination": "/api/share?id=:id" },
+    {
+      "source": "/((?!api/|@|src/|node_modules/|.*\\.[^/]+$).*)",
+      "destination": "/index.html"
+    }
   ]
 }
 ```

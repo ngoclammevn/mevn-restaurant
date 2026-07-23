@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
 import chromium from '@sparticuz/chromium-min'
 import puppeteer from 'puppeteer-core'
+import { createServerSupabaseClient } from './_supabase.js'
 
 // ── Palettes ────────────────────────────────────────────────────────────────
 const PALETTES = [
@@ -219,7 +219,13 @@ export default async function handler(req, res) {
   const id = req.query.id
   if (!id) { res.status(400).send('Missing id'); return }
 
-  const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+  let sb
+  try {
+    sb = createServerSupabaseClient()
+  } catch {
+    res.status(503).send('OG image service not configured')
+    return
+  }
 
   let menu = null
   try {
