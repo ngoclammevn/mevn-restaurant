@@ -36,6 +36,7 @@ export default async function handler(req, res) {
       .eq('id', id)
       .single()
     if (!error) menu = data
+    else console.error('Could not load share menu metadata')
   } catch {
     console.error('Could not load share menu metadata')
   }

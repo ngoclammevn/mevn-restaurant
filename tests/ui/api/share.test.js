@@ -1,4 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const createServerSupabaseClient = vi.hoisted(() => vi.fn())
+
+vi.mock('../../../api/_supabase.js', () => ({
+  createServerSupabaseClient,
+}))
+
 import handler from '../../../api/share'
 
 const originalUrl = process.env.VITE_SUPABASE_URL
@@ -11,6 +18,8 @@ afterEach(() => {
   else process.env.VITE_SUPABASE_URL = originalUrl
   if (originalKey === undefined) delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY
   else process.env.VITE_SUPABASE_PUBLISHABLE_KEY = originalKey
+  vi.restoreAllMocks()
+  createServerSupabaseClient.mockReset()
 })
 
 function makeResponse() {
@@ -87,5 +96,23 @@ describe('share metadata without anonymous table access', () => {
     expect(response.body).toContain(
       'content="https://lunch.example/api/og-image"',
     )
+  })
+
+  it('logs a generic error when Supabase returns an error', async () => {
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    createServerSupabaseClient.mockReturnValue({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: async () => ({ data: null, error: new Error('database detail') }),
+          }),
+        }),
+      }),
+    })
+
+    const response = await renderShare({ id: 'menu-3' })
+
+    expect(response.statusCode).toBe(200)
+    expect(logError).toHaveBeenCalledWith('Could not load share menu metadata')
   })
 })
