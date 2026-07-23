@@ -27,7 +27,8 @@
       "Cơ sở dữ liệu tự chặn đơn mới và sửa đơn sau hạn chót",
       "Đồng bộ payload tạo/sửa menu với hạn chót đặt món",
       "Sửa lỗi cập nhật tiêu đề hoặc ghi chú không làm mất hạn chót đặt món",
-      "Thêm editor trực quan cho menu OCR và trường hạn chót đồng bộ desktop/mobile"
+      "Thêm editor trực quan cho menu OCR và trường hạn chót đồng bộ desktop/mobile",
+      "Giải thích rõ các món bị khoá khi đã có đơn và giữ nguyên hạn chót cũ khi chỉ sửa menu"
     ]
   },
   {

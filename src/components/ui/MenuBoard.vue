@@ -117,6 +117,10 @@ function lockReason(name, field) {
   return ''
 }
 
+function lockReasonId(index, field) {
+  return `dish-${field}-lock-${index}`
+}
+
 // ── Edit mode actions ──
 function startEdit(index, field, value) {
   const dish = props.dishes[index]
@@ -291,6 +295,7 @@ function addNewGroup() {
               </div>
               <button v-else type="button" class="mb-dish-name mb-editable" :data-testid="`dish-name-${idx}`"
                 :disabled="isDishLocked(dish.name)" :title="lockReason(dish.name, 'name') || 'Nhấp để sửa'"
+                :aria-describedby="isDishLocked(dish.name) ? lockReasonId(idx, 'name') : undefined"
                 @click="startEdit(idx, 'name', dish.name)">{{ dish.name }}</button>
               <div v-if="editingItem?.index === idx && editingItem?.field === 'calories'" class="mb-inline-wrap" style="display:inline-flex;margin-left:.4rem">
                 <input :id="`mb-calories-${idx}`" v-model="editValue" type="text" inputmode="numeric"
@@ -315,12 +320,18 @@ function addNewGroup() {
                   @blur="saveEdit(idx)" @keyup.enter="saveEdit(idx)" />
               </div>
               <button v-else type="button" class="mb-dish-price mb-editable" :data-testid="`dish-price-${idx}`"
-                :disabled="isPriceLocked(dish.name)" :title="lockReason(dish.name, 'price') || 'Nhấp để sửa'" @click="startEdit(idx, 'price', dish.price)">
+                :disabled="isPriceLocked(dish.name)" :title="lockReason(dish.name, 'price') || 'Nhấp để sửa'"
+                :aria-describedby="isPriceLocked(dish.name) ? lockReasonId(idx, 'price') : undefined" @click="startEdit(idx, 'price', dish.price)">
                 {{ fmtDisplay(dish.price) ? fmtDisplay(dish.price) + 'đ' : '0đ' }}
               </button>
             </div>
             <button type="button" class="mb-delete-btn" :data-testid="`dish-remove-${idx}`" :disabled="isDishLocked(dish.name)"
-              :title="lockReason(dish.name, 'remove') || 'Xóa món'" @click="removeDish(idx)">✕</button>
+              :title="lockReason(dish.name, 'remove') || 'Xóa món'"
+              :aria-describedby="isDishLocked(dish.name) ? lockReasonId(idx, 'name') : undefined" @click="removeDish(idx)">✕</button>
+            <p v-if="isDishLocked(dish.name) || isPriceLocked(dish.name)" class="mb-lock-reasons">
+              <span v-if="isDishLocked(dish.name)" :id="lockReasonId(idx, 'name')">Không đổi tên hoặc xoá: món đã có người đặt.</span>
+              <span v-if="isPriceLocked(dish.name)" :id="lockReasonId(idx, 'price')">Không đổi giá: đã có đơn thanh toán.</span>
+            </p>
           </div>
           <div class="mb-add-row">
             <button type="button" class="mb-add-btn" @click="addDishInGroup('Khác')">+ Thêm món mới</button>
@@ -349,6 +360,7 @@ function addNewGroup() {
                   </div>
                   <button v-else type="button" class="mb-dish-name mb-editable" :data-testid="`dish-name-${dish.originalIndex}`"
                     :disabled="isDishLocked(dish.name)" :title="lockReason(dish.name, 'name') || 'Nhấp để sửa'"
+                    :aria-describedby="isDishLocked(dish.name) ? lockReasonId(dish.originalIndex, 'name') : undefined"
                     @click="startEdit(dish.originalIndex, 'name', dish.name)">{{ dish.name }}</button>
                   <div v-if="editingItem?.index === dish.originalIndex && editingItem?.field === 'calories'" class="mb-inline-wrap" style="display:inline-flex;margin-left:.4rem">
                     <input :id="`mb-calories-${dish.originalIndex}`" v-model="editValue" type="text" inputmode="numeric"
@@ -373,12 +385,18 @@ function addNewGroup() {
                       @blur="saveEdit(dish.originalIndex)" @keyup.enter="saveEdit(dish.originalIndex)" />
                   </div>
                   <button v-else type="button" class="mb-dish-price mb-editable" :data-testid="`dish-price-${dish.originalIndex}`"
-                    :disabled="isPriceLocked(dish.name)" :title="lockReason(dish.name, 'price') || 'Nhấp để sửa'" @click="startEdit(dish.originalIndex, 'price', dish.price)">
+                    :disabled="isPriceLocked(dish.name)" :title="lockReason(dish.name, 'price') || 'Nhấp để sửa'"
+                    :aria-describedby="isPriceLocked(dish.name) ? lockReasonId(dish.originalIndex, 'price') : undefined" @click="startEdit(dish.originalIndex, 'price', dish.price)">
                     {{ fmtDisplay(dish.price) ? fmtDisplay(dish.price) + 'đ' : '0đ' }}
                   </button>
                 </div>
                 <button type="button" class="mb-delete-btn" :data-testid="`dish-remove-${dish.originalIndex}`" :disabled="isDishLocked(dish.name)"
-                  :title="lockReason(dish.name, 'remove') || 'Xóa món'" @click="removeDish(dish.originalIndex)">✕</button>
+                  :title="lockReason(dish.name, 'remove') || 'Xóa món'"
+                  :aria-describedby="isDishLocked(dish.name) ? lockReasonId(dish.originalIndex, 'name') : undefined" @click="removeDish(dish.originalIndex)">✕</button>
+                <p v-if="isDishLocked(dish.name) || isPriceLocked(dish.name)" class="mb-lock-reasons">
+                  <span v-if="isDishLocked(dish.name)" :id="lockReasonId(dish.originalIndex, 'name')">Không đổi tên hoặc xoá: món đã có người đặt.</span>
+                  <span v-if="isPriceLocked(dish.name)" :id="lockReasonId(dish.originalIndex, 'price')">Không đổi giá: đã có đơn thanh toán.</span>
+                </p>
               </div>
             </div>
           </div>
@@ -456,6 +474,7 @@ function addNewGroup() {
 /* ── Dish row ── */
 .mb-dish-row {
   display: flex; align-items: baseline; gap: .4rem;
+  flex-wrap: wrap;
   padding: .28rem .4rem; border-radius: 4px;
   border: 1.5px solid transparent;
   transition: background .12s, border-color .12s;
@@ -479,6 +498,11 @@ button.mb-dish-name, button.mb-dish-price, button.mb-dish-description { appearan
 
 .mb-dish-price-cell { flex-shrink: 0; display: flex; align-items: center; }
 .mb-dish-price { font-weight: 600; font-size: var(--fs-sm); color: var(--ink); white-space: nowrap; }
+.mb-lock-reasons {
+  flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: .2rem .7rem;
+  margin: -.05rem 0 .05rem; color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.4;
+}
+.mb-lock-reasons span::before { content: '• '; color: #8c6e33; }
 
 .mb-pick-check { font-size: var(--fs-xs); color: var(--primary); font-weight: 700; width: 1rem; flex-shrink: 0; text-align: right; }
 

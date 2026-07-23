@@ -26,4 +26,14 @@ describe('OrderDeadlineField', () => {
     await wrapper.get('[data-testid="deadline-input"]').setValue('2026-07-23T08:00')
     expect(wrapper.get('[data-testid="deadline-error"]').text()).toContain('phải ở tương lai')
   })
+
+  it('keeps a persisted past deadline with seconds and milliseconds valid', () => {
+    const expired = '2026-07-23T02:00:30.123Z'
+    const wrapper = mount(OrderDeadlineField, {
+      props: { modelValue: expired, originalValue: expired, now: fixedNow },
+    })
+
+    expect(wrapper.get('[data-testid="deadline-input"]').element.value).toBe('2026-07-23T09:00')
+    expect(wrapper.find('[data-testid="deadline-error"]').exists()).toBe(false)
+  })
 })

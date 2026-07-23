@@ -33,6 +33,22 @@ describe('MenuEditorDialog', () => {
     expect(wrapper.get('[data-testid="dish-price-0"]').attributes('disabled')).toBeDefined()
   })
 
+  it('shows accessible reasons next to locked dish actions', () => {
+    const wrapper = mount(MenuEditorDialog, {
+      props: {
+        menu: structuredMenu,
+        orders: [{ item_text: 'Cơm gà', is_paid: true }],
+        open: true,
+      }, global,
+    })
+
+    expect(wrapper.get('#dish-name-lock-0').text()).toContain('đã có người đặt')
+    expect(wrapper.get('#dish-price-lock-0').text()).toContain('đã có đơn thanh toán')
+    expect(wrapper.get('[data-testid="dish-name-0"]').attributes('aria-describedby')).toBe('dish-name-lock-0')
+    expect(wrapper.get('[data-testid="dish-remove-0"]').attributes('aria-describedby')).toBe('dish-name-lock-0')
+    expect(wrapper.get('[data-testid="dish-price-0"]').attributes('aria-describedby')).toBe('dish-price-lock-0')
+  })
+
   it('keeps plain text menus in TextArea mode', () => {
     const wrapper = mount(MenuEditorDialog, {
       props: {

@@ -22,7 +22,7 @@ watch(() => props.modelValue, (value) => {
 const inputIso = computed(() => fromDeadlineInputValue(inputValue.value))
 const isPersistedValue = computed(() => {
   if (!inputIso.value || !props.originalValue) return false
-  return new Date(inputIso.value).getTime() === new Date(props.originalValue).getTime()
+  return inputValue.value === toDeadlineInputValue(props.originalValue)
 })
 const isPastNewValue = computed(() => Boolean(
   inputValue.value && inputIso.value && !isPersistedValue.value && new Date(inputIso.value) <= props.now,
