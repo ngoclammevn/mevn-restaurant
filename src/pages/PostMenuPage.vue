@@ -7,7 +7,7 @@ import { todayInVN, formatVNDate } from '../lib/date'
 import { compressImage, extractStructuredMenu } from '../lib/gemini'
 import { buildShareUrl } from '../lib/share'
 import { useSettings } from '../composables/useSettings'
-import { AppCard, AppButton, TextArea, TextField, PageHeader, FileUpload, DateField, MenuBoard, SignInModal } from '../components/ui'
+import { AppCard, AppButton, TextArea, TextField, PageHeader, FileUpload, DateField, MenuBoard, OrderDeadlineField, SignInModal } from '../components/ui'
 
 const { user } = useUser()
 const isGuest = computed(() => !user.value)
@@ -19,6 +19,7 @@ const { showCalories, setShowCalories } = useSettings()
 const menuDate = ref(todayInVN())
 const title = computed(() => `Đặt cơm trưa ngày ${formatVNDate(menuDate.value)}`)
 const note = ref('')
+const orderDeadline = ref(null)
 const imageFile = ref(null)
 const imagePreview = ref(null)
 
@@ -76,6 +77,7 @@ function saveFormState() {
   try {
     sessionStorage.setItem('post_menu_date', menuDate.value || '')
     sessionStorage.setItem('post_menu_note', note.value || '')
+    sessionStorage.setItem('post_menu_order_deadline', orderDeadline.value || '')
     sessionStorage.setItem('post_menu_use_ocr', String(useOcr.value))
     sessionStorage.setItem('post_menu_ocr_notes', ocrNotes.value || '')
     if (parsedDishes.value) {
@@ -95,6 +97,9 @@ function restoreFormState() {
 
     const savedNote = sessionStorage.getItem('post_menu_note')
     if (savedNote) note.value = savedNote
+
+    const savedDeadline = sessionStorage.getItem('post_menu_order_deadline')
+    if (savedDeadline) orderDeadline.value = savedDeadline
 
     const savedUseOcr = sessionStorage.getItem('post_menu_use_ocr')
     if (savedUseOcr) useOcr.value = savedUseOcr === 'true'
@@ -119,6 +124,7 @@ function clearFormState() {
   try {
     sessionStorage.removeItem('post_menu_date')
     sessionStorage.removeItem('post_menu_note')
+    sessionStorage.removeItem('post_menu_order_deadline')
     sessionStorage.removeItem('post_menu_use_ocr')
     sessionStorage.removeItem('post_menu_ocr_notes')
     sessionStorage.removeItem('post_menu_parsed_dishes')
@@ -139,7 +145,7 @@ function dataURLtoFile(dataurl, filename) {
   return new File([u8arr], filename, { type: mime })
 }
 
-watch([menuDate, note, useOcr, ocrNotes, parsedDishes], () => {
+watch([menuDate, note, orderDeadline, useOcr, ocrNotes, parsedDishes], () => {
   saveFormState()
 }, { deep: true })
 
@@ -148,6 +154,7 @@ onMounted(restoreFormState)
 function resetForm() {
   note.value = ''
   menuDate.value = todayInVN()
+  orderDeadline.value = null
   imageFile.value = null
   parsedDishes.value = null
   ocrNotes.value = ''
@@ -227,6 +234,7 @@ async function submit() {
     menu_date: menuDate.value || todayInVN(),
     note: finalNote,
     imageFile: imageFile.value,
+    order_deadline: orderDeadline.value,
   })
   posting.value = false
 
@@ -309,6 +317,8 @@ watch(statusMsg, (newVal) => {
             <fieldset :disabled="posting" style="border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem; width: 100%;">
               <!-- Date -->
               <DateField v-model="menuDate" label="Ngày" />
+
+              <OrderDeadlineField v-model="orderDeadline" />
 
               <!-- Title (auto-generated from date) -->
               <div class="field">
@@ -401,6 +411,8 @@ watch(statusMsg, (newVal) => {
 
               <!-- Right Column: Edit form -->
               <div class="ocr-form-panel stack">
+                <OrderDeadlineField v-model="orderDeadline" />
+
                 <!-- Toolbar: chỉ còn nút ẩn/hiện ảnh -->
                 <div v-if="imagePreview" class="ocr-toolbar">
                   <button type="button" class="ocr-toolbar-btn" @click="showImage = !showImage">

@@ -2,21 +2,21 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
+import { isDeadlineError } from '../composables/useOrders'
 import { formatVNDate } from '../lib/date'
 import { buildShareUrl } from '../lib/share'
 import {
   PageHeader,
   AppCard,
   AppButton,
-  TextField,
-  TextArea,
   AsyncState,
+  MenuEditorDialog,
   SignedOutState,
   SignInModal,
 } from '../components/ui'
 
 const { listMyMenus, updateMenu, deleteMenu } = useMenus()
-const { isLoaded, isSignedIn } = useUser()
+const { user, isLoaded, isSignedIn } = useUser()
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -79,41 +79,36 @@ function copyMenuLink(menu) {
   })
 }
 
-// ---- inline edit ----
-const editingId = ref(null)
-const editDraft = reactive({ title: '', note: '' })
+// ---- owner menu editor ----
+const selectedMenu = ref(null)
 const editSaving = ref(false)
 const editError = ref('')
 
-function startEdit(menu) {
-  editingId.value = menu.id
-  editDraft.title = menu.title ?? ''
-  editDraft.note = menu.note ?? ''
+function openMenuEditor(menu) {
+  selectedMenu.value = menu
   editError.value = ''
 }
 
-function cancelEdit() {
-  editingId.value = null
+function closeMenuEditor() {
+  selectedMenu.value = null
   editError.value = ''
 }
 
-async function saveEdit(menu) {
-  if (!editDraft.title.trim()) return
+async function saveMenuDraft(draft) {
+  if (!selectedMenu.value) return
   editSaving.value = true
   editError.value = ''
-  const { data, error } = await updateMenu({
-    id: menu.id,
-    title: editDraft.title.trim(),
-    note: editDraft.note.trim() || null,
-  })
+  const { data, error } = await updateMenu(draft)
   if (error) {
-    editError.value = 'Lưu thay đổi không thành công. Thử lại nhé.'
+    editError.value = isDeadlineError(error)
+      ? 'Menu đã chốt đơn. Hãy gia hạn hoặc bỏ hạn chót rồi thử lại.'
+      : 'Lưu thay đổi không thành công. Thử lại nhé.'
   } else if (data) {
-    const idx = menus.value.findIndex((m) => m.id === menu.id)
+    const idx = menus.value.findIndex((m) => m.id === draft.id)
     if (idx !== -1) {
-      menus.value[idx] = { ...menus.value[idx], title: data.title, note: data.note }
+      menus.value[idx] = { ...menus.value[idx], ...data, orders: menus.value[idx].orders }
     }
-    editingId.value = null
+    selectedMenu.value = null
   }
   editSaving.value = false
 }
@@ -183,79 +178,62 @@ async function confirmDeleteMenu(menu) {
 
         <AppCard v-for="menu in group.menus" :key="menu.id" ticket>
           <div class="stack-sm">
-            <!-- View mode -->
-            <template v-if="editingId !== menu.id">
-              <div class="row row-wrap menu-head">
-                <h2 class="section-title menu-title">{{ menu.title }}</h2>
-                <span class="spacer" />
-                <span class="badge">{{ orderStats(menu).total }} đơn</span>
-                <span
-                  class="badge"
-                  :class="orderStats(menu).paid === orderStats(menu).total ? 'badge--paid' : 'badge--unpaid'"
-                >
-                  đã trả {{ orderStats(menu).paid }}/{{ orderStats(menu).total }}
-                </span>
-              </div>
+            <div class="row row-wrap menu-head">
+              <h2 class="section-title menu-title">{{ menu.title }}</h2>
+              <span class="spacer" />
+              <span class="badge">{{ orderStats(menu).total }} đơn</span>
+              <span
+                class="badge"
+                :class="orderStats(menu).paid === orderStats(menu).total ? 'badge--paid' : 'badge--unpaid'"
+              >
+                đã trả {{ orderStats(menu).paid }}/{{ orderStats(menu).total }}
+              </span>
+            </div>
 
-              <p v-if="deleteErrors[menu.id]" class="alert">
-                {{ deleteErrors[menu.id] }}
-              </p>
+            <p v-if="deleteErrors[menu.id]" class="alert">
+              {{ deleteErrors[menu.id] }}
+            </p>
 
-              <div class="row row-wrap actions">
-                <AppButton variant="ghost" size="sm" :to="`/menu/${menu.id}`">
-                  Xem chi tiết
-                </AppButton>
-                <AppButton variant="ghost" size="sm" @click="copyMenuLink(menu)">
-                  {{ copiedMenuId === menu.id ? 'Đã chép ✓' : 'Sao chép link' }}
-                </AppButton>
-                <AppButton variant="ghost" size="sm" @click="startEdit(menu)">
-                  Sửa
-                </AppButton>
-                <AppButton
-                  variant="danger"
-                  size="sm"
-                  :loading="!!deletingMenus[menu.id]"
-                  @click="confirmDeleteMenu(menu)"
-                >
-                  Xoá
-                </AppButton>
-              </div>
-            </template>
-
-            <!-- Edit mode -->
-            <template v-else>
-              <div class="eyebrow">Sửa menu</div>
-              <TextField
-                v-model="editDraft.title"
-                label="Tiêu đề"
-                placeholder="Ví dụ: Cơm gà xối mỡ"
-              />
-              <TextArea
-                v-model="editDraft.note"
-                label="Ghi chú (tuỳ chọn)"
-                :rows="3"
-                placeholder="Thông tin thêm về menu, link đặt, v.v."
-              />
-              <p v-if="editError" class="alert">{{ editError }}</p>
-              <div class="row row-wrap actions">
-                <AppButton
-                  size="sm"
-                  :loading="editSaving"
-                  :disabled="!editDraft.title.trim()"
-                  @click="saveEdit(menu)"
-                >
-                  Lưu
-                </AppButton>
-                <AppButton variant="ghost" size="sm" @click="cancelEdit">
-                  Huỷ
-                </AppButton>
-              </div>
-            </template>
+            <div class="row row-wrap actions">
+              <AppButton variant="ghost" size="sm" :to="`/menu/${menu.id}`">
+                Xem chi tiết
+              </AppButton>
+              <AppButton variant="ghost" size="sm" @click="copyMenuLink(menu)">
+                {{ copiedMenuId === menu.id ? 'Đã chép ✓' : 'Sao chép link' }}
+              </AppButton>
+              <AppButton
+                v-if="menu.poster_id === user?.id"
+                :data-testid="`edit-menu-${menu.id}`"
+                variant="ghost"
+                size="sm"
+                @click="openMenuEditor(menu)"
+              >
+                Chỉnh sửa món
+              </AppButton>
+              <AppButton
+                variant="danger"
+                size="sm"
+                :loading="!!deletingMenus[menu.id]"
+                @click="confirmDeleteMenu(menu)"
+              >
+                Xoá
+              </AppButton>
+            </div>
           </div>
         </AppCard>
       </section>
       </div>
     </AsyncState>
+    <MenuEditorDialog
+      v-if="selectedMenu"
+      :menu="selectedMenu"
+      :orders="selectedMenu.orders ?? []"
+      :open="Boolean(selectedMenu)"
+      :saving="editSaving"
+      :error="editError"
+      @close="closeMenuEditor"
+      @save="saveMenuDraft"
+    />
     <SignInModal v-if="showSignIn" @close="showSignIn = false" />
   </div>
 </template>
