@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useUser, UserButton } from '@clerk/vue'
+import { useUser } from '@clerk/vue'
 import { useRoute } from 'vue-router'
 import { useProfile } from './composables/useProfile'
 import changelog from './changelog.json'
+import AccountMenu from './components/navigation/AccountMenu.vue'
 import AppBottomNav from './components/navigation/AppBottomNav.vue'
 import ChangelogModal from './components/ui/ChangelogModal.vue'
 import SignInModal from './components/ui/SignInModal.vue'
@@ -41,7 +42,7 @@ const showSignIn = ref(false)
         </router-link>
       </nav>
       <div class="user-action">
-        <UserButton v-if="isSignedIn" />
+        <AccountMenu v-if="isSignedIn" @show-changelog="showChangelog = true" />
         <AppButton v-else size="sm" @click="showSignIn = true">Đăng nhập</AppButton>
       </div>
     </header>

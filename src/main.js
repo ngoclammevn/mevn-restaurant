@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { clerkPlugin } from '@clerk/vue'
 import App from './App.vue'
+import { clerkLocalization } from './lib/clerkLocalization'
 import router from './router'
 import './styles/tokens.css'
 
@@ -9,5 +10,8 @@ if (!PUBLISHABLE_KEY) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY')
 
 createApp(App)
   .use(router)
-  .use(clerkPlugin, { publishableKey: PUBLISHABLE_KEY })
+  .use(clerkPlugin, {
+    publishableKey: PUBLISHABLE_KEY,
+    localization: clerkLocalization,
+  })
   .mount('#app')
