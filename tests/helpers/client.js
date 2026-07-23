@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import jwt from 'jsonwebtoken'
+import { getLocalSupabaseCredentials } from './localSupabase.js'
 
-// Default local Supabase values (supabase start)
-const SUPABASE_URL = 'http://127.0.0.1:54321'
-const ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRFA0NiK7kyqd6SIHDkIdLRJ3DVWu-DCE8v_MHr6Ipc'
-const SERVICE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hj04zWl196z2-SBc0'
-const JWT_SECRET = 'super-secret-jwt-token-with-at-least-32-characters-long'
+const {
+  url: SUPABASE_URL,
+  anonKey: ANON_KEY,
+  serviceRoleKey: SERVICE_KEY,
+  jwtSecret: JWT_SECRET,
+} = getLocalSupabaseCredentials()
 
 // Mint a fake Clerk-style JWT accepted by local Supabase PostgREST
 function makeToken(userId) {
@@ -33,4 +33,3 @@ export const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false },
   realtime: { transport: ws },
 })
-

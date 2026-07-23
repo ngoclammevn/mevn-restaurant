@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run tests/rls",
-    "test:watch": "vitest tests/rls"
+    "test": "node tests/helpers/runRlsTests.js",
+    "test:watch": "node tests/helpers/runRlsTests.js --watch"
   },
   "dependencies": {
     "@clerk/vue": "^2.4.5",

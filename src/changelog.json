@@ -5,7 +5,8 @@
       "Lên kế hoạch rút gọn luồng đặt món trên điện thoại và cải thiện khả năng sử dụng toàn ứng dụng",
       "Bổ sung thiết kế giao diện máy tính với ảnh menu gốc luôn hiển thị đầy đủ, không bị cắt",
       "Hoàn thiện ba kế hoạch triển khai cho giao diện, đặt món nhanh và khu quản lý",
-      "Chuẩn bị nhánh triển khai riêng để cải thiện giao diện an toàn"
+      "Chuẩn bị nhánh triển khai riêng để cải thiện giao diện an toàn",
+      "Sửa bộ kiểm thử bảo mật để chạy ổn định với Supabase local mới"
     ]
   },
   {
