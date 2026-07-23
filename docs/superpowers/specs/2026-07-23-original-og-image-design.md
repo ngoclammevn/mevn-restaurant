@@ -61,7 +61,8 @@ Every place that creates a share link must use one shared helper:
 
 - the success state after posting a menu;
 - the Today page share action;
-- the Menu page share action.
+- the Menu page share action;
+- the My Menus management page share action.
 
 The helper appends `image` only when `menu.image_url` is present. It preserves the short legacy
 URL for text-only menus.
