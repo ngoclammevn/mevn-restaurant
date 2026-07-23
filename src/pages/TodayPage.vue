@@ -5,6 +5,7 @@ import { useMenus } from '../composables/useMenus'
 import { useOrders } from '../composables/useOrders'
 import { todayInVN, formatVNDate, formatVNTime } from '../lib/date'
 import { autolink } from '../lib/autolink'
+import { buildShareUrl } from '../lib/share'
 import {
   AppCard,
   AppButton,
@@ -164,12 +165,12 @@ function isStructured(note) {
 
 const copiedMenuId = ref(null)
 
-function copyMenuLink(menuId) {
-  const url = `${window.location.origin}/share/${menuId}`
+function copyMenuLink(menu) {
+  const url = buildShareUrl(menu)
   navigator.clipboard.writeText(url).then(() => {
-    copiedMenuId.value = menuId
+    copiedMenuId.value = menu.id
     setTimeout(() => {
-      if (copiedMenuId.value === menuId) {
+      if (copiedMenuId.value === menu.id) {
         copiedMenuId.value = null
       }
     }, 2000)
@@ -247,7 +248,7 @@ onUnmounted(() => {
               <AppButton
                 variant="ghost"
                 size="sm"
-                @click="copyMenuLink(menu.id)"
+                @click="copyMenuLink(menu)"
               >
                 {{ copiedMenuId === menu.id ? 'Đã chép ✓' : 'Sao chép link' }}
               </AppButton>

@@ -5,6 +5,7 @@ import { gsap } from 'gsap'
 import { useMenus } from '../composables/useMenus'
 import { todayInVN, formatVNDate } from '../lib/date'
 import { compressImage, extractStructuredMenu } from '../lib/gemini'
+import { buildShareUrl } from '../lib/share'
 import { useSettings } from '../composables/useSettings'
 import { AppCard, AppButton, TextArea, TextField, PageHeader, FileUpload, DateField, MenuBoard, SignInModal } from '../components/ui'
 
@@ -24,13 +25,12 @@ const imagePreview = ref(null)
 const posting = ref(false)
 const errorMsg = ref('')
 const posted = ref(false)
-const createdMenuId = ref(null)
+const createdMenu = ref(null)
 const slackCopied   = ref(false)
 
 function copySlackLink() {
-  if (!createdMenuId.value) return
-  const url = `${window.location.origin}/share/${createdMenuId.value}`
-  navigator.clipboard.writeText(url).then(() => {
+  if (!createdMenu.value) return
+  navigator.clipboard.writeText(buildShareUrl(createdMenu.value)).then(() => {
     slackCopied.value = true
     setTimeout(() => { slackCopied.value = false }, 2000)
   }).catch(() => {})
@@ -222,7 +222,7 @@ async function submit() {
     })
   }
 
-  const { data: createdMenu, error } = await createMenu({
+  const { data: createdMenuRow, error } = await createMenu({
     title: title.value.trim(),
     menu_date: menuDate.value || todayInVN(),
     note: finalNote,
@@ -236,9 +236,7 @@ async function submit() {
   }
 
   posted.value = true
-  createdMenuId.value = createdMenu?.id ?? null
-  // Pre-warm og-image so Vercel CDN caches it before user shares to Slack
-  if (createdMenu?.id) fetch(`/api/og-image?id=${createdMenu.id}`).catch(() => {})
+  createdMenu.value = createdMenuRow ?? null
   resetForm()
 }
 
@@ -297,10 +295,10 @@ watch(statusMsg, (newVal) => {
           </div>
           <div class="row" style="flex-wrap: wrap; gap: 0.5rem;">
             <AppButton :to="'/'">Xem menu hôm nay</AppButton>
-            <AppButton variant="ghost" @click="copySlackLink" :disabled="!createdMenuId">
+            <AppButton variant="ghost" @click="copySlackLink" :disabled="!createdMenu">
               {{ slackCopied ? '✓ Đã copy!' : 'Copy link Slack' }}
             </AppButton>
-            <AppButton variant="ghost" @click="posted = false; createdMenuId = null">Đăng thêm menu</AppButton>
+            <AppButton variant="ghost" @click="posted = false; createdMenu = null">Đăng thêm menu</AppButton>
           </div>
         </template>
 

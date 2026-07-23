@@ -14,7 +14,8 @@
       "Giữ mục Quản lý được tô sáng khi chuyển giữa Menu của tôi và Thu tiền",
       "Sửa lỗi trang trắng khi chạy local và link chia sẻ bị lỗi trên một số phiên bản Node.js",
       "Chốt thiết kế dùng ảnh menu gốc cho bản xem trước khi chia sẻ",
-      "Lập kế hoạch triển khai ảnh menu gốc và ảnh thương hiệu dự phòng cho link chia sẻ"
+      "Lập kế hoạch triển khai ảnh menu gốc và ảnh thương hiệu dự phòng cho link chia sẻ",
+      "Link chia sẻ menu giờ mang theo ảnh gốc do người đăng tải lên"
     ]
   },
   {

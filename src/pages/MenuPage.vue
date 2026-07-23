@@ -7,6 +7,7 @@ import { useOrders } from '../composables/useOrders'
 import { usePresence, getPersonColor } from '../composables/usePresence'
 import { formatVNDate, formatVNTime } from '../lib/date'
 import { autolink } from '../lib/autolink'
+import { buildShareUrl } from '../lib/share'
 import {
   AppCard,
   AppButton,
@@ -386,7 +387,7 @@ async function confirmDeleteMenu() {
 
 function copyMenuLink() {
   if (!menu.value) return
-  const url = `${window.location.origin}/share/${menu.value.id}`
+  const url = buildShareUrl(menu.value)
   navigator.clipboard.writeText(url).then(() => {
     copied.value = true
     setTimeout(() => {

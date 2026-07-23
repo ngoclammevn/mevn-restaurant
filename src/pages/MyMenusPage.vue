@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { formatVNDate } from '../lib/date'
+import { buildShareUrl } from '../lib/share'
 import {
   PageHeader,
   AppCard,
@@ -66,12 +67,12 @@ function orderStats(menu) {
 
 // ---- copy link ----
 const copiedMenuId = ref(null)
-function copyMenuLink(menuId) {
-  const url = `${window.location.origin}/menu/${menuId}`
+function copyMenuLink(menu) {
+  const url = buildShareUrl(menu)
   navigator.clipboard.writeText(url).then(() => {
-    copiedMenuId.value = menuId
+    copiedMenuId.value = menu.id
     setTimeout(() => {
-      if (copiedMenuId.value === menuId) copiedMenuId.value = null
+      if (copiedMenuId.value === menu.id) copiedMenuId.value = null
     }, 2000)
   }).catch((err) => {
     console.error('Failed to copy link: ', err)
@@ -204,7 +205,7 @@ async function confirmDeleteMenu(menu) {
                 <AppButton variant="ghost" size="sm" :to="`/menu/${menu.id}`">
                   Xem chi tiết
                 </AppButton>
-                <AppButton variant="ghost" size="sm" @click="copyMenuLink(menu.id)">
+                <AppButton variant="ghost" size="sm" @click="copyMenuLink(menu)">
                   {{ copiedMenuId === menu.id ? 'Đã chép ✓' : 'Sao chép link' }}
                 </AppButton>
                 <AppButton variant="ghost" size="sm" @click="startEdit(menu)">
