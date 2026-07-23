@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { createServerSupabaseClient } from './_supabase.js'
+import { buildOgImagePath } from './_og-image.js'
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -26,55 +27,50 @@ export default async function handler(req, res) {
     return
   }
 
-  let sb
-  try {
-    sb = createServerSupabaseClient()
-  } catch {
-    res.redirect(307, '/')
-    return
-  }
-
   let menu = null
   try {
+    const sb = createServerSupabaseClient()
     const { data, error } = await sb
       .from('menus')
       .select('id, title, menu_date, image_url, note, poster:profiles!menus_poster_id_fkey(full_name), orders(id)')
       .eq('id', id)
       .single()
     if (!error) menu = data
-  } catch {}
-
-  if (!menu) {
-    res.redirect(307, '/')
-    return
+  } catch {
+    console.error('Could not load share menu metadata')
   }
 
   const protocol = req.headers['x-forwarded-proto'] || 'https'
   const origin = `${protocol}://${req.headers.host}`
 
-  const posterName = menu.poster?.full_name ?? 'Unknown'
+  const posterName = menu?.poster?.full_name ?? 'Đồng nghiệp'
+  const menuTitle = menu?.title ?? 'Menu cơm trưa'
 
   // Parse OCR dishes from note JSON
   let dishCount = 0
   let dishNames = ''
   try {
-    const parsed = JSON.parse(menu.note)
+    const parsed = JSON.parse(menu?.note)
     if (parsed?.dishes?.length) {
       dishCount = parsed.dishes.length
       dishNames = parsed.dishes.slice(0, 3).map(d => d.name).join(', ')
     }
   } catch {}
 
-  const orderCount = menu.orders?.length ?? 0
-  const dateStr = formatDate(menu.menu_date)
+  const orderCount = menu?.orders?.length ?? 0
+  const dateStr = menu?.menu_date ? formatDate(menu.menu_date) : 'Hôm nay'
 
-  const ogTitle = `🍱 ${posterName} rủ đặt cơm trưa — ${menu.title}`
-  const ogDesc = dishCount > 0
-    ? `Hôm nay có ${dishCount} món ngon nè! ${dishNames}... • ${orderCount} người đã đặt rồi • ${dateStr} • Đặt nhanh kẻo hết chỗ nhé 😄`
-    : `${posterName} vừa đăng menu cơm trưa hôm nay! ${orderCount} người đã đặt • ${dateStr} • Click vào xem và đặt ngay nhé 🍽️`
+  const ogTitle = menu
+    ? `🍱 ${posterName} rủ đặt cơm trưa — ${menuTitle}`
+    : '🍱 Menu cơm trưa'
+  const ogDesc = menu
+    ? (dishCount > 0
+        ? `Hôm nay có ${dishCount} món ngon nè! ${dishNames}... • ${orderCount} người đã đặt rồi • ${dateStr} • Đặt nhanh kẻo hết chỗ nhé 😄`
+        : `${posterName} vừa đăng menu cơm trưa hôm nay! ${orderCount} người đã đặt • ${dateStr} • Click vào xem và đặt ngay nhé 🍽️`)
+    : 'Mở menu để xem món và đặt cơm cùng mọi người.'
   const seoDesc = ogDesc.replace(/[🍱😄🍽️]/gu, '').replace(/\s+/g, ' ').trim()
 
-  const ogImage = `${origin}/api/og-image?id=${id}`
+  const ogImage = `${origin}${buildOgImagePath(req.query.image)}`
   const menuUrl = `/menu/${id}`
 
   // Read the built SPA HTML file

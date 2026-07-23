@@ -42,23 +42,43 @@ describe('server-side Supabase client', () => {
     expect(response).toMatchObject({ statusCode: 307, location: '/' })
   })
 
-  it('fails safely when share metadata cannot access Supabase', async () => {
+  it('serves generic metadata when share metadata cannot access Supabase', async () => {
     delete process.env.VITE_SUPABASE_URL
     delete process.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
     const { default: handler } = await import('../../../api/share.js')
     const response = {
+      body: '',
+      headers: {},
       statusCode: null,
       location: null,
       redirect(statusCode, location) {
         this.statusCode = statusCode
         this.location = location
       },
+      setHeader(name, value) {
+        this.headers[name] = value
+      },
+      status(statusCode) {
+        this.statusCode = statusCode
+        return this
+      },
+      send(body) {
+        this.body = body
+        return this
+      },
     }
 
-    await handler({ query: { id: 'menu-id' } }, response)
+    await handler(
+      {
+        query: { id: 'menu-id' },
+        headers: { host: 'lunch.example', 'x-forwarded-proto': 'https' },
+      },
+      response,
+    )
 
-    expect(response).toMatchObject({ statusCode: 307, location: '/' })
+    expect(response.statusCode).toBe(200)
+    expect(response.body).toContain('<title>🍱 Menu cơm trưa</title>')
   })
 
 })

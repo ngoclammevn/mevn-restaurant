@@ -16,7 +16,8 @@
       "Chốt thiết kế dùng ảnh menu gốc cho bản xem trước khi chia sẻ",
       "Lập kế hoạch triển khai ảnh menu gốc và ảnh thương hiệu dự phòng cho link chia sẻ",
       "Link chia sẻ menu giờ mang theo ảnh gốc do người đăng tải lên",
-      "Ảnh xem trước khi chia sẻ luôn ưu tiên ảnh menu gốc và có ảnh mặc định an toàn"
+      "Ảnh xem trước khi chia sẻ luôn ưu tiên ảnh menu gốc và có ảnh mặc định an toàn",
+      "Link chia sẻ cũ vẫn mở được với ảnh thương hiệu khi chưa có ảnh menu"
     ]
   },
   {
