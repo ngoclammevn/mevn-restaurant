@@ -26,7 +26,8 @@
       "Chuẩn hoá giá món từ menu OCR khi lưu chỉnh sửa",
       "Cơ sở dữ liệu tự chặn đơn mới và sửa đơn sau hạn chót",
       "Đồng bộ payload tạo/sửa menu với hạn chót đặt món",
-      "Sửa lỗi cập nhật tiêu đề hoặc ghi chú không làm mất hạn chót đặt món"
+      "Sửa lỗi cập nhật tiêu đề hoặc ghi chú không làm mất hạn chót đặt món",
+      "Thêm editor trực quan cho menu OCR và trường hạn chót đồng bộ desktop/mobile"
     ]
   },
   {

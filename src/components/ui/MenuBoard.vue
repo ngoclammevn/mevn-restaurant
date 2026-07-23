@@ -10,6 +10,9 @@ const props = defineProps({
   notes:          { type: String,  default: '' },
   showCalories:   { type: Boolean, default: false },
   showCategories: { type: Boolean, default: true },
+  lockedDishNames: { type: [Array, Set], default: () => [] },
+  lockedPriceNames: { type: [Array, Set], default: () => [] },
+  orderedCounts: { type: [Object, Map], default: () => ({}) },
 })
 
 const emit = defineEmits(['update:dishes', 'update:notes', 'toggle-dish', 'hover-dish'])
@@ -92,8 +95,32 @@ function parsePrice(val) {
   return isNeg ? -num : num
 }
 
+function includesName(names, name) {
+  return names instanceof Set ? names.has(name) : names.includes?.(name)
+}
+
+function getOrderCount(name) {
+  return props.orderedCounts instanceof Map ? (props.orderedCounts.get(name) ?? 0) : (props.orderedCounts?.[name] ?? 0)
+}
+
+function isDishLocked(name) {
+  return includesName(props.lockedDishNames, name)
+}
+
+function isPriceLocked(name) {
+  return includesName(props.lockedPriceNames, name)
+}
+
+function lockReason(name, field) {
+  if (field === 'price' && isPriceLocked(name)) return 'Không thể đổi giá vì đã có đơn thanh toán.'
+  if (field === 'name' || field === 'remove') return 'Không thể đổi tên hoặc xoá món đã có người đặt.'
+  return ''
+}
+
 // ── Edit mode actions ──
 function startEdit(index, field, value) {
+  const dish = props.dishes[index]
+  if (!dish || (field === 'name' && isDishLocked(dish.name)) || (field === 'price' && isPriceLocked(dish.name))) return
   editingItem.value = { index, field }
   editValue.value = (field === 'price' || field === 'calories') ? String(value) : value
   nextTick(() => document.getElementById(`mb-${field}-${index}`)?.focus())
@@ -102,6 +129,17 @@ function startEdit(index, field, value) {
 function saveEdit(index) {
   if (!editingItem.value) return
   const field = editingItem.value.field
+  const currentDish = props.dishes[index]
+  if (!currentDish) return
+  if (field === 'price') {
+    const nextPrice = parsePrice(editValue.value)
+    const currentPrice = parsePrice(currentDish.price)
+    const affectedOrders = getOrderCount(currentDish.name)
+    if (nextPrice !== currentPrice && affectedOrders > 0 && !isPriceLocked(currentDish.name)) {
+      const message = `Giá mới sẽ cập nhật số tiền của ${affectedOrders} đơn chưa thanh toán`
+      if (typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm(message)) return
+    }
+  }
   const updated = props.dishes.map((d, i) => {
     if (i !== index) return d
     if (field === 'price')    return { ...d, price: parsePrice(editValue.value) }
@@ -137,6 +175,7 @@ function saveEditNotes() {
 }
 
 function removeDish(index) {
+  if (isDishLocked(props.dishes[index]?.name)) return
   emit('update:dishes', props.dishes.filter((_, i) => i !== index))
 }
 
@@ -250,7 +289,9 @@ function addNewGroup() {
                 <input :id="`mb-name-${idx}`" v-model="editValue" type="text" class="input mb-inline-input mb-name-input"
                   placeholder="Tên món" @blur="saveEdit(idx)" @keyup.enter="saveEdit(idx)" />
               </div>
-              <span v-else class="mb-dish-name mb-editable" @click="startEdit(idx, 'name', dish.name)" title="Nhấp để sửa">{{ dish.name }}</span>
+              <button v-else type="button" class="mb-dish-name mb-editable" :data-testid="`dish-name-${idx}`"
+                :disabled="isDishLocked(dish.name)" :title="lockReason(dish.name, 'name') || 'Nhấp để sửa'"
+                @click="startEdit(idx, 'name', dish.name)">{{ dish.name }}</button>
               <div v-if="editingItem?.index === idx && editingItem?.field === 'calories'" class="mb-inline-wrap" style="display:inline-flex;margin-left:.4rem">
                 <input :id="`mb-calories-${idx}`" v-model="editValue" type="text" inputmode="numeric"
                   class="input mb-inline-input mb-calo-input" placeholder="Kcal"
@@ -259,6 +300,12 @@ function addNewGroup() {
               <span v-else-if="showCalories" class="mb-calo-badge mb-editable" @click.stop="startEdit(idx, 'calories', dish.calories || 0)">
                 ⚡ {{ dish.calories || 0 }} kcal
               </span>
+              <div v-if="editingItem?.index === idx && editingItem?.field === 'description'" class="mb-inline-wrap mb-description-wrap">
+                <input :id="`mb-description-${idx}`" v-model="editValue" type="text" class="input mb-inline-input"
+                  placeholder="Mô tả món" @blur="saveEdit(idx)" @keyup.enter="saveEdit(idx)" />
+              </div>
+              <button v-else-if="dish.description" type="button" class="mb-dish-description mb-editable" @click="startEdit(idx, 'description', dish.description)">{{ dish.description }}</button>
+              <button v-else type="button" class="mb-dish-description mb-editable" @click="startEdit(idx, 'description', '')">+ Mô tả</button>
             </div>
             <div class="mb-dot-leader" />
             <div class="mb-dish-price-cell">
@@ -267,11 +314,13 @@ function addNewGroup() {
                   class="input mb-inline-input mb-price-input" placeholder="Giá"
                   @blur="saveEdit(idx)" @keyup.enter="saveEdit(idx)" />
               </div>
-              <span v-else class="mb-dish-price mb-editable" @click="startEdit(idx, 'price', dish.price)" title="Nhấp để sửa">
+              <button v-else type="button" class="mb-dish-price mb-editable" :data-testid="`dish-price-${idx}`"
+                :disabled="isPriceLocked(dish.name)" :title="lockReason(dish.name, 'price') || 'Nhấp để sửa'" @click="startEdit(idx, 'price', dish.price)">
                 {{ fmtDisplay(dish.price) ? fmtDisplay(dish.price) + 'đ' : '0đ' }}
-              </span>
+              </button>
             </div>
-            <button type="button" class="mb-delete-btn" @click="removeDish(idx)" title="Xóa món">✕</button>
+            <button type="button" class="mb-delete-btn" :data-testid="`dish-remove-${idx}`" :disabled="isDishLocked(dish.name)"
+              :title="lockReason(dish.name, 'remove') || 'Xóa món'" @click="removeDish(idx)">✕</button>
           </div>
           <div class="mb-add-row">
             <button type="button" class="mb-add-btn" @click="addDishInGroup('Khác')">+ Thêm món mới</button>
@@ -298,7 +347,9 @@ function addNewGroup() {
                       class="input mb-inline-input mb-name-input" placeholder="Tên món"
                       @blur="saveEdit(dish.originalIndex)" @keyup.enter="saveEdit(dish.originalIndex)" />
                   </div>
-                  <span v-else class="mb-dish-name mb-editable" @click="startEdit(dish.originalIndex, 'name', dish.name)" title="Nhấp để sửa">{{ dish.name }}</span>
+                  <button v-else type="button" class="mb-dish-name mb-editable" :data-testid="`dish-name-${dish.originalIndex}`"
+                    :disabled="isDishLocked(dish.name)" :title="lockReason(dish.name, 'name') || 'Nhấp để sửa'"
+                    @click="startEdit(dish.originalIndex, 'name', dish.name)">{{ dish.name }}</button>
                   <div v-if="editingItem?.index === dish.originalIndex && editingItem?.field === 'calories'" class="mb-inline-wrap" style="display:inline-flex;margin-left:.4rem">
                     <input :id="`mb-calories-${dish.originalIndex}`" v-model="editValue" type="text" inputmode="numeric"
                       class="input mb-inline-input mb-calo-input" placeholder="Kcal"
@@ -307,6 +358,12 @@ function addNewGroup() {
                   <span v-else-if="showCalories" class="mb-calo-badge mb-editable" @click.stop="startEdit(dish.originalIndex, 'calories', dish.calories || 0)">
                     ⚡ {{ dish.calories || 0 }} kcal
                   </span>
+                  <div v-if="editingItem?.index === dish.originalIndex && editingItem?.field === 'description'" class="mb-inline-wrap mb-description-wrap">
+                    <input :id="`mb-description-${dish.originalIndex}`" v-model="editValue" type="text" class="input mb-inline-input"
+                      placeholder="Mô tả món" @blur="saveEdit(dish.originalIndex)" @keyup.enter="saveEdit(dish.originalIndex)" />
+                  </div>
+                  <button v-else-if="dish.description" type="button" class="mb-dish-description mb-editable" @click="startEdit(dish.originalIndex, 'description', dish.description)">{{ dish.description }}</button>
+                  <button v-else type="button" class="mb-dish-description mb-editable" @click="startEdit(dish.originalIndex, 'description', '')">+ Mô tả</button>
                 </div>
                 <div class="mb-dot-leader" />
                 <div class="mb-dish-price-cell">
@@ -315,11 +372,13 @@ function addNewGroup() {
                       class="input mb-inline-input mb-price-input" placeholder="Giá"
                       @blur="saveEdit(dish.originalIndex)" @keyup.enter="saveEdit(dish.originalIndex)" />
                   </div>
-                  <span v-else class="mb-dish-price mb-editable" @click="startEdit(dish.originalIndex, 'price', dish.price)" title="Nhấp để sửa">
+                  <button v-else type="button" class="mb-dish-price mb-editable" :data-testid="`dish-price-${dish.originalIndex}`"
+                    :disabled="isPriceLocked(dish.name)" :title="lockReason(dish.name, 'price') || 'Nhấp để sửa'" @click="startEdit(dish.originalIndex, 'price', dish.price)">
                     {{ fmtDisplay(dish.price) ? fmtDisplay(dish.price) + 'đ' : '0đ' }}
-                  </span>
+                  </button>
                 </div>
-                <button type="button" class="mb-delete-btn" @click="removeDish(dish.originalIndex)" title="Xóa món">✕</button>
+                <button type="button" class="mb-delete-btn" :data-testid="`dish-remove-${dish.originalIndex}`" :disabled="isDishLocked(dish.name)"
+                  :title="lockReason(dish.name, 'remove') || 'Xóa món'" @click="removeDish(dish.originalIndex)">✕</button>
               </div>
             </div>
           </div>
@@ -407,10 +466,14 @@ function addNewGroup() {
 .mb-dish-row--picked { background: rgba(31,110,69,.08) !important; border-color: rgba(31,110,69,.25) !important; }
 .mb-dish-row--picked .mb-dish-name { color: var(--primary-ink) !important; font-weight: 600; }
 
-.mb-dish-name-cell { flex: 0 1 auto; max-width: 68%; display: flex; align-items: center; gap: .3rem; }
+.mb-dish-name-cell { flex: 0 1 auto; max-width: 68%; display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
 .mb-dish-name { font-size: .95rem; font-weight: 500; color: var(--ink); line-height: 1.4; }
+button.mb-dish-name, button.mb-dish-price, button.mb-dish-description { appearance: none; background: transparent; border: 0; padding: 0; font: inherit; text-align: left; }
+.mb-dish-description { flex-basis: 100%; color: var(--ink-soft); font-size: var(--fs-xs); font-style: italic; max-width: 100%; }
+.mb-description-wrap { margin-top: .2rem; }
 .mb-editable { cursor: pointer; border-bottom: 1px dashed transparent; transition: all .15s; }
 .mb-editable:hover { color: var(--primary-ink); border-bottom-color: rgba(140,110,51,.4); }
+.mb-editable:disabled { cursor: not-allowed; color: var(--muted); border-bottom: 0; }
 
 .mb-dot-leader { flex: 1; border-bottom: 1px dashed rgba(140,110,51,.35); margin-bottom: 3px; min-width: 1rem; }
 
@@ -434,6 +497,7 @@ function addNewGroup() {
   width: 18px; height: 18px; display: grid; place-items: center;
   border-radius: 50%; flex-shrink: 0; margin-left: .2rem;
 }
+.mb-delete-btn:disabled { cursor: not-allowed; opacity: .28; }
 .mb-dish-row--edit:hover .mb-delete-btn { opacity: .6; }
 .mb-dish-row--edit:hover .mb-delete-btn:hover { opacity: 1; color: var(--accent); background: var(--accent-soft); }
 
