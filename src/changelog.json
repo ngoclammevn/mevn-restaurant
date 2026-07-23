@@ -2,6 +2,7 @@
   {
     "date": "2026-07-23",
     "changes": [
+      "Kiểm tra lựa chọn món và quyền thanh toán rõ ràng hơn",
       "Giữ lại món đã chọn khi tải lại trang hoặc đăng nhập giữa chừng",
       "Lên kế hoạch rút gọn luồng đặt món trên điện thoại và cải thiện khả năng sử dụng toàn ứng dụng",
       "Bổ sung thiết kế giao diện máy tính với ảnh menu gốc luôn hiển thị đầy đủ, không bị cắt",
