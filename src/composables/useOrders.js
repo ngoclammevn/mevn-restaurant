@@ -1,6 +1,10 @@
 import { useUser } from '@clerk/vue'
 import { useSupabaseClient } from '../lib/supabase'
 
+export function isDeadlineError(error) {
+  return error?.message === 'ORDER_DEADLINE_PASSED'
+}
+
 export function useOrders() {
   const { user } = useUser()
   const sb = useSupabaseClient()

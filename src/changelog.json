@@ -24,7 +24,8 @@
       "Tách riêng logic chỉnh sửa menu OCR và trạng thái hạn chót đặt món",
       "Cải thiện kiểm tra định dạng thời hạn đặt món để giờ có múi giờ vẫn hoạt động đúng",
       "Chuẩn hoá giá món từ menu OCR khi lưu chỉnh sửa",
-      "Cơ sở dữ liệu tự chặn đơn mới và sửa đơn sau hạn chót"
+      "Cơ sở dữ liệu tự chặn đơn mới và sửa đơn sau hạn chót",
+      "Đồng bộ payload tạo/sửa menu với hạn chót đặt món"
     ]
   },
   {
