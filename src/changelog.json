@@ -2,6 +2,7 @@
   {
     "date": "2026-07-23",
     "changes": [
+      "Sau khi đặt món có lựa chọn thanh toán ngay hoặc để sau, đúng với người sở hữu đơn",
       "Không làm mất ghi chú cũ khi dữ liệu món nháp bị lỗi",
       "Tự loại món đã hết khỏi đơn nháp sau khi menu được cập nhật",
       "Không còn mất món đã chọn khi đăng nhập và luôn xác nhận trước khi gửi đơn",

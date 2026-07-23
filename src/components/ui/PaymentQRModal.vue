@@ -46,6 +46,7 @@
 
           <!-- RIGHT: all payment content -->
           <div class="payment-col stack-sm">
+            <template v-if="hasStructuredPayment">
             <!-- Prominent formatted price display -->
             <div class="amount-display-container">
               <div class="amount-label">Số tiền cần thanh toán</div>
@@ -157,7 +158,32 @@
               </div>
             </div>
 
-            <AppButton class="btn-confirm" @click="confirmPaid">Tôi đã chuyển tiền xong ✓</AppButton>
+            </template>
+
+            <section v-else class="payment-fallback stack-sm" aria-label="Thông tin thanh toán">
+              <p class="payment-fallback__title">Thông tin chuyển khoản</p>
+              <p class="payment-fallback__text">{{ rawPaymentInfo || 'Người đăng chưa thêm thông tin chuyển khoản.' }}</p>
+              <button
+                v-if="rawPaymentInfo"
+                data-testid="copy-payment-info"
+                type="button"
+                class="btn-copy payment-fallback__copy"
+                @click="copyText(rawPaymentInfo, 'payment-info')"
+              >
+                {{ copiedField === 'payment-info' ? 'Đã chép ✓' : 'Sao chép thông tin' }}
+              </button>
+              <div v-if="memo" class="detail-row">
+                <span class="detail-label">Nội dung CK</span>
+                <span class="detail-value">
+                  <code class="memo-code font-bold">{{ memo }}</code>
+                  <button class="btn-copy" type="button" @click="copyText(memo, 'memo')">
+                    {{ copiedField === 'memo' ? 'Đã chép ✓' : 'Sao chép' }}
+                  </button>
+                </span>
+              </div>
+            </section>
+
+            <AppButton data-testid="confirm-paid" class="btn-confirm" @click="confirmPaid">Tôi đã chuyển tiền xong ✓</AppButton>
           </div>
 
         </div>
@@ -168,10 +194,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import AppButton from './AppButton.vue'
 import BlurReveal from './BlurReveal.vue'
 import { LIST_BANKS } from '../../lib/banks'
+import { calculateSelection, exactDishMatches, parseStructuredMenu } from '../../lib/menuOrder'
 
 const props = defineProps({
   order: { type: Object, required: true },
@@ -229,6 +256,11 @@ const payInfo = computed(() => {
   }
 })
 
+const rawPaymentInfo = computed(() => props.poster?.payment_info?.trim() || '')
+const hasStructuredPayment = computed(() => Boolean(
+  (payInfo.value.bankId && payInfo.value.accountNumber) || payInfo.value.momoPhone,
+))
+
 const fullBankName = computed(() => {
   const bank = LIST_BANKS.find(b => b.code === payInfo.value.bankId)
   return bank ? `${bank.name} (${bank.code})` : payInfo.value.bankId
@@ -269,30 +301,20 @@ const orderLines = computed(() =>
 )
 
 const breakdown = computed(() => {
-  if (!props.menu?.note) return { mode: 'free-text', lines: orderLines.value }
-  try {
-    const parsed = JSON.parse(props.menu.note)
-    if (!Array.isArray(parsed.dishes)) return { mode: 'free-text', lines: orderLines.value }
+  const dishes = parseStructuredMenu(props.menu?.note)
+  const matchedDishes = exactDishMatches(props.order?.item_text, dishes)
+  const selection = calculateSelection(matchedDishes)
 
-    const items = orderLines.value.map(line => {
-      const cleanLine = line.trim().toLowerCase()
-      const dish = parsed.dishes.find(d => d.name?.trim().toLowerCase() === cleanLine)
-      return { name: line, price: dish?.price != null ? Number(dish.price) : null }
-    })
-
-    if (items.length === 0) return { mode: 'free-text', lines: [] }
-    if (items.every(item => item.price !== null)) {
-      return {
-        mode: 'priced',
-        items,
-        total: items.reduce((s, i) => s + i.price, 0),
-      }
-    }
-    return { mode: 'free-text', lines: orderLines.value }
-  } catch {
+  if (!dishes || !orderLines.value.length || matchedDishes.length !== orderLines.value.length || selection.total === null) {
     return { mode: 'free-text', lines: orderLines.value }
   }
+
+  return { mode: 'priced', items: matchedDishes, total: selection.total }
 })
+
+watch(breakdown, (value) => {
+  amount.value = value.mode === 'priced' ? value.total : 0
+}, { immediate: true })
 
 const vietQrUrl = computed(() => {
   return `https://img.vietqr.io/image/${payInfo.value.bankId}-${payInfo.value.accountNumber}-compact2.png?amount=${amount.value}&addInfo=${encodeURIComponent(memo.value)}&accountName=${encodeURIComponent(payInfo.value.accountName)}`
@@ -318,30 +340,12 @@ function fmt(val) {
 
 function copyText(text, field) {
   if (!text) return
-  navigator.clipboard.writeText(text)
+  navigator.clipboard?.writeText(text)
   copiedField.value = field
   setTimeout(() => {
     if (copiedField.value === field) copiedField.value = ''
   }, 2000)
 }
-
-onMounted(() => {
-  if (props.menu?.note) {
-    try {
-      const parsed = JSON.parse(props.menu.note)
-      if (parsed.dishes) {
-        const lines = props.order.item_text.split('\n').map(l => l.trim()).filter(Boolean)
-        let total = 0
-        for (const line of lines) {
-          const cleanLine = line.trim().toLowerCase()
-          const dish = parsed.dishes.find(d => d.name?.trim().toLowerCase() === cleanLine)
-          if (dish && dish.price) total += Number(dish.price)
-        }
-        amount.value = total
-      }
-    } catch (e) {}
-  }
-})
 
 async function downloadQr(tab) {
   const url = tab === 'momo' ? momoQrUrl.value : vietQrUrl.value

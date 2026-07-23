@@ -10,8 +10,9 @@ import { autolink } from '../lib/autolink'
 import { buildShareUrl } from '../lib/share'
 import { isOrderContentLocked } from '../lib/orderDeadline'
 import { clearOrderDraft, restoreOrderDraft, saveOrderDraft } from '../lib/orderDraft'
-import { calculateSelection, parseStructuredMenu } from '../lib/menuOrder'
+import { calculateSelection, canSelfPay, parseStructuredMenu } from '../lib/menuOrder'
 import GuestOrderGate from '../components/menu/GuestOrderGate.vue'
+import OrderSuccessSheet from '../components/menu/OrderSuccessSheet.vue'
 import {
   AppCard,
   AppButton,
@@ -54,22 +55,39 @@ const soloWords = 'Hãy rủ mọi người cùng ăn cơm nhé! 🍱'.split(' '
 
 const showQRModal = ref(false)
 const selectedQROrder = ref(null)
+const lastCreatedOrder = ref(null)
+const showOrderSuccess = ref(false)
+
+const lastCreatedOrderName = computed(() => lastCreatedOrder.value?.user?.full_name ?? '')
+const canPayLastCreatedOrder = computed(() => canSelfPay(myId.value, lastCreatedOrder.value))
 
 function openQRModal(order) {
+  if (!canSelfPay(myId.value, order)) return
+  showOrderSuccess.value = false
   selectedQROrder.value = order
   showQRModal.value = true
 }
 
-function handleQRModalPaid() {
-  if (selectedQROrder.value) {
-    handleToggle(selectedQROrder.value, true)
-  }
+function closeQRModal() {
   showQRModal.value = false
+  selectedQROrder.value = null
+}
+
+async function handleQRModalPaid() {
+  const order = selectedQROrder.value
+  if (order && await handleToggle(order, true)) {
+    closeQRModal()
+  }
+}
+
+function hasPaymentInfo(poster) {
+  return Boolean(poster?.payment_info?.trim())
 }
 
 function hasQRConfig(poster) {
-  if (!poster?.payment_info) return false
-  return poster.payment_info.includes('STK:') || poster.payment_info.includes('Momo:')
+  const paymentInfo = poster?.payment_info ?? ''
+  return (/STK:\s*\S+/.test(paymentInfo) && /NH:\s*\S+/.test(paymentInfo))
+    || /Momo:\s*\d+/.test(paymentInfo)
 }
 
 const loading = ref(true)
@@ -400,8 +418,8 @@ async function submitOrder() {
       confirmationErrorRef.value?.focus()
     }
   } else {
-    const orderedFor = draft.orderFor
-      ? profiles.value.find((p) => p.id === draft.orderFor)
+    const orderedFor = data?.user_id
+      ? profiles.value.find((p) => p.id === data.user_id)
       : null
     const newOrder = {
       ...data,
@@ -412,6 +430,7 @@ async function submitOrder() {
       },
     }
     menu.value.orders = [...(menu.value.orders ?? []), newOrder]
+    lastCreatedOrder.value = newOrder
     clearingSavedDraft = true
     try {
       draft.item_text = ''
@@ -419,13 +438,16 @@ async function submitOrder() {
       draft.orderFor = ''
       Object.keys(picks).forEach(k => delete picks[k])
       setMyPicks([])
-      phase.value = 'viewing'
+      phase.value = 'success'
       await nextTick()
       clearOrderDraft(localStorage, menu.value.id)
     } finally {
       clearingSavedDraft = false
     }
-    if (typeof confettiRef.value?.fire === 'function') confettiRef.value.fire()
+    showOrderSuccess.value = true
+    const prefersReducedMotion = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (!prefersReducedMotion && typeof confettiRef.value?.fire === 'function') confettiRef.value.fire()
   }
   draft.submitting = false
 }
@@ -457,18 +479,42 @@ function cancelAuthentication() {
 }
 
 async function handleToggle(order, newVal) {
+  if (!canSelfPay(myId.value, order)) return false
   toggleLoading[order.id] = true
   toggleError[order.id] = ''
-  const { data, error } = await togglePaid(order.id, newVal)
-  if (error) {
-    toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
-  } else if (data) {
-    const idx = menu.value.orders.findIndex((o) => o.id === order.id)
-    if (idx !== -1) {
-      menu.value.orders[idx] = { ...menu.value.orders[idx], is_paid: data.is_paid }
+  try {
+    const { data, error } = await togglePaid(order.id, newVal)
+    if (error) {
+      toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
+      return false
     }
+    if (data) {
+      const idx = menu.value.orders.findIndex((o) => o.id === order.id)
+      if (idx !== -1) {
+        menu.value.orders[idx] = { ...menu.value.orders[idx], is_paid: data.is_paid }
+      }
+      if (lastCreatedOrder.value?.id === order.id) {
+        lastCreatedOrder.value = { ...lastCreatedOrder.value, is_paid: data.is_paid }
+      }
+    }
+    return true
+  } catch {
+    toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
+    return false
+  } finally {
+    toggleLoading[order.id] = false
   }
-  toggleLoading[order.id] = false
+}
+
+function deferPayment() {
+  showOrderSuccess.value = false
+  phase.value = 'viewing'
+}
+
+function payLastCreatedOrder() {
+  const order = lastCreatedOrder.value
+  deferPayment()
+  if (order) openQRModal(order)
 }
 
 function startEdit(order) {
@@ -778,14 +824,14 @@ onUnmounted(() => {
               <!-- Self-tick: only for own order -->
               <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
                 <PaidToggle
-                  v-if="order.user_id === myId"
+                  v-if="canSelfPay(myId, order)"
                   data-testid="paid-toggle"
                   :paid="order.is_paid"
                   :loading="!!toggleLoading[order.id]"
                   @toggle="(val) => handleToggle(order, val)"
                 />
                 <AppButton
-                  v-if="order.user_id === myId && !order.is_paid && hasQRConfig(menu?.poster)"
+                  v-if="canSelfPay(myId, order) && !order.is_paid && hasPaymentInfo(menu?.poster)"
                   variant="ghost"
                   size="sm"
                   style="padding: 0.25rem 0.5rem;"
@@ -794,7 +840,7 @@ onUnmounted(() => {
                   🔗 Quét QR
                 </AppButton>
               </div>
-              <p v-if="order.user_id === myId && toggleError[order.id]" class="alert">
+              <p v-if="canSelfPay(myId, order) && toggleError[order.id]" class="alert">
                 {{ toggleError[order.id] }}
               </p>
             </div>
@@ -974,13 +1020,24 @@ onUnmounted(() => {
       @cancel="cancelAuthentication"
     />
 
+    <OrderSuccessSheet
+      v-if="showOrderSuccess && lastCreatedOrder"
+      :order="lastCreatedOrder"
+      :ordered-for-name="lastCreatedOrderName"
+      :can-pay="canPayLastCreatedOrder"
+      :has-payment-info="hasPaymentInfo(menu?.poster)"
+      @pay="payLastCreatedOrder"
+      @later="deferPayment"
+      @copy-link="copyMenuLink"
+    />
+
     <PaymentQRModal
       v-if="showQRModal && selectedQROrder"
       :order="selectedQROrder"
       :poster="menu.poster"
       :menu-date="menu.menu_date"
       :menu="menu"
-      @close="showQRModal = false"
+      @close="closeQRModal"
       @paid="handleQRModalPaid"
     />
 

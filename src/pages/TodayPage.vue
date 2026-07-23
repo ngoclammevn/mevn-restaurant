@@ -7,6 +7,7 @@ import { todayInVN, formatVNDate, formatVNTime } from '../lib/date'
 import { autolink } from '../lib/autolink'
 import { buildShareUrl } from '../lib/share'
 import { isOrderContentLocked } from '../lib/orderDeadline'
+import { canSelfPay } from '../lib/menuOrder'
 import {
   AppCard,
   AppButton,
@@ -49,21 +50,34 @@ const selectedQROrder = ref(null)
 const selectedQRMenu = ref(null)
 
 function openQRModal(menu, order) {
+  if (!canSelfPay(myId.value, order)) return
   selectedQRMenu.value = menu
   selectedQROrder.value = order
   showQRModal.value = true
 }
 
-function handleQRModalPaid() {
-  if (selectedQROrder.value && selectedQRMenu.value) {
-    handleToggle(selectedQRMenu.value, selectedQROrder.value, true)
-  }
+function closeQRModal() {
   showQRModal.value = false
+  selectedQROrder.value = null
+  selectedQRMenu.value = null
+}
+
+async function handleQRModalPaid() {
+  const order = selectedQROrder.value
+  const menu = selectedQRMenu.value
+  if (order && menu && await handleToggle(menu, order, true)) {
+    closeQRModal()
+  }
+}
+
+function hasPaymentInfo(poster) {
+  return Boolean(poster?.payment_info?.trim())
 }
 
 function hasQRConfig(poster) {
-  if (!poster?.payment_info) return false
-  return poster.payment_info.includes('STK:') || poster.payment_info.includes('Momo:')
+  const paymentInfo = poster?.payment_info ?? ''
+  return (/STK:\s*\S+/.test(paymentInfo) && /NH:\s*\S+/.test(paymentInfo))
+    || /Momo:\s*\d+/.test(paymentInfo)
 }
 
 onMounted(() => {
@@ -99,19 +113,28 @@ function isOrderLocked(menu) {
 }
 
 async function handleToggle(menu, order, newVal) {
+  if (!canSelfPay(myId.value, order)) return false
   toggleLoading[order.id] = true
   toggleError[order.id] = ''
-  const { data, error } = await togglePaid(order.id, newVal)
-  if (error) {
-    toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
-  } else if (data) {
-    // Update the order in the local orders array
-    const idx = menu.orders.findIndex((o) => o.id === order.id)
-    if (idx !== -1) {
-      menu.orders[idx] = { ...menu.orders[idx], is_paid: data.is_paid }
+  try {
+    const { data, error } = await togglePaid(order.id, newVal)
+    if (error) {
+      toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
+      return false
     }
+    if (data) {
+      const idx = menu.orders.findIndex((o) => o.id === order.id)
+      if (idx !== -1) {
+        menu.orders[idx] = { ...menu.orders[idx], is_paid: data.is_paid }
+      }
+    }
+    return true
+  } catch {
+    toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
+    return false
+  } finally {
+    toggleLoading[order.id] = false
   }
-  toggleLoading[order.id] = false
 }
 
 const editingOrderId = ref(null)
@@ -400,14 +423,14 @@ onUnmounted(() => {
               <!-- Self-tick: only for own order -->
               <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
                 <PaidToggle
-                  v-if="order.user_id === myId"
+                  v-if="canSelfPay(myId, order)"
                   data-testid="today-paid-toggle"
                   :paid="order.is_paid"
                   :loading="!!toggleLoading[order.id]"
                   @toggle="(val) => handleToggle(menu, order, val)"
                 />
                 <AppButton
-                  v-if="order.user_id === myId && !order.is_paid && hasQRConfig(menu.poster)"
+                  v-if="canSelfPay(myId, order) && !order.is_paid && hasPaymentInfo(menu.poster)"
                   variant="ghost"
                   size="sm"
                   style="padding: 0.25rem 0.5rem;"
@@ -416,7 +439,7 @@ onUnmounted(() => {
                   🔗 Quét QR
                 </AppButton>
               </div>
-              <p v-if="order.user_id === myId && toggleError[order.id]" class="alert">
+              <p v-if="canSelfPay(myId, order) && toggleError[order.id]" class="alert">
                 {{ toggleError[order.id] }}
               </p>
             </div>
@@ -439,7 +462,7 @@ onUnmounted(() => {
       :poster="selectedQRMenu.poster"
       :menu-date="selectedQRMenu.menu_date"
       :menu="selectedQRMenu"
-      @close="showQRModal = false"
+      @close="closeQRModal"
       @paid="handleQRModalPaid"
     />
 
