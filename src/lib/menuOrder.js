@@ -30,6 +30,6 @@ export function exactDishMatches(itemText, dishes) {
 
 export function canSelfPay(currentUserId, order) {
   return typeof currentUserId === 'string'
-    && currentUserId.length > 0
+    && currentUserId.trim().length > 0
     && order?.user_id === currentUserId
 }

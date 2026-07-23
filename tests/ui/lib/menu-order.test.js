@@ -32,5 +32,6 @@ describe('menu order rules', () => {
     expect(canSelfPay('user-a', { user_id: 'user-a' })).toBe(true)
     expect(canSelfPay('user-b', { user_id: 'user-a' })).toBe(false)
     expect(canSelfPay('', { user_id: 'user-a' })).toBe(false)
+    expect(canSelfPay(' ', { user_id: ' ' })).toBe(false)
   })
 })
