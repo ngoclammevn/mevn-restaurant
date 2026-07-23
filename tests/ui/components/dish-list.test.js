@@ -48,7 +48,7 @@ describe('StickyOrderBar', () => {
 
   it('disables submit and explains the zero-selection state', () => {
     const wrapper = mount(StickyOrderBar, {
-      props: { count: 0, total: null, disabled: true, submitting: false },
+      props: { count: 0, total: null, disabled: false, submitting: false },
     })
 
     expect(wrapper.text()).toContain('0 món')
@@ -88,6 +88,15 @@ describe('OrderOptionsSheet', () => {
     closeButton.element.focus()
     await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Tab' })
     expect(document.activeElement).toBe(wrapper.get('#order-note').element)
+
+    wrapper.get('#order-note').element.focus()
+    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(closeButton.element)
+
+    await wrapper.get('#order-note').setValue('Không hành')
+    await wrapper.get('#order-for').setValue('')
+    expect(wrapper.emitted('update:note')).toEqual([['Không hành']])
+    expect(wrapper.emitted('update:orderFor')).toEqual([['']])
 
     await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
     expect(wrapper.emitted('close')).toEqual([[]])

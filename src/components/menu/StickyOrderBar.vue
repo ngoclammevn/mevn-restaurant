@@ -27,7 +27,7 @@ const summary = computed(() => {
       data-testid="sticky-order-submit"
       class="sticky-order-bar__submit"
       type="button"
-      :disabled="disabled || submitting"
+      :disabled="!count || disabled || submitting"
       :aria-busy="submitting ? 'true' : undefined"
       @click="emit('submit')"
     >{{ submitting ? 'Đang đặt…' : count ? 'Đặt món' : 'Chọn món để đặt' }}</button>
