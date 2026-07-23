@@ -34,12 +34,16 @@
 
 ### Chạy trên production (DB đã có sẵn từ main)
 
-`0001` và `0002` **đã có trên main** — production đã chạy rồi. Chỉ cần apply **`0003_prod_safe.sql`**:
+`0001` và `0002` **đã có trên main** — production đã chạy rồi. Với project đã chạy bản trước, apply lần lượt **`0003_prod_safe.sql`** và **`0004_menu_order_deadline.sql`**:
 
 ```bash
 # Supabase Dashboard → SQL Editor → New Query
-# Paste toàn bộ nội dung file rồi Run:
-# supabase/migrations/0003_prod_safe.sql
+# Ưu tiên dùng CLI để ghi nhận migration history:
+supabase link --project-ref <PROJECT_REF>
+supabase db push
+
+# Hoặc Supabase Dashboard → SQL Editor → New Query:
+# chạy 0003_prod_safe.sql, sau đó chạy 0004_menu_order_deadline.sql
 ```
 
 Thay đổi thực tế so với production hiện tại:
@@ -47,6 +51,13 @@ Thay đổi thực tế so với production hiện tại:
 - Policy `orders_insert`: đổi từ `user_id = sub` → `with check (true)` — cho phép đặt hộ người khác
 
 Script dùng `IF NOT EXISTS` và drop-recreate policies nên **an toàn chạy nhiều lần**.
+
+`0004_menu_order_deadline.sql` thêm `menus.order_deadline` (nullable). Giá trị `null` giữ menu mở không giới hạn, vì vậy menu cũ không bị chốt ngoài ý muốn. Migration cũng thêm trigger trên `orders`:
+
+- Chặn tạo, sửa nội dung hoặc xoá đơn khi hạn chót đã qua, với mã lỗi `ORDER_DEADLINE_PASSED`.
+- Vẫn cho chủ đơn tự cập nhật `is_paid`/`paid_at` sau giờ chốt.
+- Giữ nguyên RLS đặt hộ và ownership: trigger chỉ bổ sung luật thời gian, không thay thế RLS.
+- Đồng hồ PostgreSQL `now()` là nguồn quyết định cuối cùng; đồng hồ trình duyệt chỉ để hiển thị countdown.
 
 ### Chạy trên DB mới (fresh Supabase project)
 
@@ -58,9 +69,24 @@ supabase db push
 # Option B — Dashboard SQL Editor, chạy lần lượt:
 # 1. supabase/migrations/0001_schema_rls.sql
 # 2. supabase/migrations/0002_storage.sql
+# 3. supabase/migrations/0003_prod_safe.sql
+# 4. supabase/migrations/0004_menu_order_deadline.sql
 ```
 
 > **RLS dùng `auth.jwt()->>'sub'` = Clerk user ID.** Cần cấu hình Supabase JWT secret để verify Clerk tokens (xem bước Clerk bên dưới).
+
+### Kiểm tra local trước khi deploy
+
+Yêu cầu Docker Desktop đang chạy. Lệnh reset sẽ xoá dữ liệu **chỉ của Supabase local** rồi áp dụng toàn bộ migration từ đầu:
+
+```bash
+supabase start       # chỉ cần khi local stack chưa chạy
+supabase db reset
+npm run test:all
+npm run build
+```
+
+Không chạy `supabase db reset` với linked remote project. Production chỉ dùng `supabase db push` sau khi đã kiểm tra migration local.
 
 ### Storage
 
@@ -165,6 +191,13 @@ vercel --prod
 - [ ] Idle 30s → refresh → người kia vẫn còn trong sidebar
 - [ ] Login 2 account khác nhau (laptop + điện thoại) → thấy nhau
 - [ ] Đặt món → confetti, đơn xuất hiện trong danh sách
+- [ ] Đăng menu không đặt hạn chót → payload có `order_deadline: null`, menu vẫn nhận đơn bình thường
+- [ ] Đăng hoặc sửa menu với hạn chót tương lai → UI hiển thị giờ Việt Nam; khi sắp hết hạn có trạng thái nhắc chốt đơn
+- [ ] Với menu đã chốt: tạo/sửa/xoá nội dung đơn bị chặn và báo thân thiện; gọi trực tiếp cũng nhận `ORDER_DEADLINE_PASSED`
+- [ ] Với menu đã chốt: chủ đơn vẫn tự tick hoặc bỏ tick thanh toán thành công
+- [ ] Người đăng mở editor để gia hạn hoặc “Bỏ giới hạn” → menu nhận đơn lại; không cần backend hay key đặc quyền
+- [ ] Trong Menu của tôi, người đăng sửa menu OCR bằng editor trực quan; ảnh gốc chỉ dùng đối chiếu và giữ tỷ lệ tự nhiên
+- [ ] Món đã có đơn không thể đổi tên/xoá; giá món đã có đơn đã trả bị khoá, giá món chỉ có đơn chưa trả yêu cầu xác nhận
 - [ ] Kiểm tra Supabase → Authentication → JWT settings hoạt động
 
 ---
