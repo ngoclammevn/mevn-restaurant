@@ -27,7 +27,7 @@
 | Table | Columns | RLS |
 |---|---|---|
 | `profiles` | `id` (PK = Clerk user ID), `full_name`, `avatar_url`, `payment_info` | select: all · insert/update: own |
-| `menus` | `id` (uuid PK), `poster_id` (FK→profiles), `menu_date`, `title`, `image_url`, `note` | select: all · insert/update/delete: poster |
+| `menus` | `id` (uuid PK), `poster_id` (FK→profiles), `menu_date`, `title`, `image_url`, `note`, `order_deadline` (nullable) | select: all · insert/update/delete: poster |
 | `orders` | `id` (uuid PK), `menu_id` (FK→menus CASCADE), `user_id` (FK→profiles), `item_text`, `note`, `is_paid`, `paid_at`, `updated_at` | select: all · update/delete: own · insert: authenticated |
 
 > `orders.updated_at` là cột mới — dùng để hiển thị "đã sửa lúc ..." trong UI.
@@ -147,7 +147,10 @@ git checkout main
 git merge --no-ff nhat -m "feat: presence, OG share, OCR, today redesign"
 git push origin main
 
-# Option B — deploy từ branch trực tiếp
+# Option B — tạo Preview từ branch hiện tại (không ảnh hưởng production)
+vercel --yes
+
+# Option C — deploy production từ branch trực tiếp
 vercel --prod
 ```
 
