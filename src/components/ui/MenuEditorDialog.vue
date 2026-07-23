@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { getOrderedDishUsage, parseMenuEditorDraft, serializeMenuEditorDraft, validateMenuEditorDraft } from '../../lib/menuEditor'
 import { toDeadlineInputValue } from '../../lib/orderDeadline'
 import AppButton from './AppButton.vue'
@@ -21,6 +21,8 @@ const emit = defineEmits(['close', 'save'])
 const draft = ref(emptyDraft())
 const initialPayload = ref('')
 const validationError = ref('')
+const dialogRef = ref(null)
+let previouslyFocusedElement = null
 
 function emptyDraft() {
   return { title: '', order_deadline: null, menu: { kind: 'plain', text: '' } }
@@ -65,9 +67,28 @@ function resetDraft() {
   initialPayload.value = JSON.stringify(buildPayload())
 }
 
+function focusInitialControl() {
+  nextTick(() => dialogRef.value?.querySelector('#menu-editor-title')?.focus())
+}
+
+function restorePreviousFocus() {
+  if (previouslyFocusedElement?.isConnected && typeof previouslyFocusedElement.focus === 'function') {
+    previouslyFocusedElement.focus()
+  }
+  previouslyFocusedElement = null
+}
+
 watch(() => props.open, (open, wasOpen) => {
-  if (open && !wasOpen) resetDraft()
+  if (open && !wasOpen) {
+    previouslyFocusedElement = document.activeElement
+    resetDraft()
+    focusInitialControl()
+  } else if (!open && wasOpen) {
+    restorePreviousFocus()
+  }
 }, { immediate: true })
+
+onUnmounted(restorePreviousFocus)
 
 const usage = computed(() => getOrderedDishUsage(draft.value.menu.dishes, props.orders))
 const isDirty = computed(() => JSON.stringify(buildPayload()) !== initialPayload.value)
@@ -106,6 +127,33 @@ function close() {
   emit('close')
 }
 
+function handleKeydown(event) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    close()
+    return
+  }
+  if (event.key !== 'Tab') return
+
+  const focusable = Array.from(dialogRef.value?.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  ) ?? []).filter(element => !element.hasAttribute('hidden') && element.getAttribute('aria-hidden') !== 'true')
+  if (!focusable.length) {
+    event.preventDefault()
+    return
+  }
+
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey && (document.activeElement === first || !dialogRef.value?.contains(document.activeElement))) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.value?.contains(document.activeElement))) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
 function save() {
   validationError.value = formError.value
   if (validationError.value || saveDisabled.value) return
@@ -114,8 +162,8 @@ function save() {
 </script>
 
 <template>
-  <div v-if="open" class="menu-editor-overlay" role="presentation" @click.self="close">
-    <section class="menu-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="menu-editor-heading">
+  <div v-if="open" class="menu-editor-overlay" role="presentation" @click.self="close" @keydown="handleKeydown">
+    <section ref="dialogRef" class="menu-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="menu-editor-heading">
       <header class="menu-editor-dialog__header">
         <div>
           <span class="menu-editor-dialog__eyebrow">QUẢN LÝ THỰC ĐƠN</span>

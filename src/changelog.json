@@ -36,7 +36,8 @@
       "Giữ nguyên món đã chọn khi menu vừa chốt đơn và tự đóng form sửa đơn đúng lúc",
       "Sửa lỗi form đang sửa không tự đóng khi menu vừa được chốt từ thiết bị khác",
       "Hoàn thiện luồng chỉnh sửa menu và chốt giờ đặt món trên desktop/mobile",
-      "Bổ sung hướng dẫn triển khai bản xem trước an toàn trước khi cập nhật production"
+      "Bổ sung hướng dẫn triển khai bản xem trước an toàn trước khi cập nhật production",
+      "Ngăn sửa nhầm món khi có đơn hoặc thanh toán mới và cải thiện thao tác bàn phím trong editor menu"
     ]
   },
   {

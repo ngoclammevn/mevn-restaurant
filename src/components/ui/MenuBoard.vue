@@ -164,7 +164,7 @@ function startEditGroup(name) {
 function saveEditGroup(oldName) {
   const newName = editingGroupValue.value.trim()
   if (newName && newName !== oldName)
-    emit('update:dishes', props.dishes.map(d => d.category === oldName ? { ...d, category: newName } : d))
+    emit('update:dishes', props.dishes.map(d => (d.category || 'Khác') === oldName ? { ...d, category: newName } : d))
   editingGroup.value = null
 }
 

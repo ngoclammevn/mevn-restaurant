@@ -31,7 +31,7 @@ const timeLabel = computed(() => props.deadline ? formatVNTime(props.deadline) :
 const label = computed(() => {
   if (state.value.kind === 'open-unlimited') return 'Nhận đơn không giới hạn'
   if (state.value.kind === 'closed') return `Đã chốt đơn lúc ${timeLabel.value}`
-  if (state.value.kind === 'closing-soon') return `Sắp chốt · ${state.value.label}`
+  if (state.value.kind === 'closing-soon') return state.value.label
   return `Nhận đơn đến ${timeLabel.value}`
 })
 </script>

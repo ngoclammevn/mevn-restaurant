@@ -4,6 +4,7 @@ import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { isDeadlineError } from '../composables/useOrders'
 import { formatVNDate } from '../lib/date'
+import { getOrderedDishUsage, parseMenuEditorDraft } from '../lib/menuEditor'
 import { buildShareUrl } from '../lib/share'
 import {
   PageHeader,
@@ -16,7 +17,7 @@ import {
   DeadlineStatus,
 } from '../components/ui'
 
-const { listMyMenus, updateMenu, deleteMenu } = useMenus()
+const { getMenu, listMyMenus, updateMenu, deleteMenu } = useMenus()
 const { user, isLoaded, isSignedIn } = useUser()
 
 const loading = ref(true)
@@ -90,23 +91,108 @@ function copyMenuLink(menu) {
 
 // ---- owner menu editor ----
 const selectedMenu = ref(null)
+const editorOpenedOrders = ref([])
 const editSaving = ref(false)
 const editError = ref('')
 
 function openMenuEditor(menu) {
   selectedMenu.value = menu
+  editorOpenedOrders.value = (menu.orders ?? []).map(order => ({ ...order }))
   editError.value = ''
 }
 
 function closeMenuEditor() {
   selectedMenu.value = null
+  editorOpenedOrders.value = []
   editError.value = ''
+}
+
+function dishPrice(dish) {
+  const price = Number(dish?.price)
+  return Number.isFinite(price) ? price : 0
+}
+
+function findFreshOrderConflict(originalNote, draftNote, openedOrders, latestOrders) {
+  const original = parseMenuEditorDraft(originalNote ?? '')
+  const next = parseMenuEditorDraft(draftNote ?? '')
+  if (original.kind !== 'structured' || next.kind !== 'structured') return null
+
+  const openedUsage = getOrderedDishUsage(original.dishes, openedOrders)
+  const latestUsage = getOrderedDishUsage(original.dishes, latestOrders)
+  const nextByName = new Map(next.dishes.map(dish => [dish.name, dish]))
+
+  for (const originalDish of original.dishes) {
+    const name = originalDish.name
+    const latestCount = latestUsage.counts.get(name) ?? 0
+    const nextDish = nextByName.get(name)
+
+    if (latestCount > 0 && !nextDish) {
+      return { kind: 'name', name }
+    }
+    if (!nextDish || dishPrice(nextDish) === dishPrice(originalDish)) continue
+    if (latestUsage.paidNames.has(name)) {
+      return { kind: 'paid-price', name }
+    }
+
+    const openedCount = openedUsage.counts.get(name) ?? 0
+    if (latestCount > openedCount) {
+      return { kind: 'unpaid-price', name, count: latestCount }
+    }
+  }
+
+  return null
+}
+
+function mergeFreshMenu(freshMenu) {
+  const idx = menus.value.findIndex(menu => menu.id === freshMenu.id)
+  if (idx !== -1) menus.value[idx] = { ...menus.value[idx], ...freshMenu }
+  if (selectedMenu.value?.id === freshMenu.id) {
+    selectedMenu.value = { ...selectedMenu.value, ...freshMenu }
+  }
 }
 
 async function saveMenuDraft(draft) {
   if (!selectedMenu.value) return
   editSaving.value = true
   editError.value = ''
+
+  const originalMenu = selectedMenu.value
+  const { data: freshMenu, error: refreshError } = await getMenu(draft.id)
+  if (refreshError || !freshMenu) {
+    editError.value = 'Không kiểm tra được đơn mới trước khi lưu. Bản nháp của bạn vẫn được giữ; hãy thử lại.'
+    editSaving.value = false
+    return
+  }
+
+  const conflict = findFreshOrderConflict(
+    originalMenu.note,
+    draft.note,
+    editorOpenedOrders.value,
+    freshMenu.orders ?? [],
+  )
+  mergeFreshMenu(freshMenu)
+
+  if (conflict?.kind === 'name') {
+    editError.value = `Món "${conflict.name}" vừa có đơn mới nên không thể đổi tên hoặc xoá. Bản nháp của bạn vẫn được giữ; hãy kiểm tra lại.`
+    editSaving.value = false
+    return
+  }
+  if (conflict?.kind === 'paid-price') {
+    editError.value = `Món "${conflict.name}" vừa có đơn đã thanh toán nên giá đã được khoá. Bản nháp của bạn vẫn được giữ; hãy kiểm tra lại.`
+    editSaving.value = false
+    return
+  }
+  if (conflict?.kind === 'unpaid-price') {
+    const confirmed = typeof window !== 'undefined'
+      && typeof window.confirm === 'function'
+      && window.confirm(`Giá mới sẽ cập nhật số tiền của ${conflict.count} đơn chưa thanh toán`)
+    if (!confirmed) {
+      editError.value = `Dữ liệu đơn của "${conflict.name}" vừa thay đổi. Bản nháp của bạn vẫn được giữ; hãy xác nhận lại giá trước khi lưu.`
+      editSaving.value = false
+      return
+    }
+  }
+
   const { data, error } = await updateMenu(draft)
   if (error) {
     editError.value = isDeadlineError(error)
@@ -115,9 +201,10 @@ async function saveMenuDraft(draft) {
   } else if (data) {
     const idx = menus.value.findIndex((m) => m.id === draft.id)
     if (idx !== -1) {
-      menus.value[idx] = { ...menus.value[idx], ...data, orders: menus.value[idx].orders }
+      menus.value[idx] = { ...menus.value[idx], ...data, orders: freshMenu.orders ?? [] }
     }
     selectedMenu.value = null
+    editorOpenedOrders.value = []
   }
   editSaving.value = false
 }
