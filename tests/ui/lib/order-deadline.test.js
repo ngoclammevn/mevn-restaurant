@@ -23,6 +23,14 @@ describe('order deadline helpers', () => {
     expect(getDeadlineState(0, base)).toMatchObject({ kind: 'closed', isLocked: true })
   })
 
+  it('locks malformed and non-ISO deadline strings', () => {
+    const beforeNormalizedOverflow = new Date('2026-02-28T12:00:00.000Z')
+
+    expect(getDeadlineState('2026-02-30T12:00:00.000Z', beforeNormalizedOverflow))
+      .toMatchObject({ kind: 'closed', isLocked: true })
+    expect(getDeadlineState('2026-07-23 12:00:00', base)).toMatchObject({ kind: 'closed', isLocked: true })
+  })
+
   it('builds quick deadlines in UTC for VN display', () => {
     expect(buildQuickDeadline('plus-30m', base)).toBe('2026-07-23T03:30:00.000Z')
     expect(buildQuickDeadline('plus-1h', base)).toBe('2026-07-23T04:00:00.000Z')

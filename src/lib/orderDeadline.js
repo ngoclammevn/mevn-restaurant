@@ -5,6 +5,13 @@ function isValidDate(date) {
   return date instanceof Date && !Number.isNaN(date.getTime())
 }
 
+function parseIsoDeadline(value) {
+  if (typeof value !== 'string') return null
+
+  const date = new Date(value)
+  return isValidDate(date) && date.toISOString() === value ? date : null
+}
+
 function localDateParts(date, timezone) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
@@ -45,7 +52,7 @@ export function getDeadlineState(deadline, now = new Date()) {
     return { kind: 'open-unlimited', remainingMs: null, label: 'Không giới hạn', isLocked: false }
   }
 
-  const deadlineDate = new Date(deadline)
+  const deadlineDate = parseIsoDeadline(deadline)
   const nowDate = new Date(now)
   if (!isValidDate(deadlineDate) || !isValidDate(nowDate)) {
     return { kind: 'closed', remainingMs: 0, label: 'Đã chốt đơn', isLocked: true }
