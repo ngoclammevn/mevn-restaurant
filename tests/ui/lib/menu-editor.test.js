@@ -46,6 +46,19 @@ describe('menu editor helpers', () => {
     expect(result).toEqual({ valid: true, error: null })
   })
 
+  it('serializes formatted structured prices as integers without mutating the draft', () => {
+    const draft = {
+      kind: 'structured',
+      notes: 'Ít cay',
+      dishes: [{ name: 'Cơm gà', price: '45.000đ', category: 'Món chính' }],
+    }
+
+    expect(serializeMenuEditorDraft(draft)).toBe(
+      '{"notes":"Ít cay","dishes":[{"name":"Cơm gà","price":45000,"category":"Món chính"}]}',
+    )
+    expect(draft.dishes[0].price).toBe('45.000đ')
+  })
+
   it('rejects missing dish names and invalid prices', () => {
     expect(validateMenuEditorDraft({
       kind: 'structured',

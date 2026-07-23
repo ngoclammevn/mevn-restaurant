@@ -47,7 +47,12 @@ export function parseMenuEditorDraft(note) {
 
 export function serializeMenuEditorDraft(draft) {
   if (draft?.kind !== 'structured' || !Array.isArray(draft.dishes)) return null
-  return JSON.stringify({ notes: draft.notes ?? '', dishes: draft.dishes })
+  const dishes = draft.dishes.map((dish) => {
+    if (!dish || typeof dish !== 'object') return dish
+    const price = normalizePrice(dish.price)
+    return Number.isFinite(price) ? { ...dish, price: Math.trunc(price) } : dish
+  })
+  return JSON.stringify({ notes: draft.notes ?? '', dishes })
 }
 
 export function validateMenuEditorDraft(draft) {
