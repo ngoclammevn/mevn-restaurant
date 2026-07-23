@@ -31,6 +31,16 @@ describe('order deadline helpers', () => {
     expect(getDeadlineState('2026-07-23 12:00:00', base)).toMatchObject({ kind: 'closed', isLocked: true })
   })
 
+  it('accepts a future ISO deadline with a numeric offset', () => {
+    expect(getDeadlineState('2026-07-23T11:00:00+07:00', base))
+      .toMatchObject({ kind: 'open', remainingMs: 60 * 60 * 1000, isLocked: false })
+  })
+
+  it('accepts a future ISO deadline with a Z suffix and no milliseconds', () => {
+    expect(getDeadlineState('2026-07-23T04:00:00Z', base))
+      .toMatchObject({ kind: 'open', remainingMs: 60 * 60 * 1000, isLocked: false })
+  })
+
   it('builds quick deadlines in UTC for VN display', () => {
     expect(buildQuickDeadline('plus-30m', base)).toBe('2026-07-23T03:30:00.000Z')
     expect(buildQuickDeadline('plus-1h', base)).toBe('2026-07-23T04:00:00.000Z')

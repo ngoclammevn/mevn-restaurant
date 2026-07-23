@@ -21,7 +21,8 @@
       "Thêm ảnh thương hiệu mặc định cho menu không có ảnh và giảm thời gian tạo bản xem trước",
       "Chốt thiết kế chỉnh sửa menu OCR trực quan và giới hạn thời gian đặt món",
       "Lập kế hoạch triển khai editor menu và hạn chót đặt món",
-      "Tách riêng logic chỉnh sửa menu OCR và trạng thái hạn chót đặt món"
+      "Tách riêng logic chỉnh sửa menu OCR và trạng thái hạn chót đặt món",
+      "Cải thiện kiểm tra định dạng thời hạn đặt món để giờ có múi giờ vẫn hoạt động đúng"
     ]
   },
   {

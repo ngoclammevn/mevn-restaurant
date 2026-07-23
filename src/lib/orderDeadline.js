@@ -1,15 +1,40 @@
 const VN_TIMEZONE = 'Asia/Ho_Chi_Minh'
 const CLOSING_SOON_MS = 30 * 60 * 1000
+const ISO_DEADLINE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-](\d{2}):(\d{2}))$/
 
 function isValidDate(date) {
   return date instanceof Date && !Number.isNaN(date.getTime())
 }
 
+function isLeapYear(year) {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+}
+
+function hasValidIsoDateTimeComponents(match) {
+  const [, year, month, day, hour, minute, second, , offsetHour, offsetMinute] = match
+  const numericYear = Number(year)
+  const numericMonth = Number(month)
+  const numericDay = Number(day)
+  const daysInMonth = [31, isLeapYear(numericYear) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+  return numericMonth >= 1
+    && numericMonth <= 12
+    && numericDay >= 1
+    && numericDay <= daysInMonth[numericMonth - 1]
+    && Number(hour) <= 23
+    && Number(minute) <= 59
+    && Number(second) <= 59
+    && (offsetHour === undefined || (Number(offsetHour) <= 23 && Number(offsetMinute) <= 59))
+}
+
 function parseIsoDeadline(value) {
   if (typeof value !== 'string') return null
 
+  const match = ISO_DEADLINE_PATTERN.exec(value)
+  if (!match || !hasValidIsoDateTimeComponents(match)) return null
+
   const date = new Date(value)
-  return isValidDate(date) && date.toISOString() === value ? date : null
+  return isValidDate(date) ? date : null
 }
 
 function localDateParts(date, timezone) {
