@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-07-23",
+    "changes": [
+      "Lên kế hoạch rút gọn luồng đặt món trên điện thoại và cải thiện khả năng sử dụng toàn ứng dụng"
+    ]
+  },
+  {
     "date": "2026-07-08",
     "changes": [
       "Thêm nút tải mã QR chuyển khoản (VietQR & MoMo) về máy",
