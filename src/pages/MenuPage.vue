@@ -125,6 +125,27 @@ function getAllDishes() {
   return parseStructuredMenu(menu.value?.note) ?? []
 }
 
+function revalidateCurrentPicks() {
+  if (!isStructured(menu.value?.note)) return true
+
+  const dishesByName = new Map(getAllDishes().map((dish) => [dish.name, dish]))
+  const selectedNames = Object.keys(picks)
+  const removedNames = selectedNames.filter((name) => !dishesByName.has(name))
+
+  removedNames.forEach((name) => delete picks[name])
+  Object.keys(picks).forEach((name) => {
+    picks[name] = dishesByName.get(name)
+  })
+
+  const validNames = Object.keys(picks)
+  draft.item_text = validNames.join('\n')
+  if (removedNames.length) {
+    draftRestoreWarning.value = `Món không còn trong menu: ${removedNames.join(', ')}`
+    setMyPicks(validNames)
+  }
+  return validNames.length > 0
+}
+
 function saveCurrentDraft() {
   if (!menu.value) return
   if (!draft.item_text && !draft.note && !draft.orderFor && !Object.keys(picks).length) {
@@ -233,7 +254,10 @@ function migrateLegacyDraft() {
 
   try {
     if (localStorage.getItem(`lunch-order-draft:v1:${menu.value.id}`)) return
-    const legacyPicks = JSON.parse(localStorage.getItem(`picks_menu_${menu.value.id}`) || '[]')
+    const parsedLegacyPicks = JSON.parse(localStorage.getItem(`picks_menu_${menu.value.id}`) || '[]')
+    const legacyPicks = Array.isArray(parsedLegacyPicks)
+      ? parsedLegacyPicks.filter((name) => typeof name === 'string')
+      : []
     const legacyNote = sessionStorage.getItem(`draft_note_menu_${menu.value.id}`) || ''
     const legacyOrderFor = sessionStorage.getItem(`draft_orderFor_menu_${menu.value.id}`) || ''
     if (!legacyPicks.length && !legacyNote && !legacyOrderFor) return
@@ -307,6 +331,8 @@ async function load({ restoreDrafts = false } = {}) {
   // refreshes intentionally preserve the current in-memory selection.
   if (menu.value && restoreDrafts) {
     restoreSavedDraft()
+  } else if (menu.value) {
+    revalidateCurrentPicks()
   }
 
   loading.value = false
@@ -314,7 +340,7 @@ async function load({ restoreDrafts = false } = {}) {
 
 watch([draft, picks], () => {
   if (!clearingSavedDraft) saveCurrentDraft()
-  if (['viewing', 'selecting', 'ready'].includes(phase.value)) {
+  if (!isOrderLocked.value && ['viewing', 'selecting', 'ready'].includes(phase.value)) {
     const hasDraft = isStructured(menu.value?.note)
       ? Object.keys(picks).length > 0
       : draft.item_text.trim().length > 0
@@ -359,12 +385,15 @@ async function submitOrder() {
         suppressRemotePickSync = false
       }
       draft.submitError = 'Menu đã chốt đơn. Bạn vẫn có thể xem đơn và cập nhật thanh toán.'
+      phase.value = isOrderLocked.value ? 'viewing' : 'confirming'
     } else {
       draft.submitError = 'Đặt món không thành công. Thử lại nhé.'
+      phase.value = 'confirming'
     }
-    phase.value = 'confirming'
-    await nextTick()
-    confirmationErrorRef.value?.focus()
+    if (phase.value === 'confirming') {
+      await nextTick()
+      confirmationErrorRef.value?.focus()
+    }
   } else {
     const orderedFor = draft.orderFor
       ? profiles.value.find((p) => p.id === draft.orderFor)
@@ -399,7 +428,7 @@ async function submitOrder() {
 function handleFormSubmit() {
   if (isOrderLocked.value) return
   const hasSelection = isStructured(menu.value?.note)
-    ? Object.keys(picks).length > 0
+    ? revalidateCurrentPicks()
     : draft.item_text.trim().length > 0
   if (!hasSelection) return
 

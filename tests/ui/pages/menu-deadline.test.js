@@ -136,6 +136,7 @@ describe('menu deadline UX', () => {
     expect(getMenu).toHaveBeenCalledTimes(2)
     expect(wrapper.get('[data-testid="order-closed-state"]').text()).toContain('Bạn vẫn có thể xem đơn và cập nhật thanh toán')
     expect(wrapper.vm.draft.item_text).toBe('Cơm gà')
+    expect(wrapper.vm.phase).toBe('viewing')
     wrapper.unmount()
   })
 
@@ -225,6 +226,42 @@ describe('menu deadline UX', () => {
     window.dispatchEvent(new Event('focus'))
     await flushPromises()
     expect(getMenu).toHaveBeenCalledTimes(2)
+  })
+
+  it('removes stale structured picks when a focus refetch changes the menu', async () => {
+    const firstNote = JSON.stringify({ dishes: [{ name: 'Cơm gà', price: 35000 }] })
+    const refreshedNote = JSON.stringify({ dishes: [{ name: 'Bún bò', price: 40000 }] })
+    getMenu
+      .mockResolvedValueOnce({ data: makeMenu({ note: firstNote, order_deadline: '2026-07-23T04:00:00.000Z', orders: [] }), error: null })
+      .mockResolvedValueOnce({ data: makeMenu({ note: refreshedNote, order_deadline: '2026-07-23T04:00:00.000Z', orders: [] }), error: null })
+    const wrapper = mount(MenuPage, { global })
+    await flushPromises()
+
+    wrapper.vm.toggleDish({ name: 'Cơm gà', price: 35000 })
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+
+    expect(Object.keys(wrapper.vm.picks)).toEqual([])
+    expect(wrapper.vm.draft.item_text).toBe('')
+    expect(wrapper.text()).toContain('Món không còn trong menu: Cơm gà')
+    wrapper.unmount()
+  })
+
+  it('keeps valid legacy note data when legacy picks JSON is not an array', async () => {
+    getMenu.mockResolvedValue({
+      data: makeMenu({ order_deadline: '2026-07-23T04:00:00.000Z', orders: [] }),
+      error: null,
+    })
+    localStorage.setItem('picks_menu_menu_1', JSON.stringify({ invalid: true }))
+    sessionStorage.setItem('draft_note_menu_menu_1', 'Không hành')
+
+    const wrapper = mount(MenuPage, { global })
+    await flushPromises()
+
+    expect(wrapper.vm.draft.note).toBe('Không hành')
+    expect(localStorage.getItem('picks_menu_menu_1')).toBeNull()
+    expect(sessionStorage.getItem('draft_note_menu_menu_1')).toBeNull()
+    wrapper.unmount()
   })
 
   it('shows a deadline and keeps payment available while hiding Today order editing after close', async () => {
