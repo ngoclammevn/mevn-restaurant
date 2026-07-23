@@ -8,7 +8,8 @@
       "Chuẩn bị nhánh triển khai riêng để cải thiện giao diện an toàn",
       "Sửa bộ kiểm thử bảo mật để chạy ổn định với Supabase local mới",
       "Cải thiện khả năng đọc và sử dụng bàn phím cho biểu mẫu",
-      "Hiển thị hướng dẫn đăng nhập và nút thử lại nhất quán trên mọi màn hình"
+      "Hiển thị hướng dẫn đăng nhập và nút thử lại nhất quán trên mọi màn hình",
+      "Thay thanh điều hướng mobile bằng 4 mục rõ ràng và gom chức năng quản lý vào một nơi"
     ]
   },
   {
