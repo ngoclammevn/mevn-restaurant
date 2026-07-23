@@ -2,10 +2,11 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
-import { useOrders } from '../composables/useOrders'
+import { isDeadlineError, useOrders } from '../composables/useOrders'
 import { todayInVN, formatVNDate, formatVNTime } from '../lib/date'
 import { autolink } from '../lib/autolink'
 import { buildShareUrl } from '../lib/share'
+import { isOrderContentLocked } from '../lib/orderDeadline'
 import {
   AppCard,
   AppButton,
@@ -19,6 +20,7 @@ import {
   Spinner,
   MenuBoard,
   PaymentQRModal,
+  DeadlineStatus,
 } from '../components/ui'
 
 const { user } = useUser()
@@ -35,6 +37,8 @@ const todayDisplay = formatVNDate(todayStr)
 const loading = ref(true)
 const errorMsg = ref('')
 const menus = ref([])
+const deadlineNow = ref(new Date())
+let deadlineTimerId = null
 
 // Per-order toggle loading and error keyed by order.id
 const toggleLoading = reactive({})
@@ -62,7 +66,11 @@ function hasQRConfig(poster) {
   return poster.payment_info.includes('STK:') || poster.payment_info.includes('Momo:')
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  deadlineTimerId = window.setInterval(() => { deadlineNow.value = new Date() }, 30_000)
+  window.addEventListener('focus', refreshOnFocus)
+})
 
 // Reload when Clerk auth state changes (hydration, sign-in, sign-out)
 watch(user, () => {
@@ -79,6 +87,15 @@ async function load() {
     menus.value = data ?? []
   }
   loading.value = false
+}
+
+function refreshOnFocus() {
+  deadlineNow.value = new Date()
+  load()
+}
+
+function isOrderLocked(menu) {
+  return isOrderContentLocked(menu.order_deadline, deadlineNow.value)
 }
 
 async function handleToggle(menu, order, newVal) {
@@ -105,7 +122,8 @@ const editError = ref('')
 const deletingMenus = reactive({})
 const deleteErrors = reactive({})
 
-function startEdit(order) {
+function startEdit(menu, order) {
+  if (isOrderLocked(menu)) return
   editingOrderId.value = order.id
   editDraft.item_text = order.item_text
   editDraft.note = order.note ?? ''
@@ -118,7 +136,7 @@ function cancelEdit() {
 }
 
 async function saveEdit(menu, order) {
-  if (!editDraft.item_text.trim()) return
+  if (isOrderLocked(menu) || !editDraft.item_text.trim()) return
   editSaving.value = true
   editError.value = ''
   const { data, error } = await updateOrder({
@@ -127,7 +145,12 @@ async function saveEdit(menu, order) {
     note: editDraft.note.trim() || null,
   })
   if (error) {
-    editError.value = 'Lưu không thành công. Thử lại nhé.'
+    if (isDeadlineError(error)) {
+      await load()
+      editError.value = 'Menu đã chốt đơn. Bạn vẫn có thể cập nhật thanh toán.'
+    } else {
+      editError.value = 'Lưu không thành công. Thử lại nhé.'
+    }
   } else if (data) {
     const idx = menu.orders.findIndex((o) => o.id === order.id)
     if (idx !== -1) {
@@ -197,6 +220,8 @@ function handleEsc(e) {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleEsc)
+  window.removeEventListener('focus', refreshOnFocus)
+  if (deadlineTimerId) window.clearInterval(deadlineTimerId)
 })
 </script>
 
@@ -242,6 +267,7 @@ onUnmounted(() => {
             <div>
               <div class="poster-name">{{ menu.poster?.full_name }}</div>
               <div class="meta">Người đăng</div>
+              <DeadlineStatus :deadline="menu.order_deadline" :now="deadlineNow" />
             </div>
             <span class="spacer" />
             <div class="row row-wrap" style="gap: 0.5rem;">
@@ -315,10 +341,11 @@ onUnmounted(() => {
                 <span class="order-name">{{ order.user?.full_name }}</span>
                 <span class="spacer" />
                 <AppButton
-                  v-if="order.user_id === myId && editingOrderId !== order.id"
+                  v-if="order.user_id === myId && editingOrderId !== order.id && !isOrderLocked(menu)"
+                  :data-testid="`today-edit-order-${order.id}`"
                   variant="ghost"
                   size="sm"
-                  @click="startEdit(order)"
+                  @click="startEdit(menu, order)"
                 >
                   Sửa
                 </AppButton>
@@ -341,7 +368,7 @@ onUnmounted(() => {
                   <AppButton
                     size="sm"
                     :loading="editSaving"
-                    :disabled="!editDraft.item_text.trim()"
+                    :disabled="isOrderLocked(menu) || !editDraft.item_text.trim()"
                     @click="saveEdit(menu, order)"
                   >
                     Lưu
@@ -365,6 +392,7 @@ onUnmounted(() => {
               <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
                 <PaidToggle
                   v-if="order.user_id === myId"
+                  data-testid="today-paid-toggle"
                   :paid="order.is_paid"
                   :loading="!!toggleLoading[order.id]"
                   @toggle="(val) => handleToggle(menu, order, val)"

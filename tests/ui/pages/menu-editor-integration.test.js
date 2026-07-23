@@ -119,6 +119,7 @@ describe('menu editor and deadline page integration', () => {
     await wrapper.get('[data-testid="edit-menu-menu_1"]').trigger('click')
     expect(wrapper.get('[data-testid="dialog-menu-id"]').text()).toBe('menu_1')
     expect(wrapper.get('[data-testid="dialog-order-count"]').text()).toBe('1')
+    expect(wrapper.text()).toContain('Nhận đơn không giới hạn')
 
     await wrapper.get('[data-testid="dialog-save"]').trigger('click')
     await flushPromises()

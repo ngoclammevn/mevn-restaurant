@@ -13,6 +13,7 @@ const props = defineProps({
   lockedDishNames: { type: [Array, Set], default: () => [] },
   lockedPriceNames: { type: [Array, Set], default: () => [] },
   orderedCounts: { type: [Object, Map], default: () => ({}) },
+  selectionLocked: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:dishes', 'update:notes', 'toggle-dish', 'hover-dish'])
@@ -247,10 +248,10 @@ function addNewGroup() {
             v-for="d in dishes"
             :key="d.name"
             class="mb-dish-row"
-            :class="{ 'mb-dish-row--picked': picks[d.name], 'mb-dish-row--hot': dishSelectors[d.name]?.length >= 2 }"
-            @click="emit('toggle-dish', d)"
-            @mouseenter="emit('hover-dish', d.name)"
-            @mouseleave="emit('hover-dish', null)"
+            :class="{ 'mb-dish-row--picked': picks[d.name], 'mb-dish-row--hot': dishSelectors[d.name]?.length >= 2, 'mb-dish-row--locked': selectionLocked }"
+            @click="!selectionLocked && emit('toggle-dish', d)"
+            @mouseenter="!selectionLocked && emit('hover-dish', d.name)"
+            @mouseleave="!selectionLocked && emit('hover-dish', null)"
           >
             <div class="mb-dish-name-cell">
               <span class="mb-dish-name">{{ d.name }}</span>
@@ -482,6 +483,8 @@ function addNewGroup() {
 /* View mode: clickable */
 .mb-dish-row:not(.mb-dish-row--edit) { cursor: pointer; user-select: none; }
 .mb-dish-row:not(.mb-dish-row--edit):hover { background: rgba(140,110,51,.07); }
+.mb-dish-row--locked { cursor: not-allowed !important; opacity: .72; }
+.mb-dish-row--locked:hover { background: transparent !important; }
 .mb-dish-row--picked { background: rgba(31,110,69,.08) !important; border-color: rgba(31,110,69,.25) !important; }
 .mb-dish-row--picked .mb-dish-name { color: var(--primary-ink) !important; font-weight: 600; }
 

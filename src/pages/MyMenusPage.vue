@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { isDeadlineError } from '../composables/useOrders'
@@ -13,6 +13,7 @@ import {
   MenuEditorDialog,
   SignedOutState,
   SignInModal,
+  DeadlineStatus,
 } from '../components/ui'
 
 const { listMyMenus, updateMenu, deleteMenu } = useMenus()
@@ -23,7 +24,15 @@ const errorMsg = ref('')
 const menus = ref([])
 const showSignIn = ref(false)
 
-onMounted(load)
+function refreshOnFocus() {
+  load()
+}
+
+onMounted(() => {
+  load()
+  window.addEventListener('focus', refreshOnFocus)
+})
+onUnmounted(() => window.removeEventListener('focus', refreshOnFocus))
 watch([isLoaded, isSignedIn], ([loaded]) => {
   if (loaded) load()
 })
@@ -189,6 +198,7 @@ async function confirmDeleteMenu(menu) {
                 đã trả {{ orderStats(menu).paid }}/{{ orderStats(menu).total }}
               </span>
             </div>
+            <DeadlineStatus :deadline="menu.order_deadline" />
 
             <p v-if="deleteErrors[menu.id]" class="alert">
               {{ deleteErrors[menu.id] }}

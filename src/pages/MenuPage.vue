@@ -3,11 +3,12 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
-import { useOrders } from '../composables/useOrders'
+import { isDeadlineError, useOrders } from '../composables/useOrders'
 import { usePresence, getPersonColor } from '../composables/usePresence'
 import { formatVNDate, formatVNTime } from '../lib/date'
 import { autolink } from '../lib/autolink'
 import { buildShareUrl } from '../lib/share'
+import { isOrderContentLocked } from '../lib/orderDeadline'
 import {
   AppCard,
   AppButton,
@@ -25,6 +26,7 @@ import {
   ConfettiBurst,
   SignInModal,
   PaymentQRModal,
+  DeadlineStatus,
 } from '../components/ui'
 const route = useRoute()
 const router = useRouter()
@@ -71,6 +73,9 @@ const loading = ref(true)
 const errorMsg = ref('')
 const menu = ref(null)
 const profiles = ref([])
+const deadlineNow = ref(new Date())
+const isOrderLocked = computed(() => isOrderContentLocked(menu.value?.order_deadline, deadlineNow.value))
+let deadlineTimerId = null
 
 // Form draft
 const draft = reactive({
@@ -137,6 +142,7 @@ function savePicksToLocal() {
 }
 
 function toggleDish(dish) {
+  if (isOrderLocked.value) return
   let action = 'add'
   if (picks[dish.name]) {
     delete picks[dish.name]
@@ -152,7 +158,9 @@ function toggleDish(dish) {
 }
 
 onMounted(() => {
-  load()
+  load({ restoreDrafts: true })
+  deadlineTimerId = window.setInterval(() => { deadlineNow.value = new Date() }, 30_000)
+  window.addEventListener('focus', refreshOnFocus)
 })
 
 function applyRemotePicks(remotePicks) {
@@ -192,7 +200,7 @@ watch(isPresenceReady, (ready) => {
   if (ready) applyRemotePicks(selfRemotePicks.value)
 })
 
-async function load() {
+async function load({ restoreDrafts = false } = {}) {
   loading.value = true
   errorMsg.value = ''
   
@@ -215,7 +223,7 @@ async function load() {
   profiles.value = profileData ?? []
 
   // Khôi phục giỏ hàng đã chọn từ localStorage
-  if (menu.value) {
+  if (menu.value && restoreDrafts) {
     try {
       const saved = localStorage.getItem(`picks_menu_${menu.value.id}`)
       if (saved) {
@@ -238,19 +246,28 @@ async function load() {
     }
   }
 
-  watch(() => [draft.note, draft.orderFor], () => {
-    if (!menu.value) return
-    try {
-      sessionStorage.setItem(`draft_note_menu_${menu.value.id}`, draft.note || '')
-      sessionStorage.setItem(`draft_orderFor_menu_${menu.value.id}`, draft.orderFor || '')
-    } catch (e) {}
-  }, { deep: true })
-
   loading.value = false
 }
 
+watch(() => [draft.note, draft.orderFor], () => {
+  if (!menu.value) return
+  try {
+    sessionStorage.setItem(`draft_note_menu_${menu.value.id}`, draft.note || '')
+    sessionStorage.setItem(`draft_orderFor_menu_${menu.value.id}`, draft.orderFor || '')
+  } catch (e) {}
+}, { deep: true })
+
+watch(isOrderLocked, (locked) => {
+  if (locked && editingOrderId.value) cancelEdit()
+})
+
+function refreshOnFocus() {
+  deadlineNow.value = new Date()
+  load()
+}
+
 async function submitOrder() {
-  if (!menu.value || !draft.item_text.trim()) return
+  if (!menu.value || isOrderLocked.value || !draft.item_text.trim()) return
   draft.submitting = true
   draft.submitError = ''
 
@@ -262,7 +279,12 @@ async function submitOrder() {
   })
 
   if (error) {
-    draft.submitError = 'Đặt món không thành công. Thử lại nhé.'
+    if (isDeadlineError(error)) {
+      await load()
+      draft.submitError = 'Menu đã chốt đơn. Bạn vẫn có thể xem đơn và cập nhật thanh toán.'
+    } else {
+      draft.submitError = 'Đặt món không thành công. Thử lại nhé.'
+    }
   } else {
     const orderedFor = draft.orderFor
       ? profiles.value.find((p) => p.id === draft.orderFor)
@@ -292,6 +314,7 @@ async function submitOrder() {
 }
 
 function handleFormSubmit() {
+  if (isOrderLocked.value) return
   if (isGuest.value) {
     showSignIn.value = true
   } else {
@@ -315,6 +338,7 @@ async function handleToggle(order, newVal) {
 }
 
 function startEdit(order) {
+  if (isOrderLocked.value) return
   editingOrderId.value = order.id
   editDraft.item_text = order.item_text
   editDraft.note = order.note ?? ''
@@ -336,6 +360,7 @@ function cancelEdit() {
 }
 
 function toggleEditDish(dish) {
+  if (isOrderLocked.value) return
   if (editPicks[dish.name]) {
     delete editPicks[dish.name]
   } else {
@@ -345,7 +370,7 @@ function toggleEditDish(dish) {
 }
 
 async function saveEdit(order) {
-  if (!editDraft.item_text.trim()) return
+  if (isOrderLocked.value || !editDraft.item_text.trim()) return
   editSaving.value = true
   editError.value = ''
   const { data, error } = await updateOrder({
@@ -354,7 +379,12 @@ async function saveEdit(order) {
     note: editDraft.note.trim() || null,
   })
   if (error) {
-    editError.value = 'Lưu không thành công. Thử lại nhé.'
+    if (isDeadlineError(error)) {
+      await load()
+      editError.value = 'Menu đã chốt đơn. Bạn vẫn có thể cập nhật thanh toán.'
+    } else {
+      editError.value = 'Lưu không thành công. Thử lại nhé.'
+    }
   } else if (data) {
     const idx = menu.value.orders.findIndex((o) => o.id === order.id)
     if (idx !== -1) {
@@ -416,6 +446,8 @@ function handleEsc(e) {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleEsc)
+  window.removeEventListener('focus', refreshOnFocus)
+  if (deadlineTimerId) window.clearInterval(deadlineTimerId)
 })
 </script>
 
@@ -461,6 +493,7 @@ onUnmounted(() => {
             <div>
               <div class="poster-name">{{ menu.poster?.full_name }}</div>
               <div class="meta">Người đăng</div>
+              <DeadlineStatus :deadline="menu.order_deadline" :now="deadlineNow" />
             </div>
             <span class="spacer" />
             <div class="row row-wrap" style="gap: 0.5rem;">
@@ -510,6 +543,7 @@ onUnmounted(() => {
             :note="menu.note"
             :picks="picks"
             :viewers="otherViewers"
+            :selection-locked="isOrderLocked"
             @toggle-dish="toggleDish"
             @hover-dish="setActiveDish"
           />
@@ -540,7 +574,8 @@ onUnmounted(() => {
                 <span class="order-name">{{ order.user?.full_name }}</span>
                 <span class="spacer" />
                 <AppButton
-                  v-if="order.user_id === myId && editingOrderId !== order.id"
+                  v-if="order.user_id === myId && editingOrderId !== order.id && !isOrderLocked"
+                  :data-testid="`edit-order-${order.id}`"
                   variant="ghost"
                   size="sm"
                   @click="startEdit(order)"
@@ -586,7 +621,7 @@ onUnmounted(() => {
                   <AppButton
                     size="sm"
                     :loading="editSaving"
-                    :disabled="isStructured(menu.note) ? !Object.keys(editPicks).length : !editDraft.item_text.trim()"
+                    :disabled="isOrderLocked || (isStructured(menu.note) ? !Object.keys(editPicks).length : !editDraft.item_text.trim())"
                     @click="saveEdit(order)"
                   >
                     Lưu
@@ -610,6 +645,7 @@ onUnmounted(() => {
               <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
                 <PaidToggle
                   v-if="order.user_id === myId"
+                  data-testid="paid-toggle"
                   :paid="order.is_paid"
                   :loading="!!toggleLoading[order.id]"
                   @toggle="(val) => handleToggle(order, val)"
@@ -635,7 +671,11 @@ onUnmounted(() => {
           <hr class="divider" />
 
           <!-- Order form -->
-          <form class="stack-sm" @submit.prevent="handleFormSubmit">
+          <div v-if="isOrderLocked" data-testid="order-closed-state" class="order-closed-state">
+            <strong>Menu đã chốt đơn.</strong>
+            Bạn vẫn có thể xem đơn và cập nhật thanh toán.
+          </div>
+          <form v-else data-testid="order-form" class="stack-sm" @submit.prevent="handleFormSubmit">
             <div class="eyebrow">Đặt món</div>
             <div v-if="!isGuest" class="field">
               <label>Đặt cho</label>
@@ -679,6 +719,7 @@ onUnmounted(() => {
               {{ draft.submitError }}
             </p>
             <AppButton
+              data-testid="submit-order"
               type="submit"
               :loading="draft.submitting"
               :disabled="isStructured(menu.note) ? !Object.keys(picks).length : !draft.item_text.trim()"
@@ -1160,6 +1201,18 @@ onUnmounted(() => {
   border: 1.5px dashed var(--line-strong);
   border-radius: var(--radius-sm);
 }
+
+.order-closed-state {
+  display: grid;
+  gap: .2rem;
+  padding: .9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--ink-soft);
+  font-size: var(--fs-sm);
+}
+.order-closed-state strong { color: var(--ink); }
 
 .picks-summary {
   display: flex;
