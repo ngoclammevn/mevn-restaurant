@@ -8,5 +8,6 @@ dist/
 .antigravitycli/
 .superpowers/
 .gitnexus
+.worktrees/
 .vercel
 .env*
