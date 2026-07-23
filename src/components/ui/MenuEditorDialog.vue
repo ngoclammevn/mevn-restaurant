@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { getOrderedDishUsage, parseMenuEditorDraft, serializeMenuEditorDraft, validateMenuEditorDraft } from '../../lib/menuEditor'
+import { toDeadlineInputValue } from '../../lib/orderDeadline'
 import AppButton from './AppButton.vue'
 import MenuBoard from './MenuBoard.vue'
 import OrderDeadlineField from './OrderDeadlineField.vue'
@@ -32,7 +33,9 @@ function cloneDishes(dishes) {
 function matchesOriginalDeadline(deadline) {
   const original = props.menu?.order_deadline ?? null
   if (deadline === null || original === null) return deadline === original
-  return new Date(deadline).getTime() === new Date(original).getTime()
+  const displayedDeadline = toDeadlineInputValue(deadline)
+  const displayedOriginal = toDeadlineInputValue(original)
+  return Boolean(displayedDeadline) && displayedDeadline === displayedOriginal
 }
 
 function buildPayload() {

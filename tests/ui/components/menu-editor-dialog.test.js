@@ -108,4 +108,29 @@ describe('MenuEditorDialog', () => {
     expect(wrapper.get('[data-testid="menu-editor-save"]').attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain('Hạn chót mới phải ở tương lai')
   })
+
+  it('saves an unchanged persisted past deadline after its displayed minute re-emits', async () => {
+    const wrapper = mount(MenuEditorDialog, {
+      props: {
+        menu: {
+          ...structuredMenu,
+          order_deadline: '2026-07-23T02:00:30.123Z',
+        },
+        orders: [],
+        open: true,
+        now: new Date('2026-07-23T03:00:00.000Z'),
+      },
+      global,
+    })
+
+    await wrapper.get('[data-testid="deadline-input"]').setValue('2026-07-23T09:00')
+    await wrapper.get('#menu-editor-title').setValue('Cơm trưa mới')
+
+    expect(wrapper.get('[data-testid="menu-editor-save"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.text()).not.toContain('Hạn chót mới phải ở tương lai')
+
+    await wrapper.get('[data-testid="menu-editor-save"]').trigger('click')
+
+    expect(wrapper.emitted('save')?.[0]?.[0]?.order_deadline).toBe('2026-07-23T02:00:00.000Z')
+  })
 })
