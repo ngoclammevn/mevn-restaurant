@@ -5,6 +5,7 @@ import { gsap } from 'gsap'
 import { useMenus } from '../composables/useMenus'
 import { todayInVN, formatVNDate } from '../lib/date'
 import { compressImage, extractStructuredMenu } from '../lib/gemini'
+import { getDeadlineState } from '../lib/orderDeadline'
 import { buildShareUrl } from '../lib/share'
 import { useSettings } from '../composables/useSettings'
 import { AppCard, AppButton, TextArea, TextField, PageHeader, FileUpload, DateField, MenuBoard, OrderDeadlineField, SignInModal } from '../components/ui'
@@ -173,6 +174,11 @@ async function submit() {
   }
 
   errorMsg.value = ''
+
+  if (orderDeadline.value !== null && orderDeadline.value !== undefined && getDeadlineState(orderDeadline.value).isLocked) {
+    errorMsg.value = 'Hạn chót đặt món phải ở tương lai.'
+    return
+  }
 
   if (!imageFile.value && !note.value.trim() && parsedDishes.value === null) {
     errorMsg.value = 'Menu cần có ít nhất ảnh hoặc mô tả món ăn.'

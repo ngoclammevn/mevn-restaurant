@@ -30,7 +30,8 @@
       "Thêm editor trực quan cho menu OCR và trường hạn chót đồng bộ desktop/mobile",
       "Giải thích rõ các món bị khoá khi đã có đơn và giữ nguyên hạn chót cũ khi chỉ sửa menu",
       "Không chặn lưu menu khi hạn chót cũ được hiển thị làm tròn theo phút",
-      "Có thể chỉnh sửa món OCR và hạn chót ngay trong Menu của tôi"
+      "Có thể chỉnh sửa món OCR và hạn chót ngay trong Menu của tôi",
+      "Chặn đăng menu với hạn chót đã qua để tránh menu bị chốt ngay"
     ]
   },
   {

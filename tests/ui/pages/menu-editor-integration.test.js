@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import PostMenuPage from '../../../src/pages/PostMenuPage.vue'
@@ -51,6 +51,8 @@ const global = {
 
 describe('menu editor and deadline page integration', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-23T03:00:00.000Z'))
     state.isSignedIn = true
     state.user = { id: 'poster_1' }
     createMenu.mockReset().mockResolvedValue({ data: { id: 'created-menu' }, error: null })
@@ -58,6 +60,10 @@ describe('menu editor and deadline page integration', () => {
     updateMenu.mockReset().mockResolvedValue({ data: null, error: null })
     deleteMenu.mockReset().mockResolvedValue({ error: null })
     sessionStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('submits an optional order deadline when posting a menu', async () => {
@@ -71,6 +77,20 @@ describe('menu editor and deadline page integration', () => {
     expect(createMenu).toHaveBeenCalledWith(expect.objectContaining({
       order_deadline: '2026-07-23T04:00:00.000Z',
     }))
+  })
+
+  it('keeps the draft and blocks posting when a newly selected deadline is already past', async () => {
+    const wrapper = mount(PostMenuPage, { global })
+
+    await wrapper.get('textarea').setValue('Cơm gà')
+    await wrapper.get('[data-testid="deadline-input"]').setValue('2026-07-23T09:00')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createMenu).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Hạn chót đặt món phải ở tương lai.')
+    expect(wrapper.get('textarea').element.value).toBe('Cơm gà')
+    expect(wrapper.get('[data-testid="deadline-input"]').element.value).toBe('2026-07-23T09:00')
   })
 
   it('opens the owner dialog and merges its saved menu fields without refetching', async () => {
