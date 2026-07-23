@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
@@ -98,6 +98,7 @@ const deleting = ref(false)
 const deleteError = ref('')
 const copied = ref(false)
 const picks = reactive({})
+let suppressRemotePickSync = false
 const picksTotal = computed(() => {
   const dishes = Object.values(picks)
   if (!dishes.length) return null
@@ -164,7 +165,7 @@ onMounted(() => {
 })
 
 function applyRemotePicks(remotePicks) {
-  if (!menu.value || !isPresenceReady.value) return
+  if (suppressRemotePickSync || !menu.value || !isPresenceReady.value) return
   const safeRemotePicks = remotePicks || []
   let changed = false
 
@@ -192,6 +193,26 @@ function applyRemotePicks(remotePicks) {
     draft.item_text = Object.values(picks).map(d => d.name).join('\n')
     savePicksToLocal()
   }
+}
+
+function snapshotOrderFormDraft() {
+  return {
+    item_text: draft.item_text,
+    note: draft.note,
+    orderFor: draft.orderFor,
+    picks: Object.values(picks).map((dish) => ({ ...dish })),
+  }
+}
+
+function restoreOrderFormDraft(snapshot) {
+  draft.item_text = snapshot.item_text
+  draft.note = snapshot.note
+  draft.orderFor = snapshot.orderFor
+  Object.keys(picks).forEach((name) => delete picks[name])
+  snapshot.picks.forEach((savedDish) => {
+    picks[savedDish.name] = findDishByName(savedDish.name, menu.value) ?? savedDish
+  })
+  savePicksToLocal()
 }
 
 watch(selfRemotePicks, applyRemotePicks)
@@ -280,7 +301,15 @@ async function submitOrder() {
 
   if (error) {
     if (isDeadlineError(error)) {
-      await load()
+      const draftSnapshot = snapshotOrderFormDraft()
+      suppressRemotePickSync = true
+      try {
+        await load()
+        restoreOrderFormDraft(draftSnapshot)
+        await nextTick()
+      } finally {
+        suppressRemotePickSync = false
+      }
       draft.submitError = 'Menu đã chốt đơn. Bạn vẫn có thể xem đơn và cập nhật thanh toán.'
     } else {
       draft.submitError = 'Đặt món không thành công. Thử lại nhé.'

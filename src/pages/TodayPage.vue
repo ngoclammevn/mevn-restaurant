@@ -115,6 +115,7 @@ async function handleToggle(menu, order, newVal) {
 }
 
 const editingOrderId = ref(null)
+const editingMenuId = ref(null)
 const editDraft = reactive({ item_text: '', note: '' })
 const editSaving = ref(false)
 const editError = ref('')
@@ -124,6 +125,7 @@ const deleteErrors = reactive({})
 
 function startEdit(menu, order) {
   if (isOrderLocked(menu)) return
+  editingMenuId.value = menu.id
   editingOrderId.value = order.id
   editDraft.item_text = order.item_text
   editDraft.note = order.note ?? ''
@@ -131,9 +133,16 @@ function startEdit(menu, order) {
 }
 
 function cancelEdit() {
+  editingMenuId.value = null
   editingOrderId.value = null
   editError.value = ''
 }
+
+watch(deadlineNow, () => {
+  if (!editingOrderId.value || !editingMenuId.value) return
+  const activeMenu = menus.value.find((menu) => menu.id === editingMenuId.value)
+  if (activeMenu && isOrderLocked(activeMenu)) cancelEdit()
+})
 
 async function saveEdit(menu, order) {
   if (isOrderLocked(menu) || !editDraft.item_text.trim()) return
