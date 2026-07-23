@@ -41,7 +41,7 @@ function formatRemaining(remainingMs) {
 }
 
 export function getDeadlineState(deadline, now = new Date()) {
-  if (!deadline) {
+  if (deadline === null || deadline === undefined) {
     return { kind: 'open-unlimited', remainingMs: null, label: 'Không giới hạn', isLocked: false }
   }
 

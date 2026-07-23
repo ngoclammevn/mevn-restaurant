@@ -30,6 +30,12 @@ describe('menu editor helpers', () => {
     })
   })
 
+  it('treats successfully parsed non-object JSON as invalid', () => {
+    for (const note of ['null', '45000', '"Cơm tấm"']) {
+      expect(parseMenuEditorDraft(note)).toEqual({ kind: 'invalid', raw: note })
+    }
+  })
+
   it('validates names and normalizes prices', () => {
     const result = validateMenuEditorDraft({
       kind: 'structured',

@@ -12,9 +12,15 @@ const base = new Date('2026-07-23T03:00:00.000Z') // 10:00 VN
 describe('order deadline helpers', () => {
   it('returns unlimited/open/closing-soon/closed states', () => {
     expect(getDeadlineState(null, base).kind).toBe('open-unlimited')
+    expect(getDeadlineState(undefined, base).kind).toBe('open-unlimited')
     expect(getDeadlineState('2026-07-23T04:00:00.000Z', base).kind).toBe('open')
     expect(getDeadlineState('2026-07-23T03:20:00.000Z', base).kind).toBe('closing-soon')
     expect(getDeadlineState('2026-07-23T02:59:00.000Z', base).kind).toBe('closed')
+  })
+
+  it('locks malformed supplied deadline values instead of treating them as unlimited', () => {
+    expect(getDeadlineState('', base)).toMatchObject({ kind: 'closed', isLocked: true })
+    expect(getDeadlineState(0, base)).toMatchObject({ kind: 'closed', isLocked: true })
   })
 
   it('builds quick deadlines in UTC for VN display', () => {

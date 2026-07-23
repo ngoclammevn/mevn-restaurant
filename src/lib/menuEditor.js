@@ -39,7 +39,7 @@ export function parseMenuEditorDraft(note) {
       }
     }
 
-    return isJsonContainer(text) ? { kind: 'invalid', raw: text } : { kind: 'plain', text }
+    return { kind: 'invalid', raw: text }
   } catch {
     return isJsonContainer(text) ? { kind: 'invalid', raw: text } : { kind: 'plain', text }
   }
