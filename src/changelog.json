@@ -2,6 +2,7 @@
   {
     "date": "2026-07-23",
     "changes": [
+      "Không còn mất món đã chọn khi đăng nhập và luôn xác nhận trước khi gửi đơn",
       "Chọn món nhanh hơn với danh sách rõ ràng và thanh tóm tắt luôn trong tầm tay",
       "Hiển thị ảnh menu gốc trọn vẹn ở mọi tỷ lệ và cho phép phóng to",
       "Kiểm tra lựa chọn món và quyền thanh toán rõ ràng hơn",

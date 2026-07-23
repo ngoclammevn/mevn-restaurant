@@ -9,6 +9,9 @@ import { formatVNDate, formatVNTime } from '../lib/date'
 import { autolink } from '../lib/autolink'
 import { buildShareUrl } from '../lib/share'
 import { isOrderContentLocked } from '../lib/orderDeadline'
+import { clearOrderDraft, restoreOrderDraft, saveOrderDraft } from '../lib/orderDraft'
+import { calculateSelection, parseStructuredMenu } from '../lib/menuOrder'
+import GuestOrderGate from '../components/menu/GuestOrderGate.vue'
 import {
   AppCard,
   AppButton,
@@ -24,18 +27,17 @@ import {
   MenuBoard,
   SparklesText,
   ConfettiBurst,
-  SignInModal,
   PaymentQRModal,
   DeadlineStatus,
 } from '../components/ui'
 const route = useRoute()
 const router = useRouter()
-const { user } = useUser()
+const { user, isLoaded = ref(true), isSignedIn = computed(() => Boolean(user.value)) } = useUser()
 const { getMenu, deleteMenu } = useMenus()
 const { createOrder, updateOrder, togglePaid, listProfiles } = useOrders()
 const { viewers, setActiveDish, setMyPicks, selfRemotePicks, myPresenceKey, onCartUpdated, isPresenceReady } = usePresence(route.params.id)
 const confettiRef = ref(null)
-const showSignIn = ref(false)
+const phase = ref('viewing')
 
 const myId = computed(() => user.value?.id)
 const otherViewers = computed(() => viewers.value.filter(v => v.presenceKey !== myPresenceKey.value))
@@ -46,7 +48,8 @@ watch(() => viewers.value.length, (newLen, oldLen) => {
     setTimeout(() => { gridRippling.value = false }, 1500)
   }
 })
-const isGuest = computed(() => !user.value)
+const isGuest = computed(() => isLoaded.value && !isSignedIn.value)
+const isAuthLoading = computed(() => !isLoaded.value)
 const soloWords = 'Hãy rủ mọi người cùng ăn cơm nhé! 🍱'.split(' ')
 
 const showQRModal = ref(false)
@@ -85,6 +88,8 @@ const draft = reactive({
   submitting: false,
   submitError: ''
 })
+const draftRestoreWarning = ref('')
+const confirmationErrorRef = ref(null)
 
 const toggleLoading = reactive({})
 const toggleError = reactive({})
@@ -100,16 +105,12 @@ const copied = ref(false)
 const picks = reactive({})
 let suppressRemotePickSync = false
 let awaitingRestoredPicksEcho = null
-const picksTotal = computed(() => {
-  const dishes = Object.values(picks)
-  if (!dishes.length) return null
-  if (!dishes.every(d => d.price)) return null
-  return dishes.reduce((s, d) => s + Number(d.price), 0)
-})
+let clearingSavedDraft = false
+const picksTotal = computed(() => calculateSelection(Object.values(picks)).total)
+const selectedOrderFor = computed(() => profiles.value.find((profile) => profile.id === draft.orderFor) ?? null)
 
 function isStructured(note) {
-  if (!note) return false
-  try { const d = JSON.parse(note); return d && Array.isArray(d.dishes) } catch { return false }
+  return parseStructuredMenu(note) !== null
 }
 
 function fmt(val) {
@@ -117,30 +118,25 @@ function fmt(val) {
   return new Intl.NumberFormat('vi-VN').format(val) + 'đ'
 }
 function findDishByName(name, menuData) {
-  if (!menuData?.note) return null
-  try {
-    const parsed = JSON.parse(menuData.note)
-    return (parsed.dishes ?? []).find(d => d.name === name) ?? null
-  } catch {}
-  return null
+  return parseStructuredMenu(menuData?.note)?.find(d => d.name === name) ?? null
 }
 
 function getAllDishes() {
-  if (!menu.value?.note) return []
-  try {
-    const parsed = JSON.parse(menu.value.note)
-    return Array.isArray(parsed.dishes) ? parsed.dishes : []
-  } catch {
-    return []
-  }
+  return parseStructuredMenu(menu.value?.note) ?? []
 }
 
-
-function savePicksToLocal() {
+function saveCurrentDraft() {
   if (!menu.value) return
-  try {
-    localStorage.setItem(`picks_menu_${menu.value.id}`, JSON.stringify(Object.keys(picks)))
-  } catch {}
+  if (!draft.item_text && !draft.note && !draft.orderFor && !Object.keys(picks).length) {
+    clearOrderDraft(localStorage, menu.value.id)
+    return
+  }
+  saveOrderDraft(localStorage, menu.value.id, {
+    itemText: draft.item_text,
+    note: draft.note,
+    orderFor: draft.orderFor,
+    dishNames: Object.keys(picks),
+  }, Date.now())
 }
 
 function toggleDish(dish) {
@@ -156,7 +152,7 @@ function toggleDish(dish) {
   }
   draft.item_text = Object.values(picks).map(d => d.name).join('\n')
   setMyPicks(Object.keys(picks), action, dish.name)
-  savePicksToLocal()
+  phase.value = Object.keys(picks).length ? 'selecting' : 'viewing'
 }
 
 onMounted(() => {
@@ -200,7 +196,6 @@ function applyRemotePicks(remotePicks) {
 
   if (changed) {
     draft.item_text = Object.values(picks).map(d => d.name).join('\n')
-    savePicksToLocal()
   }
 }
 
@@ -221,7 +216,6 @@ function restoreOrderFormDraft(snapshot) {
   snapshot.picks.forEach((savedDish) => {
     picks[savedDish.name] = findDishByName(savedDish.name, menu.value) ?? savedDish
   })
-  savePicksToLocal()
 
   const restoredPickNames = Object.keys(picks)
   awaitingRestoredPicksEcho = restoredPickNames.length ? restoredPickNames : null
@@ -233,6 +227,59 @@ watch(menu, () => applyRemotePicks(selfRemotePicks.value))
 watch(isPresenceReady, (ready) => {
   if (ready) applyRemotePicks(selfRemotePicks.value)
 })
+
+function migrateLegacyDraft() {
+  if (!menu.value) return
+
+  try {
+    if (localStorage.getItem(`lunch-order-draft:v1:${menu.value.id}`)) return
+    const legacyPicks = JSON.parse(localStorage.getItem(`picks_menu_${menu.value.id}`) || '[]')
+    const legacyNote = sessionStorage.getItem(`draft_note_menu_${menu.value.id}`) || ''
+    const legacyOrderFor = sessionStorage.getItem(`draft_orderFor_menu_${menu.value.id}`) || ''
+    if (!legacyPicks.length && !legacyNote && !legacyOrderFor) return
+
+    saveOrderDraft(localStorage, menu.value.id, {
+      itemText: legacyPicks.join('\n'),
+      note: legacyNote,
+      orderFor: legacyOrderFor,
+      dishNames: legacyPicks,
+    }, Date.now())
+  } catch {
+    // A malformed legacy draft is intentionally ignored.
+  } finally {
+    // The migration only reads the legacy keys and removes them after one attempt.
+    try {
+      localStorage.removeItem(`picks_menu_${menu.value.id}`)
+      sessionStorage.removeItem(`draft_note_menu_${menu.value.id}`)
+      sessionStorage.removeItem(`draft_orderFor_menu_${menu.value.id}`)
+    } catch {}
+  }
+}
+
+function restoreSavedDraft() {
+  if (!menu.value) return
+  migrateLegacyDraft()
+  const restored = restoreOrderDraft(localStorage, menu.value, profiles.value, Date.now())
+  if (!restored) return
+
+  draft.item_text = restored.draft.itemText
+  draft.note = restored.draft.note
+  draft.orderFor = restored.draft.orderFor
+  Object.keys(picks).forEach((name) => delete picks[name])
+  restored.draft.dishNames.forEach((name) => {
+    const dish = findDishByName(name, menu.value)
+    if (dish) picks[name] = dish
+  })
+
+  const restoredNames = Object.keys(picks)
+  awaitingRestoredPicksEcho = restoredNames.length ? restoredNames : null
+  setMyPicks(restoredNames)
+
+  const warnings = []
+  if (restored.removedDishNames.length) warnings.push(`Món không còn trong menu: ${restored.removedDishNames.join(', ')}`)
+  if (restored.orderForRemoved) warnings.push('Người được đặt hộ không còn trong danh sách')
+  draftRestoreWarning.value = warnings.join('. ')
+}
 
 async function load({ restoreDrafts = false } = {}) {
   loading.value = true
@@ -256,43 +303,29 @@ async function load({ restoreDrafts = false } = {}) {
   const { data: profileData } = await listProfiles()
   profiles.value = profileData ?? []
 
-  // Khôi phục giỏ hàng đã chọn từ localStorage
+  // Only the initial load (and a completed sign-in) may restore storage. Focus
+  // refreshes intentionally preserve the current in-memory selection.
   if (menu.value && restoreDrafts) {
-    try {
-      const saved = localStorage.getItem(`picks_menu_${menu.value.id}`)
-      if (saved) {
-        const savedNames = JSON.parse(saved)
-        savedNames.forEach(name => {
-          const dish = findDishByName(name, menu.value)
-          if (dish) picks[name] = dish
-        })
-        draft.item_text = Object.values(picks).map(d => d.name).join('\n')
-        setMyPicks(Object.keys(picks))
-      }
-      
-      const savedNote = sessionStorage.getItem(`draft_note_menu_${menu.value.id}`)
-      if (savedNote) draft.note = savedNote
-
-      const savedOrderFor = sessionStorage.getItem(`draft_orderFor_menu_${menu.value.id}`)
-      if (savedOrderFor) draft.orderFor = savedOrderFor
-    } catch (e) {
-      console.error('Failed to restore picks:', e)
-    }
+    restoreSavedDraft()
   }
 
   loading.value = false
 }
 
-watch(() => [draft.note, draft.orderFor], () => {
-  if (!menu.value) return
-  try {
-    sessionStorage.setItem(`draft_note_menu_${menu.value.id}`, draft.note || '')
-    sessionStorage.setItem(`draft_orderFor_menu_${menu.value.id}`, draft.orderFor || '')
-  } catch (e) {}
+watch([draft, picks], () => {
+  if (!clearingSavedDraft) saveCurrentDraft()
+  if (['viewing', 'selecting', 'ready'].includes(phase.value)) {
+    const hasDraft = isStructured(menu.value?.note)
+      ? Object.keys(picks).length > 0
+      : draft.item_text.trim().length > 0
+    phase.value = hasDraft ? 'ready' : 'viewing'
+  }
 }, { deep: true })
 
 watch(isOrderLocked, (locked) => {
-  if (locked && editingOrderId.value) cancelEdit()
+  if (!locked) return
+  if (editingOrderId.value) cancelEdit()
+  if (['authenticating', 'confirming', 'submitting'].includes(phase.value)) phase.value = 'viewing'
 })
 
 function refreshOnFocus() {
@@ -301,8 +334,10 @@ function refreshOnFocus() {
 }
 
 async function submitOrder() {
-  if (!menu.value || isOrderLocked.value || !draft.item_text.trim()) return
+  if (draft.submitting) return
+  if (!menu.value || isOrderLocked.value || phase.value !== 'confirming') return
   draft.submitting = true
+  phase.value = 'submitting'
   draft.submitError = ''
 
   const { data, error } = await createOrder({
@@ -327,6 +362,9 @@ async function submitOrder() {
     } else {
       draft.submitError = 'Đặt món không thành công. Thử lại nhé.'
     }
+    phase.value = 'confirming'
+    await nextTick()
+    confirmationErrorRef.value?.focus()
   } else {
     const orderedFor = draft.orderFor
       ? profiles.value.find((p) => p.id === draft.orderFor)
@@ -340,28 +378,48 @@ async function submitOrder() {
       },
     }
     menu.value.orders = [...(menu.value.orders ?? []), newOrder]
-    draft.item_text = ''
-    draft.note = ''
-    draft.orderFor = ''
-    Object.keys(picks).forEach(k => delete picks[k])
-    setMyPicks([])
-    localStorage.removeItem(`picks_menu_${menu.value.id}`)
+    clearingSavedDraft = true
     try {
-      sessionStorage.removeItem(`draft_note_menu_${menu.value.id}`)
-      sessionStorage.removeItem(`draft_orderFor_menu_${menu.value.id}`)
-    } catch (e) {}
-    confettiRef.value?.fire()
+      draft.item_text = ''
+      draft.note = ''
+      draft.orderFor = ''
+      Object.keys(picks).forEach(k => delete picks[k])
+      setMyPicks([])
+      phase.value = 'viewing'
+      await nextTick()
+      clearOrderDraft(localStorage, menu.value.id)
+    } finally {
+      clearingSavedDraft = false
+    }
+    if (typeof confettiRef.value?.fire === 'function') confettiRef.value.fire()
   }
   draft.submitting = false
 }
 
 function handleFormSubmit() {
   if (isOrderLocked.value) return
-  if (isGuest.value) {
-    showSignIn.value = true
-  } else {
-    submitOrder()
+  const hasSelection = isStructured(menu.value?.note)
+    ? Object.keys(picks).length > 0
+    : draft.item_text.trim().length > 0
+  if (!hasSelection) return
+
+  saveCurrentDraft()
+  draft.submitError = ''
+  if (isAuthLoading.value) {
+    draft.submitError = 'Đang kiểm tra đăng nhập. Thử lại trong giây lát nhé.'
+    return
   }
+  phase.value = isGuest.value ? 'authenticating' : 'confirming'
+}
+
+async function handleAuthenticated() {
+  if (!isSignedIn.value || !menu.value) return
+  await load({ restoreDrafts: true })
+  phase.value = isOrderLocked.value ? 'viewing' : 'confirming'
+}
+
+function cancelAuthentication() {
+  if (phase.value === 'authenticating') phase.value = 'ready'
 }
 
 async function handleToggle(order, newVal) {
@@ -713,13 +771,14 @@ onUnmounted(() => {
           <hr class="divider" />
 
           <!-- Order form -->
+          <p v-if="draftRestoreWarning" class="alert" role="status">{{ draftRestoreWarning }}</p>
           <div v-if="isOrderLocked" data-testid="order-closed-state" class="order-closed-state">
             <strong>Menu đã chốt đơn.</strong>
             Bạn vẫn có thể xem đơn và cập nhật thanh toán.
           </div>
           <form v-else data-testid="order-form" class="stack-sm" @submit.prevent="handleFormSubmit">
             <div class="eyebrow">Đặt món</div>
-            <div v-if="!isGuest" class="field">
+            <div v-if="isSignedIn" class="field">
               <label>Đặt cho</label>
               <select v-model="draft.orderFor" class="input">
                 <option value="">Tôi (chính mình)</option>
@@ -740,7 +799,7 @@ onUnmounted(() => {
                     <span v-if="dish.price" class="pick-price">{{ fmt(dish.price) }}</span>
                     <button type="button" class="pick-remove" @click="toggleDish(dish)">✕</button>
                   </div>
-                  <div v-if="picksTotal" class="picks-total">Tổng: {{ fmt(picksTotal) }}</div>
+                  <div v-if="picksTotal !== null" class="picks-total">Tổng: {{ fmt(picksTotal) }}</div>
                 </div>
               </div>
             </template>
@@ -757,7 +816,7 @@ onUnmounted(() => {
               label="Ghi chú (tuỳ chọn)"
               placeholder="Ví dụ: ít cay, không hành"
             />
-            <p v-if="draft.submitError" class="alert">
+            <p v-if="draft.submitError" ref="confirmationErrorRef" tabindex="-1" class="alert">
               {{ draft.submitError }}
             </p>
             <AppButton
@@ -766,8 +825,26 @@ onUnmounted(() => {
               :loading="draft.submitting"
               :disabled="isStructured(menu.note) ? !Object.keys(picks).length : !draft.item_text.trim()"
             >
-              {{ isGuest ? 'Đăng nhập để đặt món' : 'Đặt món' }}
+              {{ isAuthLoading ? 'Đang kiểm tra đăng nhập…' : isGuest ? 'Đăng nhập để đặt món' : 'Tiếp tục đặt món' }}
             </AppButton>
+
+            <section v-if="phase === 'confirming'" class="order-confirmation" aria-labelledby="order-confirmation-title">
+              <div class="eyebrow">Kiểm tra đơn</div>
+              <h2 id="order-confirmation-title">Xác nhận đặt món</h2>
+              <p class="order-confirmation__items" style="white-space: pre-wrap;">{{ draft.item_text }}</p>
+              <p v-if="draft.note" class="meta">Ghi chú: {{ draft.note }}</p>
+              <p class="meta">Đặt cho: {{ selectedOrderFor?.full_name ?? 'Tôi (chính mình)' }}</p>
+              <p class="order-confirmation__total">Tổng: {{ picksTotal === null ? 'Chưa có giá' : fmt(picksTotal) }}</p>
+              <AppButton
+                data-testid="confirm-order"
+                type="button"
+                :loading="draft.submitting"
+                :disabled="isOrderLocked"
+                @click="submitOrder"
+              >
+                Xác nhận đặt món
+              </AppButton>
+            </section>
           </form>
         </div>
       </AppCard>
@@ -856,7 +933,12 @@ onUnmounted(() => {
 
     <ConfettiBurst ref="confettiRef" />
 
-    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
+    <GuestOrderGate
+      :open="phase === 'authenticating'"
+      :is-signed-in="Boolean(isSignedIn)"
+      @authenticated="handleAuthenticated"
+      @cancel="cancelAuthentication"
+    />
 
     <PaymentQRModal
       v-if="showQRModal && selectedQROrder"
@@ -929,6 +1011,28 @@ onUnmounted(() => {
   white-space: pre-line;
   color: var(--ink-soft);
   font-size: var(--fs-sm);
+}
+
+.order-confirmation {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tint);
+}
+
+.order-confirmation h2 {
+  font-size: var(--fs-md);
+}
+
+.order-confirmation__items,
+.order-confirmation__total {
+  margin: 0;
+}
+
+.order-confirmation__total {
+  font-weight: 700;
 }
 
 .orders-section {

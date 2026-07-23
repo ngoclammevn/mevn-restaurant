@@ -5,9 +5,11 @@ import { ref } from 'vue'
 import MenuPage from '../../../src/pages/MenuPage.vue'
 import TodayPage from '../../../src/pages/TodayPage.vue'
 import DeadlineStatus from '../../../src/components/ui/DeadlineStatus.vue'
+import { draftKey } from '../../../src/lib/orderDraft'
 
 const state = vi.hoisted(() => ({
   user: { id: 'user_1', fullName: 'Minh', imageUrl: '' },
+  isLoaded: true,
   routeId: 'menu_1',
   presenceReady: false,
 }))
@@ -20,7 +22,11 @@ const togglePaid = vi.fn()
 const setMyPicks = vi.fn()
 
 vi.mock('@clerk/vue', () => ({
-  useUser: () => ({ user: ref(state.user) }),
+  useUser: () => ({
+    user: ref(state.user),
+    isLoaded: ref(state.isLoaded),
+    isSignedIn: ref(Boolean(state.user)),
+  }),
 }))
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: state.routeId } }),
@@ -124,11 +130,34 @@ describe('menu deadline UX', () => {
 
     await wrapper.get('textarea').setValue('Cơm gà')
     await wrapper.get('[data-testid="order-form"]').trigger('submit')
+    await wrapper.get('[data-testid="confirm-order"]').trigger('click')
     await flushPromises()
 
     expect(getMenu).toHaveBeenCalledTimes(2)
     expect(wrapper.get('[data-testid="order-closed-state"]').text()).toContain('Bạn vẫn có thể xem đơn và cập nhật thanh toán')
     expect(wrapper.vm.draft.item_text).toBe('Cơm gà')
+    wrapper.unmount()
+  })
+
+  it('requires an explicit confirmation before creating an order', async () => {
+    getMenu.mockResolvedValue({
+      data: makeMenu({ order_deadline: '2026-07-23T04:00:00.000Z', orders: [] }),
+      error: null,
+    })
+    const wrapper = mount(MenuPage, { global })
+    await flushPromises()
+
+    await wrapper.get('textarea').setValue('Cơm gà')
+    await wrapper.get('[data-testid="order-form"]').trigger('submit')
+
+    expect(createOrder).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="confirm-order"]').text()).toContain('Xác nhận đặt món')
+
+    await wrapper.get('[data-testid="confirm-order"]').trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledOnce()
+    expect(localStorage.getItem(draftKey('menu_1'))).toBeNull()
     wrapper.unmount()
   })
 
@@ -148,6 +177,7 @@ describe('menu deadline UX', () => {
     wrapper.vm.draft.note = 'Ít cơm'
     wrapper.vm.draft.orderFor = 'user_2'
     await wrapper.get('[data-testid="order-form"]').trigger('submit')
+    await wrapper.get('[data-testid="confirm-order"]').trigger('click')
     await flushPromises()
 
     expect(wrapper.vm.draft.item_text).toBe('Cơm gà')
@@ -172,6 +202,7 @@ describe('menu deadline UX', () => {
 
       wrapper.vm.toggleDish({ name: 'Cơm gà', price: 35000 })
       await wrapper.get('[data-testid="order-form"]').trigger('submit')
+      await wrapper.get('[data-testid="confirm-order"]').trigger('click')
       await flushPromises()
       wrapper.vm.applyRemotePicks([])
       await flushPromises()
