@@ -56,6 +56,35 @@ describe('menus — update / delete', () => {
     expect(error).toBeNull()
   })
 
+  it('chủ menu đặt rồi bỏ hạn chót của menu mình', async () => {
+    const deadline = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    const { error: setError } = await asUser(USER_A)
+      .from('menus')
+      .update({ order_deadline: deadline })
+      .eq('id', menuByA.id)
+    expect(setError).toBeNull()
+
+    const { data: withDeadline } = await asUser(USER_A)
+      .from('menus')
+      .select('order_deadline')
+      .eq('id', menuByA.id)
+      .single()
+    expect(withDeadline.order_deadline).not.toBeNull()
+
+    const { error: clearError } = await asUser(USER_A)
+      .from('menus')
+      .update({ order_deadline: null })
+      .eq('id', menuByA.id)
+    expect(clearError).toBeNull()
+
+    const { data: cleared } = await asUser(USER_A)
+      .from('menus')
+      .select('order_deadline')
+      .eq('id', menuByA.id)
+      .single()
+    expect(cleared.order_deadline).toBeNull()
+  })
+
   it('người khác không sửa được menu của A (0 dòng, không lỗi)', async () => {
     await asUser(USER_B).from('menus').update({ title: 'Cướp menu' }).eq('id', menuByA.id)
 
