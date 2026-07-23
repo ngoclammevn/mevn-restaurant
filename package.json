@@ -15,7 +15,6 @@
   "dependencies": {
     "@clerk/localizations": "^4.13.6",
     "@clerk/vue": "^2.4.5",
-    "@sparticuz/chromium-min": "^147.0.0",
     "@supabase/supabase-js": "^2.108.2",
     "@vercel/og": "^0.11.1",
     "@vueuse/core": "^14.3.0",
@@ -23,7 +22,6 @@
     "flatpickr": "^4.6.13",
     "gsap": "^3.15.0",
     "motion-v": "^2.3.0",
-    "puppeteer-core": "^24.43.1",
     "qrcode.vue": "^3.10.0",
     "react": "^19.2.7",
     "tesseract.js": "^7.0.0",

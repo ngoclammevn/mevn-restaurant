@@ -143,7 +143,11 @@ vercel --prod
 }
 ```
 
-> OG image dùng Puppeteer/Chromium — Vercel tự cài. Function timeout mặc định 10s là đủ.
+### OG share preview
+
+- Share preview uses the original uploaded menu image.
+- Text-only/legacy links use `/og-default.png`.
+- No Puppeteer/Chromium download or runtime rendering is required.
 
 ---
 
@@ -154,6 +158,8 @@ vercel --prod
 - [ ] Vào menu page khi chưa login (incognito) → thấy menu + orders + guest banner, không có form
 - [ ] Upload ảnh menu → OCR trả về JSON dishes
 - [ ] Mở `/share/<menuId>` → HTML với OG meta tags đúng (kiểm tra bằng [opengraph.xyz](https://www.opengraph.xyz))
+- [ ] Share preview của menu có ảnh dùng đúng ảnh menu đã tải lên; link text-only/legacy dùng `/og-default.png`
+- [ ] Deploy không tải Puppeteer/Chromium hoặc render ảnh OG khi chạy runtime
 - [ ] Mở 2 tab cùng menu → sidebar hiện avatar người kia
 - [ ] Chọn món ở tab A → tab B hiện chip avatar trên món đó (trong ~1s)
 - [ ] Idle 30s → refresh → người kia vẫn còn trong sidebar
