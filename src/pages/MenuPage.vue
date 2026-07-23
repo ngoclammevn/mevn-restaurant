@@ -99,6 +99,7 @@ const deleteError = ref('')
 const copied = ref(false)
 const picks = reactive({})
 let suppressRemotePickSync = false
+let awaitingRestoredPicksEcho = null
 const picksTotal = computed(() => {
   const dishes = Object.values(picks)
   if (!dishes.length) return null
@@ -167,6 +168,14 @@ onMounted(() => {
 function applyRemotePicks(remotePicks) {
   if (suppressRemotePickSync || !menu.value || !isPresenceReady.value) return
   const safeRemotePicks = remotePicks || []
+
+  if (awaitingRestoredPicksEcho) {
+    const hasRestoredPicks = awaitingRestoredPicksEcho.length === safeRemotePicks.length
+      && awaitingRestoredPicksEcho.every((name) => safeRemotePicks.includes(name))
+    if (!hasRestoredPicks) return
+    awaitingRestoredPicksEcho = null
+  }
+
   let changed = false
 
   // 1. Remove dishes from picks that are no longer in remotePicks
@@ -213,6 +222,10 @@ function restoreOrderFormDraft(snapshot) {
     picks[savedDish.name] = findDishByName(savedDish.name, menu.value) ?? savedDish
   })
   savePicksToLocal()
+
+  const restoredPickNames = Object.keys(picks)
+  awaitingRestoredPicksEcho = restoredPickNames.length ? restoredPickNames : null
+  setMyPicks(restoredPickNames)
 }
 
 watch(selfRemotePicks, applyRemotePicks)

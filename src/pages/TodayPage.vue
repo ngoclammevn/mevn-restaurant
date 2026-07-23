@@ -138,7 +138,7 @@ function cancelEdit() {
   editError.value = ''
 }
 
-watch(deadlineNow, () => {
+watch([deadlineNow, menus], () => {
   if (!editingOrderId.value || !editingMenuId.value) return
   const activeMenu = menus.value.find((menu) => menu.id === editingMenuId.value)
   if (activeMenu && isOrderLocked(activeMenu)) cancelEdit()

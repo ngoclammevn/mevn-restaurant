@@ -17,6 +17,7 @@ const listProfiles = vi.fn()
 const createOrder = vi.fn()
 const updateOrder = vi.fn()
 const togglePaid = vi.fn()
+const setMyPicks = vi.fn()
 
 vi.mock('@clerk/vue', () => ({
   useUser: () => ({ user: ref(state.user) }),
@@ -35,7 +36,7 @@ vi.mock('../../../src/composables/useOrders', () => ({
 vi.mock('../../../src/composables/usePresence', () => ({
   getPersonColor: () => '#000',
   usePresence: () => ({
-    viewers: ref([]), setActiveDish: vi.fn(), setMyPicks: vi.fn(),
+    viewers: ref([]), setActiveDish: vi.fn(), setMyPicks,
     selfRemotePicks: ref([]), myPresenceKey: ref('presence_1'),
     onCartUpdated: vi.fn(), isPresenceReady: ref(state.presenceReady),
   }),
@@ -74,6 +75,7 @@ describe('menu deadline UX', () => {
     createOrder.mockReset().mockResolvedValue({ data: null, error: null })
     updateOrder.mockReset().mockResolvedValue({ data: null, error: null })
     togglePaid.mockReset().mockResolvedValue({ data: { is_paid: true }, error: null })
+    setMyPicks.mockReset()
     state.presenceReady = false
     sessionStorage.clear()
     localStorage.clear()
@@ -154,6 +156,33 @@ describe('menu deadline UX', () => {
     wrapper.unmount()
   })
 
+  it('keeps restored picks when a stale empty presence event arrives after a deadline refetch', async () => {
+    state.presenceReady = true
+    const structuredNote = JSON.stringify({
+      dishes: [{ name: 'Cơm gà', price: 35000 }],
+    })
+    getMenu
+      .mockResolvedValueOnce({ data: makeMenu({ note: structuredNote, order_deadline: '2026-07-23T04:00:00.000Z', orders: [] }), error: null })
+      .mockResolvedValueOnce({ data: makeMenu({ note: structuredNote, orders: [] }), error: null })
+    createOrder.mockResolvedValue({ data: null, error: { message: 'ORDER_DEADLINE_PASSED' } })
+    const wrapper = mount(MenuPage, { global })
+    try {
+      await flushPromises()
+
+      wrapper.vm.toggleDish({ name: 'Cơm gà', price: 35000 })
+      await wrapper.get('[data-testid="order-form"]').trigger('submit')
+      await flushPromises()
+      wrapper.vm.applyRemotePicks([])
+      await flushPromises()
+
+      expect(wrapper.vm.draft.item_text).toBe('Cơm gà')
+      expect(Object.keys(wrapper.vm.picks)).toEqual(['Cơm gà'])
+      expect(setMyPicks).toHaveBeenLastCalledWith(['Cơm gà'])
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('refetches the menu when the tab regains focus', async () => {
     const wrapper = mount(MenuPage, { global })
     await flushPromises()
@@ -188,6 +217,24 @@ describe('menu deadline UX', () => {
     expect(wrapper.find('textarea').exists()).toBe(true)
 
     await vi.advanceTimersByTimeAsync(30_000)
+    await flushPromises()
+
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="today-edit-order-order_1"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('closes the active Today editor when a focus refetch returns a closed deadline', async () => {
+    listMenusByDate
+      .mockResolvedValueOnce({ data: [makeMenu({ order_deadline: '2026-07-23T04:00:00.000Z' })], error: null })
+      .mockResolvedValueOnce({ data: [makeMenu({ order_deadline: '2026-07-23T02:59:00.000Z' })], error: null })
+    const wrapper = mount(TodayPage, { global })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="today-edit-order-order_1"]').trigger('click')
+    expect(wrapper.find('textarea').exists()).toBe(true)
+
+    window.dispatchEvent(new Event('focus'))
     await flushPromises()
 
     expect(wrapper.find('textarea').exists()).toBe(false)

@@ -33,7 +33,8 @@
       "Có thể chỉnh sửa món OCR và hạn chót ngay trong Menu của tôi",
       "Chặn đăng menu với hạn chót đã qua để tránh menu bị chốt ngay",
       "Hiển thị hạn chót rõ ràng và tự khoá đặt hoặc sửa đơn sau giờ chốt",
-      "Giữ nguyên món đã chọn khi menu vừa chốt đơn và tự đóng form sửa đơn đúng lúc"
+      "Giữ nguyên món đã chọn khi menu vừa chốt đơn và tự đóng form sửa đơn đúng lúc",
+      "Sửa lỗi form đang sửa không tự đóng khi menu vừa được chốt từ thiết bị khác"
     ]
   },
   {
