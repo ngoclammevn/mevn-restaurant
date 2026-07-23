@@ -22,7 +22,13 @@ const cls = computed(() => [
 
 <template>
   <router-link v-if="to" :to="to" :class="cls"><slot /></router-link>
-  <button v-else :class="cls" :type="type" :disabled="disabled || loading">
+  <button
+    v-else
+    :class="cls"
+    :type="type"
+    :disabled="disabled || loading"
+    :aria-busy="loading ? 'true' : undefined"
+  >
     <span v-if="loading" class="spinner" aria-hidden="true" />
     <slot />
   </button>

@@ -3,7 +3,7 @@ defineProps({ label: { type: String, default: 'Đang tải…' } })
 </script>
 
 <template>
-  <div class="row loading-row">
+  <div class="row loading-row" role="status" aria-live="polite">
     <span class="spinner" aria-hidden="true" />
     <span class="meta">{{ label }}</span>
   </div>

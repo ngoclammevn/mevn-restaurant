@@ -12,7 +12,7 @@
   --card: #fffdf9;        /* ticket surface */
   --ink: #23271f;         /* warm near-black */
   --ink-soft: #56514a;    /* secondary text */
-  --muted: #8c8579;       /* captions, meta */
+  --muted: #6f695f;       /* captions, meta */
   --line: #e7ddcb;        /* hairline borders */
   --line-strong: #d8cbb2;
 
@@ -149,6 +149,7 @@ h1, h2, h3, p { margin: 0; }
 .btn {
   --b-bg: var(--primary); --b-fg: #fff; --b-bd: var(--primary);
   display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  min-height: 44px;
   padding: 0.62rem 1.05rem; border-radius: var(--radius-pill);
   background: var(--b-bg); color: var(--b-fg); border: 1.5px solid var(--b-bd);
   font-weight: 700; font-size: var(--fs-sm); cursor: pointer;
@@ -185,6 +186,7 @@ h1, h2, h3, p { margin: 0; }
 .field { display: flex; flex-direction: column; gap: 0.35rem; }
 .field > label { font-weight: 600; font-size: var(--fs-sm); color: var(--ink-soft); }
 .field .hint { color: var(--muted); font-size: var(--fs-xs); }
+.field-error { color: #a83312; font-size: var(--fs-xs); font-weight: 600; }
 .input, .textarea, select.input {
   width: 100%; padding: 0.62rem 0.8rem; background: var(--bg);
   border: 1.5px solid var(--line-strong); border-radius: var(--radius-sm);
@@ -365,4 +367,3 @@ input:disabled + .slider {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
-

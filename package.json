@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node tests/helpers/runRlsTests.js",
-    "test:watch": "node tests/helpers/runRlsTests.js --watch"
+    "test:watch": "node tests/helpers/runRlsTests.js --watch",
+    "test:ui": "vitest run tests/ui",
+    "test:all": "npm run test:ui && npm test"
   },
   "dependencies": {
     "@clerk/vue": "^2.4.5",
@@ -29,6 +31,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.11.1",
     "jsonwebtoken": "^9.0.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.12",

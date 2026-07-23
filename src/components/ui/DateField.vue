@@ -1,16 +1,25 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted, useId } from 'vue'
 import flatpickr from 'flatpickr'
 import { Vietnamese } from 'flatpickr/dist/l10n/vn.js'
 import 'flatpickr/dist/flatpickr.min.css'
 
 const props = defineProps({
+  id:         { type: String, default: '' },
   modelValue: { type: String, default: '' },
   label:      { type: String, default: '' },
+  hint:       { type: String, default: '' },
+  error:      { type: String, default: '' },
 })
 const emit = defineEmits(['update:modelValue'])
 
 const inputRef = ref(null)
+const generatedId = useId()
+const controlId = computed(() => props.id || generatedId)
+const describedBy = computed(() => [
+  props.hint && `${controlId.value}-hint`,
+  props.error && `${controlId.value}-error`,
+].filter(Boolean).join(' ') || undefined)
 let fp = null
 
 onMounted(() => {
@@ -39,8 +48,20 @@ watch(() => props.modelValue, (val) => {
 
 <template>
   <div class="field">
-    <label v-if="label">{{ label }}</label>
-    <input ref="inputRef" type="text" class="input" :value="modelValue" readonly placeholder="Chọn ngày..." />
+    <label v-if="label" :for="controlId">{{ label }}</label>
+    <input
+      :id="controlId"
+      ref="inputRef"
+      type="text"
+      class="input"
+      :value="modelValue"
+      :aria-describedby="describedBy"
+      :aria-invalid="error ? 'true' : undefined"
+      readonly
+      placeholder="Chọn ngày..."
+    />
+    <span v-if="hint" :id="`${controlId}-hint`" class="hint">{{ hint }}</span>
+    <span v-if="error" :id="`${controlId}-error`" class="field-error">{{ error }}</span>
   </div>
 </template>
 
