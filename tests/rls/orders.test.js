@@ -47,12 +47,11 @@ describe('orders — insert', () => {
     expect(error).toBeNull()
   })
 
-  it('không đặt món với user_id là người khác (KHÔNG đặt hộ theo RLS hiện tại)', async () => {
-    // Nếu spec muốn cho phép đặt hộ thì policy orders_insert cần nới thành with check (true)
+  it('đặt hộ người khác vẫn được phép (tính năng đặt hộ, chỉ chặn khi menu đã chốt)', async () => {
     const { error } = await asUser(USER_B)
       .from('orders')
-      .insert({ menu_id: menu.id, user_id: USER_A, item_text: 'Giả mạo' })
-    expect(error).not.toBeNull()
+      .insert({ menu_id: menu.id, user_id: USER_A, item_text: 'Đặt hộ' })
+    expect(error).toBeNull()
   })
 })
 

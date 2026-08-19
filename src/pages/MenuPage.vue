@@ -28,7 +28,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const { user } = useUser()
-const { getMenu, deleteMenu } = useMenus()
+const { getMenu, deleteMenu, setMenuClosed } = useMenus()
 const { createOrder, updateOrder, togglePaid, listProfiles } = useOrders()
 const { viewers, setActiveDish, setMyPicks, selfRemotePicks, myPresenceKey, onCartUpdated, isPresenceReady } = usePresence(route.params.id)
 const confettiRef = ref(null)
@@ -87,6 +87,7 @@ const editingOrderId = ref(null)
 const editDraft = reactive({ item_text: '', note: '' })
 const editSaving = ref(false)
 const editError = ref('')
+const closeError = ref('')
 const editPicks = reactive({})
 const deleting = ref(false)
 const deleteError = ref('')
@@ -261,7 +262,10 @@ async function submitOrder() {
   })
 
   if (error) {
-    draft.submitError = 'Đặt món không thành công. Thử lại nhé.'
+    const closed = await resyncClosedState()
+    draft.submitError = closed
+      ? 'Đơn đã chốt. Liên hệ trực tiếp người đặt cơm để thêm món.'
+      : 'Đặt món không thành công. Thử lại nhé.'
   } else {
     const orderedFor = draft.orderFor
       ? profiles.value.find((p) => p.id === draft.orderFor)
@@ -296,6 +300,41 @@ function handleFormSubmit() {
   } else {
     submitOrder()
   }
+}
+
+// Copy danh sách (OrderSummaryPanel) = chốt đơn, khoá member thêm/sửa món.
+async function closeOrdering() {
+  if (!menu.value || menu.value.is_closed) return
+  if (!confirm('Chốt đơn? Member khác sẽ không đặt/sửa món được nữa cho tới khi bạn mở lại.')) return
+  closeError.value = ''
+  menu.value.is_closed = true
+  const { error } = await setMenuClosed(menu.value.id, true)
+  if (error) {
+    menu.value.is_closed = false
+    closeError.value = 'Chốt đơn không thành công. Thử lại nhé.'
+  }
+}
+
+async function reopenOrdering() {
+  if (!menu.value) return
+  closeError.value = ''
+  menu.value.is_closed = false
+  const { error } = await setMenuClosed(menu.value.id, false)
+  if (error) {
+    menu.value.is_closed = true
+    closeError.value = 'Mở lại nhận đơn không thành công. Thử lại nhé.'
+  }
+}
+
+// Trang có thể đang mở từ trước khi poster chốt đơn ở tab/máy khác (không có
+// realtime sync) — khi gặp lỗi lưu/đặt món, refetch is_closed để UI hết "thử lại vô ích".
+async function resyncClosedState() {
+  if (!menu.value) return false
+  const { data, error } = await getMenu(menu.value.id)
+  // lỗi mạng — không xác minh được trạng thái thật, giữ nguyên state đã biết thay vì coi như "chưa đóng"
+  if (error) return menu.value.is_closed
+  menu.value.is_closed = data.is_closed
+  return !!data?.is_closed
 }
 
 async function handleToggle(order, newVal) {
@@ -353,7 +392,10 @@ async function saveEdit(order) {
     note: editDraft.note.trim() || null,
   })
   if (error) {
-    editError.value = 'Lưu không thành công. Thử lại nhé.'
+    const closed = await resyncClosedState()
+    editError.value = closed
+      ? 'Đơn đã chốt, không thể sửa món nữa.'
+      : 'Lưu không thành công. Thử lại nhé.'
   } else if (data) {
     const idx = menu.value.orders.findIndex((o) => o.id === order.id)
     if (idx !== -1) {
@@ -520,7 +562,11 @@ onUnmounted(() => {
             v-if="menu.poster_id === myId"
             :orders="menu.orders ?? []"
             :menu-note="menu.note ?? ''"
+            :is-closed="!!menu.is_closed"
+            @copied="closeOrdering"
+            @reopen="reopenOrdering"
           />
+          <p v-if="menu.poster_id === myId && closeError" class="alert">{{ closeError }}</p>
 
           <!-- Orders list -->
           <div v-if="menu.orders && menu.orders.length > 0" class="stack-sm orders-section">
@@ -539,7 +585,7 @@ onUnmounted(() => {
                 <span class="order-name">{{ order.user?.full_name }}</span>
                 <span class="spacer" />
                 <AppButton
-                  v-if="order.user_id === myId && editingOrderId !== order.id"
+                  v-if="order.user_id === myId && editingOrderId !== order.id && !menu.is_closed"
                   variant="ghost"
                   size="sm"
                   @click="startEdit(order)"
@@ -550,7 +596,7 @@ onUnmounted(() => {
               </div>
 
               <!-- Edit inline form -->
-              <template v-if="editingOrderId === order.id">
+              <template v-if="editingOrderId === order.id && !menu.is_closed">
                 <template v-if="isStructured(menu.note)">
                   <div class="field">
                     <label>Món bạn muốn đặt</label>
@@ -580,7 +626,6 @@ onUnmounted(() => {
                   v-model="editDraft.note"
                   label="Ghi chú (tuỳ chọn)"
                 />
-                <p v-if="editError" class="alert">{{ editError }}</p>
                 <div class="row" style="gap: 0.5rem;">
                   <AppButton
                     size="sm"
@@ -604,6 +649,11 @@ onUnmounted(() => {
                   đã sửa lúc {{ formatVNTime(order.updated_at) }}
                 </p>
               </template>
+
+              <!-- Đặt ngoài cặp v-if/v-else trên: saveEdit() lỗi có thể tự đổi is_closed
+                   thành true (resyncClosedState), làm nhánh sửa (từng chứa editError) unmount
+                   trước khi user kịp thấy — gate theo editingOrderId để sống sót qua đổi is_closed. -->
+              <p v-if="editingOrderId === order.id && editError" class="alert">{{ editError }}</p>
 
               <!-- Self-tick: only for own order -->
               <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
@@ -633,8 +683,13 @@ onUnmounted(() => {
 
           <hr class="divider" />
 
+          <!-- Đơn đã chốt: không cho đặt thêm nữa -->
+          <div v-if="menu.is_closed" class="alert">
+            🔒 Đơn đã chốt. Liên hệ trực tiếp {{ menu.poster?.full_name || 'người đặt cơm' }} để thêm món, không thông qua app.
+          </div>
+
           <!-- Order form -->
-          <form class="stack-sm" @submit.prevent="handleFormSubmit">
+          <form v-else class="stack-sm" @submit.prevent="handleFormSubmit">
             <div class="eyebrow">Đặt món</div>
             <div v-if="!isGuest" class="field">
               <label>Đặt cho</label>

@@ -3,10 +3,12 @@ import jwt from 'jsonwebtoken'
 
 // Default local Supabase values (supabase start)
 const SUPABASE_URL = 'http://127.0.0.1:54321'
+// ponytail: hardcoded local-only demo keys drift across supabase CLI versions
+// (same secret, but CLI's own signature differs) — re-sync with `supabase start` output if tests start 401ing.
 const ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRFA0NiK7kyqd6SIHDkIdLRJ3DVWu-DCE8v_MHr6Ipc'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
 const SERVICE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hj04zWl196z2-SBc0'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 const JWT_SECRET = 'super-secret-jwt-token-with-at-least-32-characters-long'
 
 // Mint a fake Clerk-style JWT accepted by local Supabase PostgREST

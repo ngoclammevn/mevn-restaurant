@@ -59,6 +59,15 @@ export function useMenus() {
       .single()
   }
 
+  // Chốt/mở lại nhận đơn. RLS menus_update giới hạn chỉ poster gọi được.
+  async function setMenuClosed(id, is_closed) {
+    return sb.from('menus')
+      .update({ is_closed })
+      .eq('id', id)
+      .select()
+      .single()
+  }
+
   async function deleteMenu(menuId, imageUrl = null) {
     const uid = user.value?.id
     if (!uid) return { error: new Error('not signed in') }
@@ -86,5 +95,5 @@ export function useMenus() {
     return { error: null }
   }
 
-  return { createMenu, listMenusByDate, getMenu, listMyMenus, updateMenu, deleteMenu }
+  return { createMenu, listMenusByDate, getMenu, listMyMenus, updateMenu, setMenuClosed, deleteMenu }
 }

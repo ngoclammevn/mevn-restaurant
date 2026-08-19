@@ -213,6 +213,11 @@ create policy orders_delete on orders
 > Người thu tiền (poster) **không** có nút "đánh dấu đã trả hộ" — điều đó mâu thuẫn với RLS và với
 > cơ chế self-tick đã chốt. Poster chỉ *xem* trạng thái.
 
+> **Đã lỗi thời một phần:** policy `orders_insert`/`orders_update`/`orders_delete` ở trên là bản gốc
+> 2026-06-19. Từ migration `0003` (`with check (true)` cho đặt hộ) và `0004_close_ordering.sql`
+> (cột `menus.is_closed` + chặn insert/delete khi menu đã chốt), RLS thật đã thay đổi — xem
+> `AGENTS.md` § Bất biến nghiệp vụ và `supabase/migrations/*.sql` làm nguồn chân lý hiện tại.
+
 ### Storage (bucket ảnh menu)
 - Bucket `menus`, đường dẫn file: **`menus/{clerk_user_id}/{filename}`**.
 - Đọc: công khai (ai cũng xem ảnh menu được) — bucket public, hoặc signed URL nếu muốn chặt hơn (mặc định: public read cho đơn giản).

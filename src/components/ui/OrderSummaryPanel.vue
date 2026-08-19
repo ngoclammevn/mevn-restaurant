@@ -6,7 +6,10 @@ import BlurReveal from './BlurReveal.vue'
 const props = defineProps({
   orders:   { type: Array,  required: true },
   menuNote: { type: String, default: '' },
+  isClosed: { type: Boolean, default: false },
 })
+
+const emit = defineEmits(['copied', 'reopen'])
 
 function parseDishMap(note) {
   try {
@@ -82,6 +85,7 @@ async function copyList() {
     await navigator.clipboard.writeText(copyText.value)
     copied.value = true
     setTimeout(() => { copied.value = false }, 1500)
+    emit('copied')
   } catch {
     // ponytail: clipboard blocked (http / denied) — báo cho user tự copy tay
     alert('Không copy được (trình duyệt chặn clipboard). Vui lòng copy thủ công.')
@@ -98,10 +102,17 @@ async function copyList() {
       <span class="eyebrow">🛒 Danh sách cần mua</span>
       <span class="osp-header-right">
         <button
+          v-if="isClosed"
+          type="button"
+          class="osp-reopen"
+          title="Mở lại nhận đơn"
+          @click="emit('reopen')"
+        >🔓 Mở lại nhận đơn</button>
+        <button
           type="button"
           class="osp-copy"
           :class="{ 'osp-copy--done': copied }"
-          :title="copied ? 'Đã copy' : 'Copy danh sách'"
+          :title="copied ? 'Đã copy' : isClosed ? 'Copy danh sách' : 'Copy danh sách (sẽ chốt đơn)'"
           @click="copyList"
         >{{ copied ? '✓' : '📋' }}</button>
         <span class="badge badge--paid osp-badge">{{ totalParts }} phần</span>
@@ -182,6 +193,22 @@ async function copyList() {
 .osp-copy--done {
   color: var(--primary-ink);
   border-color: var(--primary);
+}
+
+.osp-reopen {
+  border: 1px solid rgba(31, 110, 69, 0.3);
+  background: transparent;
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.5rem;
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.osp-reopen:hover {
+  background: rgba(31, 110, 69, 0.1);
 }
 
 .osp-badge {
