@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-08-19",
+    "changes": [
+      "Người đăng cơm có thể chốt đơn (bấm nút copy danh sách sẽ tự khoá nhận món), và mở lại khi cần",
+      "Khi đơn đã chốt, mọi người không đặt/sửa món qua app được nữa, chỉ có thể liên hệ trực tiếp người đăng cơm"
+    ]
+  },
+  {
     "date": "2026-07-08",
     "changes": [
       "Thêm nút tải mã QR chuyển khoản (VietQR & MoMo) về máy",
