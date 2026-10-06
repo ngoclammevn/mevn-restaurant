@@ -22,3 +22,5 @@ export { default as ChangelogModal } from './ChangelogModal.vue'
 export { default as SignInModal } from './SignInModal.vue'
 export { default as PaymentQRModal } from './PaymentQRModal.vue'
 
+export { default as AppDialog } from './AppDialog.vue'
+export { default as FormErrorSummary } from './FormErrorSummary.vue'

@@ -1,0 +1,5 @@
+# Nonsecret values supplied by the owner. No actual values are committed.
+CLERK_ISSUER=""
+ALLOWED_ORIGINS=""
+SUPABASE_URL=""
+SUPABASE_PUBLISHABLE_KEY=""

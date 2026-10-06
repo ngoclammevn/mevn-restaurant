@@ -1,5 +1,30 @@
 [
   {
+    "date": "2026-10-06",
+    "changes": [
+      "Đơn giản hóa điều hướng và đồng bộ giao diện trên điện thoại, máy tính",
+      "Xem lại menu và đơn đặt trước khi gửi, chọn hoặc tạo quán ngay khi đăng menu",
+      "Quản lý số suất theo món, sửa món và đặt hộ ngay trong menu đang mở",
+      "Tách tiền chưa thu và menu đã đăng; xem khoản cũ theo từng người, từng ngày",
+      "Xem món thường chọn và món đã đánh giá tốt trong Khẩu vị của tôi",
+      "Theo dõi người đang online và món đang chọn; trang cá nhân chỉ hiện online",
+      "Bổ sung 12 cảm nhận theo từng món và giữ đánh giá đang viết khi danh sách cập nhật",
+      "Đồng bộ bố cục và các nút với bản xem trước đã duyệt, giữ thanh đặt món dễ bấm trên điện thoại",
+      "Làm gọn màn hình chuyển khoản, xem rõ số tiền và tự xác nhận đã chuyển"
+    ]
+  },
+  {
+    "date": "2026-10-04",
+    "changes": [
+      "Làm gọn giao diện đặt cơm, quán ăn và quản lý menu trên điện thoại và máy tính",
+      "Chọn quán khi đăng menu, ghi nhận từng món riêng cho mỗi quán",
+      "Đánh giá từng món bằng sao, gợi ý cảm nhận phù hợp với món và ghi chú tự do",
+      "Xem lịch sử ăn theo lịch tháng và theo dõi riêng các đơn chưa thanh toán",
+      "Dùng lại menu, sửa danh sách món, đánh dấu hết món và xuất danh sách đặt cơm",
+      "Giữ món đã chọn khi đăng nhập và cập nhật danh sách mới nhất trước khi sao chép chốt đơn"
+    ]
+  },
+  {
     "date": "2026-08-19",
     "changes": [
       "Người đăng cơm có thể chốt đơn (bấm nút copy danh sách sẽ tự khoá nhận món), và mở lại khi cần",

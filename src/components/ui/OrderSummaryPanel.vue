@@ -1,59 +1,20 @@
 <script setup>
 import { computed, ref } from 'vue'
-import BorderBeam from './BorderBeam.vue'
-import BlurReveal from './BlurReveal.vue'
+import { summarizeManagedMenu } from '../../lib/manage-summary'
 
 const props = defineProps({
   orders:   { type: Array,  required: true },
   menuNote: { type: String, default: '' },
   isClosed: { type: Boolean, default: false },
+  beforeCopy: { type: Function, default: null },
 })
 
 const emit = defineEmits(['copied', 'reopen'])
 
-function parseDishMap(note) {
-  try {
-    const parsed = JSON.parse(note)
-    if (!Array.isArray(parsed.dishes)) return null
-    const map = new Map()
-    for (const d of parsed.dishes) {
-      if (d.name) map.set(d.name.toLowerCase(), d.price ?? null)
-    }
-    return map
-  } catch {
-    return null
-  }
-}
-
-const summary = computed(() => {
-  const dishMap = parseDishMap(props.menuNote)
-  const agg = new Map()
-
-  for (const order of props.orders) {
-    const lines = (order.item_text || '').split('\n').map(l => l.trim()).filter(Boolean)
-    const personName = order.user?.full_name || '?'
-    for (const line of lines) {
-      const key = line.toLowerCase()
-      if (!agg.has(key)) {
-        const price = dishMap ? (dishMap.get(key) ?? null) : null
-        agg.set(key, { displayName: line, count: 0, people: [], unitPrice: price })
-      }
-      const entry = agg.get(key)
-      entry.count++
-      entry.people.push(personName)
-    }
-  }
-
-  return [...agg.values()]
-    .map(e => ({
-      ...e,
-      total: e.unitPrice != null ? e.unitPrice * e.count : null,
-      peopleLabel: e.people.length > 3
-        ? `${e.people.slice(0, 3).join(', ')} +${e.people.length - 3} khác`
-        : e.people.join(', '),
-    }))
-    .sort((a, b) => b.count - a.count || a.displayName.localeCompare(b.displayName, 'vi'))
-})
+const summary = computed(() => summarizeManagedMenu({ note:props.menuNote, orders:props.orders }).orderedDishes.map(row => ({
+  displayName:row.name, count:row.servings, total:row.unknownPriceCount ? null : row.knownTotal,
+  peopleLabel:row.people.length > 3 ? `${row.people.slice(0,3).map(p=>p.name).join(', ')} +${row.people.length-3} khác` : row.people.map(p=>p.name).join(', '),
+})))
 
 const totalParts = computed(() => summary.value.reduce((s, e) => s + e.count, 0))
 
@@ -69,7 +30,7 @@ function fmt(val) {
   return new Intl.NumberFormat('vi-VN').format(val) + 'đ'
 }
 
-const copied = ref(false)
+const copied = ref(false), copying = ref(false), copyError = ref('')
 
 const copyText = computed(() => {
   const lines = summary.value.map(e =>
@@ -81,25 +42,28 @@ const copyText = computed(() => {
 })
 
 async function copyList() {
+  if (copying.value) return
+  copying.value = true; copyError.value = ''
   try {
+    if (props.beforeCopy && !(await props.beforeCopy())) return
     await navigator.clipboard.writeText(copyText.value)
     copied.value = true
     setTimeout(() => { copied.value = false }, 1500)
     emit('copied')
   } catch {
     // ponytail: clipboard blocked (http / denied) — báo cho user tự copy tay
-    alert('Không copy được (trình duyệt chặn clipboard). Vui lòng copy thủ công.')
-  }
+    copyError.value = 'Chưa sao chép được. Bạn có thể chọn và sao chép danh sách bên dưới.'
+  } finally { copying.value = false }
 }
 </script>
 
 <template>
   <div v-if="summary.length" class="osp-wrap">
-    <BorderBeam :size="120" :duration="8" colorFrom="#dcb464" colorTo="#1f6e45" />
+
 
     <!-- Header -->
     <div class="osp-header">
-      <span class="eyebrow">🛒 Danh sách cần mua</span>
+      <span class="eyebrow">Danh sách cần mua</span>
       <span class="osp-header-right">
         <button
           v-if="isClosed"
@@ -107,34 +71,32 @@ async function copyList() {
           class="osp-reopen"
           title="Mở lại nhận đơn"
           @click="emit('reopen')"
-        >🔓 Mở lại nhận đơn</button>
+        >Mở lại nhận đơn</button>
         <button
           type="button"
           class="osp-copy"
+          :disabled="copying"
           :class="{ 'osp-copy--done': copied }"
           :title="copied ? 'Đã copy' : isClosed ? 'Copy danh sách' : 'Copy danh sách (sẽ chốt đơn)'"
           @click="copyList"
-        >{{ copied ? '✓' : '📋' }}</button>
+        >{{ copied ? 'Đã sao chép' : isClosed ? 'Sao chép danh sách' : 'Sao chép & chốt đơn' }}</button>
         <span class="badge badge--paid osp-badge">{{ totalParts }} phần</span>
       </span>
     </div>
 
     <div class="osp-divider" />
 
+    <p v-if="copyError" class="alert" role="alert">{{ copyError }}</p>
     <!-- Rows -->
     <div class="osp-body">
-      <BlurReveal
-        v-for="(item, i) in summary"
-        :key="i"
-        :delay="i * 0.05"
-      >
+      <div v-for="(item, i) in summary" :key="i">
         <div class="osp-row">
           <span class="osp-dish">{{ item.displayName }}</span>
           <span class="osp-count">×{{ item.count }}</span>
           <span class="osp-people">{{ item.peopleLabel }}</span>
           <span v-if="item.total !== null" class="osp-price">{{ fmt(item.total) }}</span>
         </div>
-      </BlurReveal>
+      </div>
     </div>
 
     <!-- Total (chỉ hiện khi tất cả món đều có giá) -->
@@ -152,10 +114,10 @@ async function copyList() {
 .osp-wrap {
   position: relative;
   overflow: hidden;
-  background: var(--primary-soft);
-  border: 1px solid rgba(31, 110, 69, 0.25);
-  border-radius: var(--radius-sm);
-  padding: 0.85rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -176,9 +138,10 @@ async function copyList() {
 }
 
 .osp-copy {
-  border: 1px solid rgba(31, 110, 69, 0.3);
+  min-height: 44px;
+  border: 1px solid var(--line);
   background: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   padding: 0.1rem 0.45rem;
   font-size: var(--fs-xs);
   line-height: 1.4;
@@ -187,18 +150,19 @@ async function copyList() {
 }
 
 .osp-copy:hover {
-  background: rgba(31, 110, 69, 0.1);
+  background: var(--bg-tint);
 }
 
 .osp-copy--done {
-  color: var(--primary-ink);
+  color: var(--ink);
   border-color: var(--primary);
 }
 
 .osp-reopen {
-  border: 1px solid rgba(31, 110, 69, 0.3);
+  min-height: 44px;
+  border: 1px solid var(--line);
   background: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   padding: 0.1rem 0.5rem;
   font-size: var(--fs-xs);
   line-height: 1.4;
@@ -208,7 +172,7 @@ async function copyList() {
 }
 
 .osp-reopen:hover {
-  background: rgba(31, 110, 69, 0.1);
+  background: var(--bg-tint);
 }
 
 .osp-badge {
@@ -218,7 +182,7 @@ async function copyList() {
 
 .osp-divider {
   height: 1px;
-  background: rgba(31, 110, 69, 0.18);
+  background: var(--line);
 }
 
 .osp-body {
@@ -244,12 +208,12 @@ async function copyList() {
 }
 
 .osp-count {
-  background: var(--primary);
-  color: #fff;
+  background: var(--bg-tint);
+  color: var(--ink);
   font-size: var(--fs-xs);
   font-weight: 700;
   padding: 0.05rem 0.45rem;
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   flex-shrink: 0;
 }
 
@@ -264,7 +228,7 @@ async function copyList() {
 }
 
 .osp-price {
-  color: var(--primary-ink);
+  color: var(--ink);
   font-weight: 700;
   font-size: var(--fs-sm);
   margin-left: auto;
@@ -277,7 +241,7 @@ async function copyList() {
   align-items: center;
   font-weight: 700;
   font-size: var(--fs-sm);
-  color: var(--primary-ink);
+  color: var(--ink);
 }
 
 .osp-total-price {

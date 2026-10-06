@@ -1,575 +1,95 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
+import { useAppPresence } from '../composables/useAppPresence'
 import { useMenus } from '../composables/useMenus'
-import { useOrders } from '../composables/useOrders'
-import { todayInVN, formatVNDate, formatVNTime } from '../lib/date'
-import { autolink } from '../lib/autolink'
-import {
-  AppCard,
-  AppButton,
-  Avatar,
-  TextField,
-  TextArea,
-  PageHeader,
-  EmptyState,
-  PaidStamp,
-  PaidToggle,
-  Spinner,
-  MenuBoard,
-  PaymentQRModal,
-} from '../components/ui'
-
-const { user } = useUser()
-const { listMenusByDate, deleteMenu } = useMenus()
-const { updateOrder, togglePaid } = useOrders()
-
-// Reactive current user id — Clerk may not be hydrated at setup time
-const myId = computed(() => user.value?.id)
-
-const todayStr = todayInVN()
-const todayDisplay = formatVNDate(todayStr)
-
-// ---- page state ----
-const loading = ref(true)
-const errorMsg = ref('')
-const menus = ref([])
-
-// Per-order toggle loading and error keyed by order.id
-const toggleLoading = reactive({})
-const toggleError = reactive({})
-
-const showQRModal = ref(false)
-const selectedQROrder = ref(null)
-const selectedQRMenu = ref(null)
-
-function openQRModal(menu, order) {
-  selectedQRMenu.value = menu
-  selectedQROrder.value = order
-  showQRModal.value = true
-}
-
-function handleQRModalPaid() {
-  if (selectedQROrder.value && selectedQRMenu.value) {
-    handleToggle(selectedQRMenu.value, selectedQROrder.value, true)
-  }
-  showQRModal.value = false
-}
-
-function hasQRConfig(poster) {
-  if (!poster?.payment_info) return false
-  return poster.payment_info.includes('STK:') || poster.payment_info.includes('Momo:')
-}
-
-onMounted(load)
-
-// Reload when Clerk auth state changes (hydration, sign-in, sign-out)
-watch(user, () => {
-  load()
-})
-
+import { todayInVN } from '../lib/date'
+import { menuDishes } from '../lib/menu'
+import { AppButton, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
+import OrderCard from '../components/OrderCard.vue'
+const { user, isSignedIn } = useUser()
+const { listMenusByDate } = useMenus()
+const menus = ref([]), loading = ref(false), error = ref(''), showSignIn = ref(false)
+const today = todayInVN()
+const presence = useAppPresence()
+const myOrders = computed(() => menus.value.flatMap(menu => (menu.orders ?? []).filter(order => order.user_id === user.value?.id).map(order => ({ menu, order }))))
+const weekdayLabel = new Intl.DateTimeFormat('vi-VN', { weekday:'long', timeZone:'Asia/Ho_Chi_Minh' }).format(new Date(`${today}T12:00:00+07:00`))
+const dateLabel = `${weekdayLabel[0].toUpperCase()}${weekdayLabel.slice(1)} · ${Number(today.slice(8))} tháng ${Number(today.slice(5,7))}`
+const orderedPeople = computed(() => new Set(menus.value.flatMap(menu => (menu.orders || []).map(o => o.user_id))).size)
+const firstOpenMenu = computed(() => menus.value.find(menu => !menu.is_closed && !(menu.orders || []).some(o => o.user_id === user.value?.id))?.id)
+const openMenus = computed(() => menus.value.filter(menu => !menu.is_closed).length)
+let generation = 0, refreshTimer
 async function load() {
+  const current = ++generation; error.value = ''
+  if (!isSignedIn.value) { loading.value = false; return }
   loading.value = true
-  errorMsg.value = ''
-  const { data, error } = await listMenusByDate()
-  if (error) {
-    errorMsg.value = 'Không tải được menu hôm nay. Kiểm tra kết nối rồi thử lại.'
-  } else {
-    menus.value = data ?? []
-  }
-  loading.value = false
+  try {
+    const result = await listMenusByDate(today)
+    if (current !== generation) return
+    if (result.error) throw result.error
+    menus.value = result.data ?? []
+  } catch { if (current === generation) error.value = 'Chưa tải được menu. Kiểm tra kết nối rồi thử lại.' }
+  finally { if (current === generation) loading.value = false }
 }
-
-async function handleToggle(menu, order, newVal) {
-  toggleLoading[order.id] = true
-  toggleError[order.id] = ''
-  const { data, error } = await togglePaid(order.id, newVal)
-  if (error) {
-    toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
-  } else if (data) {
-    // Update the order in the local orders array
-    const idx = menu.orders.findIndex((o) => o.id === order.id)
-    if (idx !== -1) {
-      menu.orders[idx] = { ...menu.orders[idx], is_paid: data.is_paid }
-    }
-  }
-  toggleLoading[order.id] = false
+watch(() => user.value?.id, () => { menus.value = []; clearTimeout(refreshTimer); load() }, { immediate: true })
+function queueRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout(load, 250) }
+const unsubscribe = presence.onOrderChanged(queueRefresh)
+onUnmounted(() => { generation++; clearTimeout(refreshTimer); unsubscribe() })
+function preview(menu) {
+  const dishes = menuDishes(menu)
+  if (dishes.length) return dishes.slice(0, 3).map(d => d.name).join(', ') + (dishes.length > 3 ? '…' : '')
+  return (menu.note ?? '').slice(0, 120) || 'Xem ảnh và chọn món trong menu'
 }
-
-const editingOrderId = ref(null)
-const editDraft = reactive({ item_text: '', note: '' })
-const editSaving = ref(false)
-const editError = ref('')
-
-const deletingMenus = reactive({})
-const deleteErrors = reactive({})
-
-function startEdit(order) {
-  editingOrderId.value = order.id
-  editDraft.item_text = order.item_text
-  editDraft.note = order.note ?? ''
-  editError.value = ''
+function hasOwnOrder(menu) { return (menu.orders ?? []).some(order => order.user_id === user.value?.id) }
+function showMenus() { document.getElementById('today-menus')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }) }
+function menuMetadata(menu) {
+  const dishes = menuDishes(menu), parts = [`${menu.poster?.full_name || 'Thành viên'} đăng`]
+  if (dishes.length) parts.push(`${dishes.length} món`)
+  if (dishes.length && dishes.every(d => d.price != null && d.price !== '' && Number.isFinite(Number(d.price)))) parts.push(`từ ${Math.min(...dishes.map(d => Number(d.price))).toLocaleString('vi-VN')}đ`)
+  return parts.join(' · ')
 }
-
-function cancelEdit() {
-  editingOrderId.value = null
-  editError.value = ''
+function activity(menu) {
+  const viewer = presence.viewers.value.find(v => v.userId !== user.value?.id && v.menuId === menu.id && v.picks?.length)
+  if (viewer) return { name: viewer.name, text: 'đang chọn', dish: viewer.picks[0] }
+  const order = (menu.orders || []).find(o => o.user_id !== user.value?.id) || menu.orders?.[0]
+  if (order) return { name: order.user?.full_name || 'Thành viên', text: 'đã đặt', dish: order.item_text.split('\n')[0] }
+  return null
 }
-
-async function saveEdit(menu, order) {
-  if (!editDraft.item_text.trim()) return
-  editSaving.value = true
-  editError.value = ''
-  const { data, error } = await updateOrder({
-    id: order.id,
-    item_text: editDraft.item_text.trim(),
-    note: editDraft.note.trim() || null,
-  })
-  if (error) {
-    editError.value = 'Lưu không thành công. Thử lại nhé.'
-  } else if (data) {
-    const idx = menu.orders.findIndex((o) => o.id === order.id)
-    if (idx !== -1) {
-      menu.orders[idx] = { ...menu.orders[idx], ...data }
-    }
-    editingOrderId.value = null
-  }
-  editSaving.value = false
-}
-
-async function confirmDeleteMenu(menu) {
-  const message = menu.orders?.length > 0
-    ? `Bạn có chắc chắn muốn xoá menu "${menu.title}"?\nThao tác này sẽ xoá toàn bộ ${menu.orders.length} đơn đặt món đi kèm!`
-    : `Bạn có chắc chắn muốn xoá menu "${menu.title}"?`
-    
-  if (!confirm(message)) return
-
-  deletingMenus[menu.id] = true
-  deleteErrors[menu.id] = ''
-  
-  const { error } = await deleteMenu(menu.id, menu.image_url)
-  if (error) {
-    deleteErrors[menu.id] = 'Xoá menu không thành công. Thử lại nhé.'
-    deletingMenus[menu.id] = false
-  } else {
-    menus.value = menus.value.filter((m) => m.id !== menu.id)
-  }
-}
-
-// ── OCR helpers ──
-function isStructured(note) {
-  if (!note) return false
-  try { const d = JSON.parse(note); return d && Array.isArray(d.dishes) } catch { return false }
-}
-
-const copiedMenuId = ref(null)
-
-function copyMenuLink(menuId) {
-  const url = `${window.location.origin}/share/${menuId}`
-  navigator.clipboard.writeText(url).then(() => {
-    copiedMenuId.value = menuId
-    setTimeout(() => {
-      if (copiedMenuId.value === menuId) {
-        copiedMenuId.value = null
-      }
-    }, 2000)
-  }).catch((err) => {
-    console.error('Failed to copy link: ', err)
-  })
-}
-
-const zoomedImageUrl = ref(null)
-
-function zoomImage(url) {
-  zoomedImageUrl.value = url
-  window.addEventListener('keydown', handleEsc)
-}
-
-function closeZoom() {
-  zoomedImageUrl.value = null
-  window.removeEventListener('keydown', handleEsc)
-}
-
-function handleEsc(e) {
-  if (e.key === 'Escape') closeZoom()
-}
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleEsc)
-})
 </script>
-
-<template>
-  <div>
-    <PageHeader
-      eyebrow="Hôm nay"
-      :title="`Menu ngày ${todayDisplay}`"
-      sub="Xem ai đang đặt gì — click vào menu để chọn món."
-    />
-
-    <!-- Loading -->
-    <Spinner v-if="loading" />
-
-    <!-- Load error -->
-    <p v-else-if="errorMsg" class="alert">{{ errorMsg }}</p>
-
-    <!-- Empty state -->
-    <EmptyState
-      v-else-if="menus.length === 0"
-      title="Chưa có menu nào hôm nay"
-      description="Bạn có thể đăng menu để mọi người đặt cơm."
-      icon="🍱"
-    >
-      <AppButton :to="'/post'">Đăng cơm</AppButton>
-    </EmptyState>
-
-    <!-- Menu list -->
-    <div v-else class="stack">
-      <AppCard
-        v-for="menu in menus"
-        :key="menu.id"
-        ticket
-      >
-        <div class="stack">
-          <!-- Poster header -->
-          <div class="row row-wrap">
-            <Avatar
-              :src="menu.poster?.avatar_url"
-              :name="menu.poster?.full_name"
-              :size="40"
-            />
-            <div>
-              <div class="poster-name">{{ menu.poster?.full_name }}</div>
-              <div class="meta">Người đăng</div>
-            </div>
-            <span class="spacer" />
-            <div class="row row-wrap" style="gap: 0.5rem;">
-              <AppButton
-                variant="ghost"
-                size="sm"
-                @click="copyMenuLink(menu.id)"
-              >
-                {{ copiedMenuId === menu.id ? 'Đã chép ✓' : 'Sao chép link' }}
-              </AppButton>
-              <AppButton
-                v-if="menu.poster_id === myId"
-                variant="danger"
-                size="sm"
-                :loading="!!deletingMenus[menu.id]"
-                @click="confirmDeleteMenu(menu)"
-              >
-                Xoá Menu
-              </AppButton>
-            </div>
-          </div>
-
-          <p v-if="deleteErrors[menu.id]" class="alert">
-            {{ deleteErrors[menu.id] }}
-          </p>
-
-          <!-- Payment info (shown only when set and structured QR is not configured) -->
-          <div v-if="menu.poster?.payment_info && !hasQRConfig(menu.poster)" class="payment-info-block">
-            <span class="eyebrow">Thông tin chuyển khoản</span>
-            <p class="payment-info">{{ menu.poster.payment_info }}</p>
-          </div>
-
-          <hr class="divider" />
-
-          <!-- Menu title -->
-          <h2 class="section-title">{{ menu.title }}</h2>
-
-          <!-- Image -->
-          <img
-            v-if="menu.image_url"
-            :src="menu.image_url"
-            :alt="menu.title"
-            class="menu-image clickable"
-            @click="zoomImage(menu.image_url)"
-          />
-
-          <!-- OCR board -->
-          <MenuBoard
-            v-if="isStructured(menu.note)"
-            :note="menu.note"
-          />
-
-          <!-- Plain text note (khi không có OCR) -->
-          <!-- eslint-disable-next-line vue/no-v-html -- autolink() escapes all input; only generated <a> tags are emitted -->
-          <p v-else-if="menu.note" class="menu-note" v-html="autolink(menu.note)"></p>
-
-          <!-- Orders list -->
-          <div v-if="menu.orders && menu.orders.length > 0" class="stack-sm orders-section">
-            <div class="eyebrow">Đơn đặt ({{ menu.orders.length }})</div>
-            <div
-              v-for="order in menu.orders"
-              :key="order.id"
-              class="order-row"
-            >
-              <div class="row row-wrap order-header">
-                <Avatar
-                  :src="order.user?.avatar_url"
-                  :name="order.user?.full_name"
-                  :size="32"
-                />
-                <span class="order-name">{{ order.user?.full_name }}</span>
-                <span class="spacer" />
-                <AppButton
-                  v-if="order.user_id === myId && editingOrderId !== order.id"
-                  variant="ghost"
-                  size="sm"
-                  @click="startEdit(order)"
-                >
-                  Sửa
-                </AppButton>
-                <PaidStamp :paid="order.is_paid" />
-              </div>
-
-              <!-- Edit inline form -->
-              <template v-if="editingOrderId === order.id">
-                <TextArea
-                  v-model="editDraft.item_text"
-                  label="Món bạn muốn đặt"
-                  :rows="3"
-                />
-                <TextField
-                  v-model="editDraft.note"
-                  label="Ghi chú (tuỳ chọn)"
-                />
-                <p v-if="editError" class="alert">{{ editError }}</p>
-                <div class="row" style="gap: 0.5rem;">
-                  <AppButton
-                    size="sm"
-                    :loading="editSaving"
-                    :disabled="!editDraft.item_text.trim()"
-                    @click="saveEdit(menu, order)"
-                  >
-                    Lưu
-                  </AppButton>
-                  <AppButton variant="ghost" size="sm" @click="cancelEdit">
-                    Huỷ
-                  </AppButton>
-                </div>
-              </template>
-
-              <!-- Display mode -->
-              <template v-else>
-                <p class="order-item" style="white-space: pre-wrap;">{{ order.item_text }}</p>
-                <p v-if="order.note" class="meta order-user-note">{{ order.note }}</p>
-                <p v-if="order.updated_at" class="meta order-edited-at">
-                  đã sửa lúc {{ formatVNTime(order.updated_at) }}
-                </p>
-              </template>
-
-              <!-- Self-tick: only for own order -->
-              <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
-                <PaidToggle
-                  v-if="order.user_id === myId"
-                  :paid="order.is_paid"
-                  :loading="!!toggleLoading[order.id]"
-                  @toggle="(val) => handleToggle(menu, order, val)"
-                />
-                <AppButton
-                  v-if="order.user_id === myId && !order.is_paid && hasQRConfig(menu.poster)"
-                  variant="ghost"
-                  size="sm"
-                  style="padding: 0.25rem 0.5rem;"
-                  @click="openQRModal(menu, order)"
-                >
-                  🔗 Quét QR
-                </AppButton>
-              </div>
-              <p v-if="order.user_id === myId && toggleError[order.id]" class="alert">
-                {{ toggleError[order.id] }}
-              </p>
-            </div>
-          </div>
-
-          <div v-else class="meta no-orders">Chưa có ai đặt món.</div>
-
-          <hr class="divider" />
-
-          <AppButton :to="`/menu/${menu.id}`" size="sm">
-            Vào chọn món →
-          </AppButton>
-        </div>
-      </AppCard>
-    </div>
-
-    <PaymentQRModal
-      v-if="showQRModal && selectedQROrder && selectedQRMenu"
-      :order="selectedQROrder"
-      :poster="selectedQRMenu.poster"
-      :menu-date="selectedQRMenu.menu_date"
-      :menu="selectedQRMenu"
-      @close="showQRModal = false"
-      @paid="handleQRModalPaid"
-    />
-
-    <!-- Image Zoom Lightbox Overlay -->
-    <div
-      v-if="zoomedImageUrl"
-      class="lightbox-overlay"
-      @click="closeZoom"
-    >
-      <button class="lightbox-close" @click.stop="closeZoom">✕</button>
-      <img
-        :src="zoomedImageUrl"
-        class="lightbox-image"
-        @click.stop
-      />
-    </div>
-  </div>
-</template>
-
+<template><div class="today-page">
+  <PageHeader :eyebrow="dateLabel" title="Trưa nay, ăn gì?" :sub="isSignedIn ? `${openMenus} menu đang nhận đặt món. Chọn bữa trưa của bạn.` : 'Đăng nhập để chọn bữa trưa của bạn.'" />
+  <EmptyState v-if="!isSignedIn" title="Xem menu hôm nay" description="Đăng nhập để xem menu và đơn cơm của bạn."><AppButton @click="showSignIn = true">Đăng nhập</AppButton></EmptyState>
+  <Spinner v-else-if="loading && !menus.length" />
+  <div v-else-if="error && !menus.length" class="stack-sm"><p class="alert">{{ error }}</p><AppButton variant="ghost" @click="load">Thử lại</AppButton></div>
+  <template v-else>
+    <p v-if="loading" class="meta" role="status">Đang cập nhật…</p><div v-if="error" class="row-wrap"><p class="alert" role="alert">{{ error }}</p><AppButton variant="ghost" @click="load">Thử lại</AppButton></div>
+    <section class="card today-personal" aria-labelledby="personal-lunch-title">
+      <span id="personal-lunch-title" class="eyebrow">Bữa trưa của bạn</span>
+      <template v-if="myOrders.length"><OrderCard v-for="entry in myOrders" :key="entry.order.id" :order="entry.order" :menu="entry.menu" compact @changed="queueRefresh" /></template>
+      <div v-else class="today-personal-empty"><div><p><strong>Bạn chưa đặt món hôm nay</strong></p><p class="meta">{{ openMenus ? 'Chọn một menu bên dưới để bắt đầu.' : 'Menu mới sẽ xuất hiện ở đây.' }}</p></div><AppButton v-if="openMenus" variant="ghost" @click="showMenus">Xem menu <span aria-hidden="true">→</span></AppButton></div>
+    </section>
+    <section id="today-menus"><div class="today-section-heading"><h2>Menu hôm nay</h2><span class="meta">{{ orderedPeople ? `Đã có ${orderedPeople} người đặt` : 'Chưa có ai đặt' }}</span></div>
+      <EmptyState v-if="!menus.length" title="Chưa có menu hôm nay" description="Đăng menu đầu tiên để mọi người chọn bữa trưa."><AppButton to="/post">Đăng menu</AppButton></EmptyState>
+      <div v-else class="today-menu-grid"><article v-for="menu in menus" :key="menu.id" class="card today-menu-card"><div class="today-menu-status"><span class="badge">{{ menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn' }}</span><span v-if="hasOwnOrder(menu)" class="meta">Bạn đã đặt</span></div><h3>{{ menu.restaurant?.name || menu.title }}</h3><p class="today-menu-meta">{{ menuMetadata(menu) }}</p><p class="today-menu-preview">{{ preview(menu) }}</p><div class="today-menu-activity"><template v-for="entry in activity(menu) ? [activity(menu)] : []" :key="entry.name"><span class="today-avatar" aria-hidden="true">{{ entry.name?.[0] }}</span><p>{{ entry.name }} {{ entry.text }} <strong>{{ entry.dish }}</strong></p></template><p v-if="!activity(menu)" class="meta">Chưa có đơn · {{ menu.is_closed ? 'Menu đã chốt' : 'Bạn có thể chọn món trước' }}</p></div><AppButton block :variant="menu.id === firstOpenMenu && !hasOwnOrder(menu) ? 'primary' : 'ghost'" :to="`/menu/${menu.id}`">{{ hasOwnOrder(menu) ? 'Xem menu & đơn của bạn' : menu.is_closed ? 'Xem menu' : 'Xem menu & chọn món' }} <span aria-hidden="true">→</span></AppButton></article></div>
+    </section>
+  </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
+</div></template>
 <style scoped>
-.poster-name {
-  font-weight: 700;
-}
-
-.payment-info-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  background: var(--bg-tint);
-  border-radius: var(--radius-sm);
-  padding: 0.65rem 0.8rem;
-}
-
-.payment-info {
-  white-space: pre-line;
-  font-size: var(--fs-sm);
-  color: var(--ink-soft);
-}
-
-.menu-image {
-  width: 100%;
-  border-radius: var(--radius-sm);
-  object-fit: contain;
-  max-height: 480px;
-  background: var(--bg-tint);
-}
-
-.menu-note {
-  white-space: pre-line;
-  color: var(--ink-soft);
-  font-size: var(--fs-sm);
-}
-
-.orders-section {
-  background: var(--bg-tint);
-  border-radius: var(--radius-sm);
-  padding: 0.7rem 0.8rem;
-}
-
-.order-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.order-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.order-header {
-  align-items: center;
-}
-
-.order-name {
-  font-weight: 600;
-  font-size: var(--fs-sm);
-}
-
-.order-item {
-  font-size: var(--fs-sm);
-  color: var(--ink);
-  padding-left: 0.2rem;
-}
-
-.order-user-note {
-  padding-left: 0.2rem;
-}
-
-.order-edited-at {
-  padding-left: 0.2rem;
-  font-style: italic;
-  font-size: var(--fs-xs, 0.75rem);
-  color: var(--ink-faint, var(--ink-soft));
-}
-
-.no-orders {
-  padding: 0.4rem 0;
-}
-
-.menu-image.clickable {
-  cursor: zoom-in;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.menu-image.clickable:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.lightbox-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  cursor: zoom-out;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.lightbox-image {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
-  cursor: default;
-  animation: zoomIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.lightbox-close {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  font-size: 1.5rem;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s ease, transform 0.15s ease;
-}
-
-.lightbox-close:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: scale(1.05);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes zoomIn {
-  from { transform: scale(0.9); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
+.today-page :deep(.page-header) { margin-bottom:28px; }
+.today-personal { margin:28px 0; padding:24px; border-left:3px solid var(--primary); }
+.today-personal > .eyebrow { display:block; margin-bottom:4px; }
+.today-personal-empty { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.today-personal-empty strong { font-size:19px; font-weight:650; }.today-personal-empty p{margin:4px 0;}
+.today-section-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 0 18px; }
+.today-section-heading h2 { font-size:21px; margin:0; }.today-section-heading .meta { text-align:right; }
+.today-menu-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.today-menu-card { padding:24px; display:flex; flex-direction:column; min-width:0; }
+.today-menu-status { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.today-menu-card h3 { font-size:21px; line-height:1.35; margin:18px 0 8px; }
+.today-menu-meta,.today-menu-preview { font-size:15px; line-height:1.55; color:var(--ink-soft); margin:4px 0; }
+.today-menu-activity { border-top:1px solid var(--line); margin:22px 0 18px; padding-top:16px; display:flex; align-items:center; gap:10px; min-height:51px; }
+.today-menu-activity p { min-width:0; margin:0; font-size:14px; color:var(--ink-soft); overflow-wrap:anywhere; }.today-menu-activity strong{font-weight:650;}
+.today-avatar { width:34px; height:34px; flex:0 0 34px; display:grid; place-items:center; border-radius:50%; background:var(--bg-tint); color:var(--ink-soft); font-size:13px; font-weight:700; }
+.today-menu-card :deep(.btn) { margin-top:auto; }
+@media(max-width:640px){.today-personal{padding:20px;margin:24px 0}.today-menu-grid{grid-template-columns:1fr}.today-menu-card{padding:20px}.today-personal-empty{align-items:flex-start;flex-direction:column;gap:8px}.today-section-heading{gap:8px}.today-section-heading .meta{font-size:12px}}
 </style>
