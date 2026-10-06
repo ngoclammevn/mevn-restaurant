@@ -1,5 +1,7 @@
 # Hướng dẫn setup — đưa Cơm Trưa chạy online
 
+> **Tài liệu lịch sử, đã được thay thế.** Dùng [hướng dẫn setup/deploy hiện hành](architecture/deployment.md) và [mục lục mới](README.md). Nội dung dưới giữ nguyên để tra cứu; các bước SQL cũ, kiểm tra đặt hộ phải lỗi và câu lệnh xóa dữ liệu không áp dụng cho phiên bản hiện tại.
+
 > Tài liệu này hướng dẫn **từng bước** cấu hình các dịch vụ ngoài (Clerk, Supabase, Vercel) để
 > dự án chạy được ở local và deploy online. Không cần kiến thức backend — app không có backend,
 > chỉ là static site gọi thẳng Supabase, bảo mật bằng **RLS**.

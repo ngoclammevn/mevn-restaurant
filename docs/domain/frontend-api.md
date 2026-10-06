@@ -1,5 +1,7 @@
 # Frontend API (for UI builders / Antigravity)
 
+> **Tài liệu lịch sử, đã được thay thế.** Xem [API hiện hành](../architecture/api.md), [mô hình dữ liệu](../architecture/data-model.md) và code composables. Quy tắc cũ về không đặt hộ, routes và danh sách hàm phía dưới không còn là hợp đồng của phiên bản hiện tại.
+
 UI components MUST use these composables — never write raw Supabase queries in components.
 Behavioral rules that UI must not violate are in AGENTS.md. Screens to build live in
 `src/pages/` (currently TODO stubs): TodayPage, PostMenuPage, DashboardPage, HistoryPage, ProfilePage.

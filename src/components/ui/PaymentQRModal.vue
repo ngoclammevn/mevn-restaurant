@@ -275,8 +275,8 @@ const breakdown = computed(() => {
     if (!Array.isArray(parsed.dishes)) return { mode: 'free-text', lines: orderLines.value }
 
     const items = orderLines.value.map(line => {
-      const cleanLine = line.trim().toLowerCase()
-      const dish = parsed.dishes.find(d => d.name?.trim().toLowerCase() === cleanLine)
+      const cleanLine = line.trim()
+      const dish = parsed.dishes.find(d => d.name === cleanLine)
       return { name: line, price: dish?.price != null ? Number(dish.price) : null }
     })
 
@@ -326,21 +326,8 @@ function copyText(text, field) {
 }
 
 onMounted(() => {
-  if (props.menu?.note) {
-    try {
-      const parsed = JSON.parse(props.menu.note)
-      if (parsed.dishes) {
-        const lines = props.order.item_text.split('\n').map(l => l.trim()).filter(Boolean)
-        let total = 0
-        for (const line of lines) {
-          const cleanLine = line.trim().toLowerCase()
-          const dish = parsed.dishes.find(d => d.name?.trim().toLowerCase() === cleanLine)
-          if (dish && dish.price) total += Number(dish.price)
-        }
-        amount.value = total
-      }
-    } catch (e) {}
-  }
+  amount.value = breakdown.value.mode === 'priced' ? breakdown.value.total : 0
+  if (!payInfo.value.accountNumber && payInfo.value.momoPhone) activeTab.value = 'momo'
 })
 
 async function downloadQr(tab) {

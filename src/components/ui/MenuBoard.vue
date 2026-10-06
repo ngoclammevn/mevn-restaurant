@@ -1,8 +1,10 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
+import AppIcon from './AppIcon.vue'
 
 const props = defineProps({
   mode:           { type: String,  default: 'view' },
+  disabled:       { type: Boolean, default: false },
   note:           { type: String,  default: '' },
   picks:          { type: Object,  default: () => ({}) },
   viewers:        { type: Array,   default: () => [] },  // presence viewers for dish chips
@@ -10,13 +12,20 @@ const props = defineProps({
   notes:          { type: String,  default: '' },
   showCalories:   { type: Boolean, default: false },
   showCategories: { type: Boolean, default: true },
+  identityLocked: { type: Boolean, default: false },
+  lockedDishIds: { type: Array, default: () => [] },
+  lockedDishNames: { type: Array, default: () => [] },
+  restaurantId: { type: String, default: '' },
+  feedback: { type: Object, default: () => ({}) },
+  showFeedback: { type: Boolean, default: false },
+  feedbackState: { type: String, default: '' },
 })
 
-const emit = defineEmits(['update:dishes', 'update:notes', 'toggle-dish', 'hover-dish'])
+const emit = defineEmits(['update:dishes', 'update:notes', 'toggle-dish', 'hover-dish', 'feedback'])
 
 // Dish → viewers currently hovering or who have picked it
 const dishSelectors = computed(() => {
-  const map = {}
+  const map = Object.create(null)
   for (const v of props.viewers) {
     const seen = new Set()
     // activeDish takes priority (hover state)
@@ -42,10 +51,15 @@ const parsedView = computed(() => {
   if (props.mode !== 'view' || !props.note) return { notes: '', dishes: [] }
   try { return JSON.parse(props.note) } catch { return { notes: '', dishes: [] } }
 })
+const search = ref(''), activeCategory = ref('')
+const categories = computed(() => [...new Set((parsedView.value.dishes ?? []).map(d => d.category || 'Khác'))])
+const searchKey = value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
+const filteredDishes = computed(() => (parsedView.value.dishes ?? []).filter(d => (!activeCategory.value || (d.category || 'Khác') === activeCategory.value) && searchKey(d.name).includes(searchKey(search.value.trim()))))
+watch(categories, value => { if (!value.includes(activeCategory.value)) activeCategory.value = '' })
 
 const viewGroups = computed(() => {
-  const groups = {}
-  for (const d of parsedView.value.dishes ?? []) {
+  const groups = Object.create(null)
+  for (const d of filteredDishes.value) {
     const cat = d.category || 'Khác'
     if (!groups[cat]) groups[cat] = []
     groups[cat].push(d)
@@ -55,7 +69,7 @@ const viewGroups = computed(() => {
 
 // ── Edit mode: grouped with originalIndex ──
 const editGroups = computed(() => {
-  const groups = {}
+  const groups = Object.create(null)
   props.dishes.forEach((dish, idx) => {
     const cat = dish.category || 'Khác'
     if (!groups[cat]) groups[cat] = []
@@ -86,21 +100,24 @@ function fmtDisplay(val) {
   return isNeg ? '-' + new Intl.NumberFormat('vi-VN').format(num) : new Intl.NumberFormat('vi-VN').format(num)
 }
 function parsePrice(val) {
-  if (!val) return 0
+  if (!String(val ?? '').trim()) return null
   const isNeg = String(val).startsWith('-')
   const num = parseInt(String(val).replace(/[^0-9]/g, ''), 10) || 0
   return isNeg ? -num : num
 }
 
+function identityIsLocked(dish) { return props.identityLocked || props.lockedDishIds.includes(dish?.id) || props.lockedDishNames.includes(dish?.name) }
+
 // ── Edit mode actions ──
 function startEdit(index, field, value) {
+  if (props.disabled || (identityIsLocked(props.dishes[index]) && field === 'name')) return
   editingItem.value = { index, field }
-  editValue.value = (field === 'price' || field === 'calories') ? String(value) : value
+  editValue.value = (field === 'price' || field === 'calories') ? String(value ?? '') : value
   nextTick(() => document.getElementById(`mb-${field}-${index}`)?.focus())
 }
 
 function saveEdit(index) {
-  if (!editingItem.value) return
+  if (!editingItem.value || props.disabled) return
   const field = editingItem.value.field
   const updated = props.dishes.map((d, i) => {
     if (i !== index) return d
@@ -110,9 +127,11 @@ function saveEdit(index) {
   })
   emit('update:dishes', updated)
   editingItem.value = null
+  nextTick(() => document.getElementById(`mb-edit-${field}-${index}`)?.focus())
 }
 
 function startEditGroup(name) {
+  if (props.disabled) return
   editingGroup.value = name
   editingGroupValue.value = name
   nextTick(() => document.getElementById(`mb-group-${name}`)?.focus())
@@ -121,11 +140,12 @@ function startEditGroup(name) {
 function saveEditGroup(oldName) {
   const newName = editingGroupValue.value.trim()
   if (newName && newName !== oldName)
-    emit('update:dishes', props.dishes.map(d => d.category === oldName ? { ...d, category: newName } : d))
+    emit('update:dishes', props.dishes.map(d => (d.category || 'Khác') === oldName ? { ...d, category: newName } : d))
   editingGroup.value = null
 }
 
 function startEditNotes() {
+  if (props.disabled) return
   editingNotes.value = true
   editNotesValue.value = props.notes
   nextTick(() => document.getElementById('mb-notes')?.focus())
@@ -137,18 +157,21 @@ function saveEditNotes() {
 }
 
 function removeDish(index) {
+  if (props.disabled || identityIsLocked(props.dishes[index])) return
   emit('update:dishes', props.dishes.filter((_, i) => i !== index))
 }
 
 function addDishInGroup(groupName) {
-  const newDishes = [...props.dishes, { name: 'Món ăn mới', price: 35000, category: groupName, calories: 0, description: '' }]
+  if (props.disabled) return
+  const newDishes = [...props.dishes, { name: 'Món ăn mới', price: null, available: true, category: groupName, calories: null, description: '' }]
   emit('update:dishes', newDishes)
   nextTick(() => startEdit(newDishes.length - 1, 'name', 'Món ăn mới'))
 }
 
 function addNewGroup() {
+  if (props.disabled) return
   const name = 'Phân loại mới'
-  const newDishes = [...props.dishes, { name: 'Món ăn mới', price: 35000, category: name, calories: 0, description: '' }]
+  const newDishes = [...props.dishes, { name: 'Món ăn mới', price: null, available: true, category: name, calories: null, description: '' }]
   emit('update:dishes', newDishes)
   nextTick(() => startEditGroup(name))
 }
@@ -162,7 +185,7 @@ function addNewGroup() {
       <div class="mb-title-row">
         <div class="mb-title-line" />
         <span class="mb-ornament">◆</span>
-        <h4 class="mb-title">THỰC ĐƠN</h4>
+        <h4 class="mb-title">Thực đơn</h4>
         <span class="mb-ornament">◆</span>
         <div class="mb-title-line" />
       </div>
@@ -175,20 +198,20 @@ function addNewGroup() {
       <!-- Notes: edit -->
       <div v-else class="mb-notes-wrap">
         <div v-if="editingNotes" class="mb-inline-wrap">
-          <input
-            id="mb-notes"
+          <input :disabled="disabled"
+            id="mb-notes" aria-label="Ghi chú chung của menu"
             v-model="editNotesValue"
             type="text"
             class="input mb-inline-input mb-notes-input"
             placeholder="Thêm ghi chú chung cho menu..."
             @blur="saveEditNotes"
-            @keyup.enter="saveEditNotes"
+            @keydown.enter.prevent="saveEditNotes"
           />
         </div>
-        <div v-else class="mb-notes-display" @click="startEditNotes" title="Nhấp để sửa ghi chú">
+        <button v-else type="button" :disabled="disabled" class="mb-notes-display" @click="startEditNotes" title="Nhấp để sửa ghi chú">
           <span v-if="notes">{{ notes }}</span>
-          <span v-else class="mb-placeholder">Thêm ghi chú chung (nhấp để viết)...</span>
-        </div>
+          <span v-else class="mb-placeholder">Thêm ghi chú chung</span>
+        </button>
       </div>
     </div>
 
@@ -196,41 +219,35 @@ function addNewGroup() {
 
     <!-- VIEW MODE -->
     <template v-if="mode === 'view'">
-      <div v-if="!Object.keys(viewGroups).length" class="mb-empty">Chưa có món ăn nào.</div>
+      <div v-if="(parsedView.dishes ?? []).length > 5" class="mb-filters stack-sm">
+        <label class="field"><span class="meta">Tìm món trong thực đơn</span><input v-model="search" type="search" class="input" placeholder="Tên món…" /></label>
+        <div v-if="categories.length > 1" class="mb-categories" aria-label="Lọc theo nhóm món"><button type="button" class="label-chip" :class="{ selected: !activeCategory }" :aria-pressed="!activeCategory" @click="activeCategory = ''">Tất cả · {{ parsedView.dishes.length }}</button><button v-for="category in categories" :key="category" type="button" class="label-chip" :class="{ selected: activeCategory === category }" :aria-pressed="activeCategory === category" @click="activeCategory = category">{{ category }}</button></div>
+        <p class="meta" role="status">{{ filteredDishes.length }} món{{ search || activeCategory ? ' phù hợp' : ' trong thực đơn' }} · Chạm vào món để chọn hoặc bỏ chọn.</p>
+      </div>
+      <div v-if="!Object.keys(viewGroups).length" class="mb-empty">{{ search || activeCategory ? 'Không tìm thấy món phù hợp.' : 'Chưa có món ăn nào.' }}<button v-if="search || activeCategory" type="button" class="btn btn--ghost" @click="search = ''; activeCategory = ''">Xóa bộ lọc</button></div>
       <div v-else class="mb-body">
         <div v-for="(dishes, cat) in viewGroups" :key="cat" class="mb-group">
           <div class="mb-group-name">{{ cat }}</div>
-          <div
-            v-for="d in dishes"
-            :key="d.name"
-            class="mb-dish-row"
-            :class="{ 'mb-dish-row--picked': picks[d.name], 'mb-dish-row--hot': dishSelectors[d.name]?.length >= 2 }"
-            @click="emit('toggle-dish', d)"
-            @mouseenter="emit('hover-dish', d.name)"
-            @mouseleave="emit('hover-dish', null)"
-          >
-            <div class="mb-dish-name-cell">
-              <span class="mb-dish-name">{{ d.name }}</span>
-              <span v-if="showCalories && d.calories" class="mb-calo-badge">⚡ {{ d.calories }} kcal</span>
+          <article v-for="d in dishes" :key="d.id || d.name" class="mb-dish-card">
+            <button type="button" class="mb-dish-row"
+              :class="{ 'mb-dish-row--picked': picks[d.name], 'mb-dish-row--unavailable': d.available === false }"
+              :disabled="disabled || (d.available === false && !picks[d.name])"
+              :aria-pressed="!!picks[d.name]"
+              @click="emit('toggle-dish', d)">
+              <span class="mb-dish-name-cell"><span class="mb-dish-name">{{ d.name }}</span><span v-if="d.available === false" class="badge">Hết món</span><span v-if="showCalories && d.calories" class="meta">{{ d.calories }} kcal</span></span>
+              <span class="mb-dish-price">{{ d.price == null || d.price === '' ? 'Chưa có giá' : fmt(d.price) }}</span>
+              <span class="mb-pick-check"><AppIcon :name="picks[d.name] ? 'check' : 'plus'" /></span>
+            </button>
+            <div v-if="dishSelectors[d.name]?.length" class="mb-live-picks meta"><span>{{ dishSelectors[d.name].slice(0, 3).map(v => v.name).join(', ') }}{{ dishSelectors[d.name].length > 3 ? ` và ${dishSelectors[d.name].length - 3} người` : '' }} đang chọn</span></div>
+            <div v-if="showFeedback" class="mb-feedback">
+              <p v-if="feedbackState" class="meta">{{ feedbackState }}</p>
+              <template v-else>
+                <p class="meta">{{ feedback[`${restaurantId}:${d.restaurant_dish_id}`]?.rating_count ? `★ ${Number(feedback[`${restaurantId}:${d.restaurant_dish_id}`].average_rating).toLocaleString('vi-VN', {maximumFractionDigits:1})} · ${feedback[`${restaurantId}:${d.restaurant_dish_id}`].rating_count} lượt đánh giá` : 'Chưa có đánh giá' }}</p>
+                <div v-if="feedback[`${restaurantId}:${d.restaurant_dish_id}`]?.labels?.length" class="mb-feedback-labels"><span class="meta">Phản hồi gần đây:</span><span v-for="label in feedback[`${restaurantId}:${d.restaurant_dish_id}`].labels" :key="label" class="badge">{{ label }}</span></div>
+                <button v-if="d.restaurant_dish_id" type="button" class="mb-feedback-link" :aria-label="`Xem đánh giá ${d.name}`" @click="emit('feedback', d)">Xem đánh giá</button>
+              </template>
             </div>
-            <div class="mb-dot-leader" />
-            <!-- Selector chips: people currently viewing this dish -->
-            <div v-if="dishSelectors[d.name]?.length" class="mb-selectors">
-              <div
-                v-for="v in dishSelectors[d.name].slice(0, 3)"
-                :key="v.presenceKey"
-                class="mb-sel-av"
-                :style="{'--sc': v.color}"
-                :title="v.name"
-              >
-                <img v-if="v.avatar" :src="v.avatar" />
-                <span v-else>{{ v.name?.[0] ?? '?' }}</span>
-              </div>
-              <span v-if="dishSelectors[d.name].length >= 2" class="mb-fomo">{{ dishSelectors[d.name].length }}!</span>
-            </div>
-            <span class="mb-dish-price">{{ fmt(d.price) }}</span>
-            <span class="mb-pick-check">{{ picks[d.name] ? '✓' : '' }}</span>
-          </div>
+          </article>
         </div>
       </div>
     </template>
@@ -247,14 +264,14 @@ function addNewGroup() {
           <div v-for="(dish, idx) in dishes" :key="idx" class="mb-dish-row mb-dish-row--edit">
             <div class="mb-dish-name-cell">
               <div v-if="editingItem?.index === idx && editingItem?.field === 'name'" class="mb-inline-wrap">
-                <input :id="`mb-name-${idx}`" v-model="editValue" type="text" class="input mb-inline-input mb-name-input"
-                  placeholder="Tên món" @blur="saveEdit(idx)" @keyup.enter="saveEdit(idx)" />
+                <input :disabled="disabled" :id="`mb-name-${idx}`" aria-label="Tên món" v-model="editValue" type="text" class="input mb-inline-input mb-name-input"
+                  placeholder="Tên món" @blur="saveEdit(idx)" @keydown.enter.prevent="saveEdit(idx)" />
               </div>
-              <span v-else class="mb-dish-name mb-editable" @click="startEdit(idx, 'name', dish.name)" title="Nhấp để sửa">{{ dish.name }}</span>
+              <button v-else type="button" :disabled="disabled || identityIsLocked(dish)" :id="`mb-edit-name-${idx}`" class="mb-dish-name mb-editable" @click="startEdit(idx, 'name', dish.name)" title="Sửa tên món">{{ dish.name }}</button>
               <div v-if="editingItem?.index === idx && editingItem?.field === 'calories'" class="mb-inline-wrap" style="display:inline-flex;margin-left:.4rem">
-                <input :id="`mb-calories-${idx}`" v-model="editValue" type="text" inputmode="numeric"
+                <input :disabled="disabled" :id="`mb-calories-${idx}`" v-model="editValue" type="text" inputmode="numeric"
                   class="input mb-inline-input mb-calo-input" placeholder="Kcal"
-                  @blur="saveEdit(idx)" @keyup.enter="saveEdit(idx)" />
+                  @blur="saveEdit(idx)" @keydown.enter.prevent="saveEdit(idx)" />
               </div>
               <span v-else-if="showCalories" class="mb-calo-badge mb-editable" @click.stop="startEdit(idx, 'calories', dish.calories || 0)">
                 ⚡ {{ dish.calories || 0 }} kcal
@@ -263,18 +280,18 @@ function addNewGroup() {
             <div class="mb-dot-leader" />
             <div class="mb-dish-price-cell">
               <div v-if="editingItem?.index === idx && editingItem?.field === 'price'" class="mb-inline-wrap mb-price-wrap">
-                <input :id="`mb-price-${idx}`" v-model="editValue" type="text" inputmode="numeric"
+                <input :disabled="disabled" :id="`mb-price-${idx}`" aria-label="Giá món" v-model="editValue" type="text" inputmode="numeric"
                   class="input mb-inline-input mb-price-input" placeholder="Giá"
-                  @blur="saveEdit(idx)" @keyup.enter="saveEdit(idx)" />
+                  @blur="saveEdit(idx)" @keydown.enter.prevent="saveEdit(idx)" />
               </div>
-              <span v-else class="mb-dish-price mb-editable" @click="startEdit(idx, 'price', dish.price)" title="Nhấp để sửa">
-                {{ fmtDisplay(dish.price) ? fmtDisplay(dish.price) + 'đ' : '0đ' }}
-              </span>
+              <button v-else type="button" :disabled="disabled" :id="`mb-edit-price-${idx}`" class="mb-dish-price mb-editable" @click="startEdit(idx, 'price', dish.price)" title="Nhấp để sửa">
+                {{ dish.price == null || dish.price === '' ? 'Chưa có giá' : fmtDisplay(dish.price) + 'đ' }}
+              </button>
             </div>
-            <button type="button" class="mb-delete-btn" @click="removeDish(idx)" title="Xóa món">✕</button>
+            <button type="button" :disabled="disabled || identityIsLocked(dish)" :aria-label="`Xóa món ${dish.name}`" class="mb-delete-btn" @click="removeDish(idx)" title="Xóa món">✕</button>
           </div>
           <div class="mb-add-row">
-            <button type="button" class="mb-add-btn" @click="addDishInGroup('Khác')">+ Thêm món mới</button>
+            <button type="button" :disabled="disabled" class="mb-add-btn" @click="addDishInGroup('Khác')">+ Thêm món mới</button>
           </div>
         </div>
 
@@ -283,26 +300,26 @@ function addNewGroup() {
           <div v-for="(groupDishes, groupName) in editGroups" :key="groupName" class="mb-group">
             <div class="mb-group-header">
               <div v-if="editingGroup === groupName" class="mb-inline-wrap mb-group-wrap">
-                <input :id="`mb-group-${groupName}`" v-model="editingGroupValue" type="text"
+                <input :disabled="disabled" :id="`mb-group-${groupName}`" aria-label="Tên nhóm món" v-model="editingGroupValue" type="text"
                   class="input mb-inline-input mb-group-input" placeholder="Tên phân loại"
-                  @blur="saveEditGroup(groupName)" @keyup.enter="saveEditGroup(groupName)" />
+                  @blur="saveEditGroup(groupName)" @keydown.enter.prevent="saveEditGroup(groupName)" />
               </div>
-              <h5 v-else class="mb-group-name mb-editable" @click="startEditGroup(groupName)" title="Nhấp để sửa tên nhóm">{{ groupName }}</h5>
-              <button type="button" class="mb-add-dish-btn" @click="addDishInGroup(groupName)">+ Thêm món</button>
+              <button v-else type="button" :disabled="disabled" class="mb-group-name mb-editable" @click="startEditGroup(groupName)" title="Nhấp để sửa tên nhóm">{{ groupName }}</button>
+              <button type="button" :disabled="disabled" class="mb-add-dish-btn" @click="addDishInGroup(groupName)">+ Thêm món</button>
             </div>
             <div class="mb-group-dishes">
               <div v-for="dish in groupDishes" :key="dish.originalIndex" class="mb-dish-row mb-dish-row--edit">
                 <div class="mb-dish-name-cell">
                   <div v-if="editingItem?.index === dish.originalIndex && editingItem?.field === 'name'" class="mb-inline-wrap">
-                    <input :id="`mb-name-${dish.originalIndex}`" v-model="editValue" type="text"
+                    <input :disabled="disabled" :id="`mb-name-${dish.originalIndex}`" aria-label="Tên món" v-model="editValue" type="text"
                       class="input mb-inline-input mb-name-input" placeholder="Tên món"
-                      @blur="saveEdit(dish.originalIndex)" @keyup.enter="saveEdit(dish.originalIndex)" />
+                      @blur="saveEdit(dish.originalIndex)" @keydown.enter.prevent="saveEdit(dish.originalIndex)" />
                   </div>
-                  <span v-else class="mb-dish-name mb-editable" @click="startEdit(dish.originalIndex, 'name', dish.name)" title="Nhấp để sửa">{{ dish.name }}</span>
+                  <button v-else type="button" :disabled="disabled || identityIsLocked(dish)" :id="`mb-edit-name-${dish.originalIndex}`" class="mb-dish-name mb-editable" @click="startEdit(dish.originalIndex, 'name', dish.name)" title="Sửa tên món">{{ dish.name }}</button>
                   <div v-if="editingItem?.index === dish.originalIndex && editingItem?.field === 'calories'" class="mb-inline-wrap" style="display:inline-flex;margin-left:.4rem">
-                    <input :id="`mb-calories-${dish.originalIndex}`" v-model="editValue" type="text" inputmode="numeric"
+                    <input :disabled="disabled" :id="`mb-calories-${dish.originalIndex}`" v-model="editValue" type="text" inputmode="numeric"
                       class="input mb-inline-input mb-calo-input" placeholder="Kcal"
-                      @blur="saveEdit(dish.originalIndex)" @keyup.enter="saveEdit(dish.originalIndex)" />
+                      @blur="saveEdit(dish.originalIndex)" @keydown.enter.prevent="saveEdit(dish.originalIndex)" />
                   </div>
                   <span v-else-if="showCalories" class="mb-calo-badge mb-editable" @click.stop="startEdit(dish.originalIndex, 'calories', dish.calories || 0)">
                     ⚡ {{ dish.calories || 0 }} kcal
@@ -311,15 +328,15 @@ function addNewGroup() {
                 <div class="mb-dot-leader" />
                 <div class="mb-dish-price-cell">
                   <div v-if="editingItem?.index === dish.originalIndex && editingItem?.field === 'price'" class="mb-inline-wrap mb-price-wrap">
-                    <input :id="`mb-price-${dish.originalIndex}`" v-model="editValue" type="text" inputmode="numeric"
+                    <input :disabled="disabled" :id="`mb-price-${dish.originalIndex}`" aria-label="Giá món" v-model="editValue" type="text" inputmode="numeric"
                       class="input mb-inline-input mb-price-input" placeholder="Giá"
-                      @blur="saveEdit(dish.originalIndex)" @keyup.enter="saveEdit(dish.originalIndex)" />
+                      @blur="saveEdit(dish.originalIndex)" @keydown.enter.prevent="saveEdit(dish.originalIndex)" />
                   </div>
-                  <span v-else class="mb-dish-price mb-editable" @click="startEdit(dish.originalIndex, 'price', dish.price)" title="Nhấp để sửa">
-                    {{ fmtDisplay(dish.price) ? fmtDisplay(dish.price) + 'đ' : '0đ' }}
-                  </span>
+                  <button v-else type="button" :disabled="disabled" :id="`mb-edit-price-${dish.originalIndex}`" class="mb-dish-price mb-editable" @click="startEdit(dish.originalIndex, 'price', dish.price)" title="Nhấp để sửa">
+                    {{ dish.price == null || dish.price === '' ? 'Chưa có giá' : fmtDisplay(dish.price) + 'đ' }}
+                  </button>
                 </div>
-                <button type="button" class="mb-delete-btn" @click="removeDish(dish.originalIndex)" title="Xóa món">✕</button>
+                <button type="button" :disabled="disabled || identityIsLocked(dish)" :aria-label="`Xóa món ${dish.name}`" class="mb-delete-btn" @click="removeDish(dish.originalIndex)" title="Xóa món">✕</button>
               </div>
             </div>
           </div>
@@ -328,7 +345,7 @@ function addNewGroup() {
 
       <!-- Edit toolbar: add group -->
       <div class="mb-edit-toolbar">
-        <button type="button" class="mb-add-btn" @click="addNewGroup">+ Thêm phân loại mới</button>
+        <button type="button" :disabled="disabled" class="mb-add-btn" @click="addNewGroup">+ Thêm phân loại mới</button>
       </div>
     </template>
 
@@ -336,166 +353,47 @@ function addNewGroup() {
 </template>
 
 <style scoped>
-/* ── Board shell ── */
-.menu-board {
-  background: radial-gradient(circle at top left, #fffdfa 0%, #faf5e6 100%);
-  border: 1px solid #e2dac7;
-  border-radius: 8px;
-  padding: 2.5rem 2.25rem;
-  box-shadow: 0 12px 35px -12px rgba(86,81,74,.18), 0 2px 4px rgba(86,81,74,.03);
-  position: relative;
-  overflow: hidden;
-}
-.menu-board::after {
-  content: ''; position: absolute; inset: 12px;
-  border: 1px solid rgba(140,110,51,.22); border-radius: 6px; pointer-events: none;
-}
-.menu-board::before {
-  content: ''; position: absolute; inset: 16px;
-  border: 1px solid rgba(140,110,51,.09); border-radius: 4px; pointer-events: none;
-}
-
-/* ── Header ── */
-.mb-header { text-align: center; margin-bottom: 2rem; position: relative; z-index: 2; }
-
-.mb-title-row {
-  display: flex; align-items: center; justify-content: center; gap: .8rem; margin-bottom: .4rem;
-}
-.mb-title-line { height: 1px; width: 50px; background: linear-gradient(to right, transparent, rgba(140,110,51,.45), transparent); }
-.mb-ornament { font-size: .8rem; color: #be9a5b; user-select: none; animation: pulseGold 2s infinite ease-in-out alternate; display: inline-block; }
-.mb-title {
-  font-size: var(--fs-sm); font-weight: 700; letter-spacing: .3em;
-  color: #8c6e33; margin: 0; text-transform: uppercase;
-  animation: warmGlow 4s infinite ease-in-out;
-}
-.mb-notes-wrap { min-height: 1.6rem; display: flex; justify-content: center; }
-.mb-notes-text { font-size: var(--fs-sm); color: var(--ink-soft); font-style: italic; margin: 0; }
-.mb-notes-display {
-  font-size: var(--fs-sm); color: var(--ink-soft); font-style: italic;
-  padding: .15rem .5rem; border-bottom: 1px dashed transparent;
-  cursor: pointer; transition: all .2s;
-}
-.mb-notes-display:hover { color: var(--primary); border-bottom-color: var(--primary); }
-.mb-placeholder { color: var(--muted); font-style: italic; }
-
-/* ── Body ── */
-.mb-body { display: flex; flex-direction: column; gap: 1.5rem; position: relative; z-index: 2; }
-.mb-empty { text-align: center; color: var(--muted); font-style: italic; padding: 1.5rem 0; position: relative; z-index: 2; }
-
-/* ── Group ── */
-.mb-group { display: flex; flex-direction: column; gap: .25rem; }
-.mb-group-header {
-  display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid rgba(140,110,51,.15); padding-bottom: .35rem; margin-bottom: .25rem;
-}
-.mb-group-name {
-  font-size: .65rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .08em; color: #8c6e33; margin: 0;
-}
-.mb-group-dishes { display: flex; flex-direction: column; gap: .35rem; padding-left: .1rem; }
-
-/* ── Dish row ── */
-.mb-dish-row {
-  display: flex; align-items: baseline; gap: .4rem;
-  padding: .28rem .4rem; border-radius: 4px;
-  border: 1.5px solid transparent;
-  transition: background .12s, border-color .12s;
-}
-/* View mode: clickable */
-.mb-dish-row:not(.mb-dish-row--edit) { cursor: pointer; user-select: none; }
-.mb-dish-row:not(.mb-dish-row--edit):hover { background: rgba(140,110,51,.07); }
-.mb-dish-row--picked { background: rgba(31,110,69,.08) !important; border-color: rgba(31,110,69,.25) !important; }
-.mb-dish-row--picked .mb-dish-name { color: var(--primary-ink) !important; font-weight: 600; }
-
-.mb-dish-name-cell { flex: 0 1 auto; max-width: 68%; display: flex; align-items: center; gap: .3rem; }
-.mb-dish-name { font-size: .95rem; font-weight: 500; color: var(--ink); line-height: 1.4; }
-.mb-editable { cursor: pointer; border-bottom: 1px dashed transparent; transition: all .15s; }
-.mb-editable:hover { color: var(--primary-ink); border-bottom-color: rgba(140,110,51,.4); }
-
-.mb-dot-leader { flex: 1; border-bottom: 1px dashed rgba(140,110,51,.35); margin-bottom: 3px; min-width: 1rem; }
-
-.mb-dish-price-cell { flex-shrink: 0; display: flex; align-items: center; }
-.mb-dish-price { font-weight: 600; font-size: var(--fs-sm); color: var(--ink); white-space: nowrap; }
-
-.mb-pick-check { font-size: var(--fs-xs); color: var(--primary); font-weight: 700; width: 1rem; flex-shrink: 0; text-align: right; }
-
-/* ── Calorie badge ── */
-.mb-calo-badge {
-  font-size: .72rem; font-weight: 600; color: var(--primary);
-  background: var(--primary-soft); padding: .05rem .28rem; border-radius: 3px;
-  white-space: nowrap; flex-shrink: 0;
-  border: 1px dashed rgba(31,110,69,.2);
-}
-
-/* ── Delete button (edit mode) ── */
-.mb-delete-btn {
-  position: relative; background: transparent; border: none; color: var(--muted);
-  cursor: pointer; font-size: 10px; opacity: 0; transition: all .2s;
-  width: 18px; height: 18px; display: grid; place-items: center;
-  border-radius: 50%; flex-shrink: 0; margin-left: .2rem;
-}
-.mb-dish-row--edit:hover .mb-delete-btn { opacity: .6; }
-.mb-dish-row--edit:hover .mb-delete-btn:hover { opacity: 1; color: var(--accent); background: var(--accent-soft); }
-
-/* ── Add buttons ── */
-.mb-add-dish-btn {
-  background: transparent; border: 1px solid rgba(140,110,51,.25); color: #8c6e33;
-  font-size: 11px; font-weight: 600; cursor: pointer; padding: .2rem .55rem;
-  border-radius: 4px; transition: all .15s;
-}
-.mb-add-dish-btn:hover { background: rgba(140,110,51,.08); border-color: #8c6e33; }
-.mb-add-row { display: flex; justify-content: center; margin-top: .8rem; padding-top: .8rem; border-top: 1px dashed var(--line); }
-.mb-add-btn {
-  background: #fff; border: 1px solid #e2dac7; color: var(--ink-soft);
-  padding: .45rem .9rem; border-radius: var(--radius-sm); font-size: var(--fs-xs);
-  font-weight: 600; cursor: pointer; transition: all .2s;
-}
-.mb-add-btn:hover { background: var(--bg-tint); border-color: var(--line-strong); color: var(--primary-ink); }
-
-.mb-edit-toolbar { display: flex; justify-content: center; margin-top: 1.25rem; position: relative; z-index: 2; }
-
-/* ── Inline inputs ── */
-.mb-inline-wrap { display: inline-flex; align-items: center; width: 100%; }
-.mb-group-wrap { flex: 1; max-width: 240px; }
-.mb-price-wrap { width: 80px; }
-.mb-inline-input {
-  background: transparent !important; border: none !important;
-  border-bottom: 1px dashed var(--primary) !important; border-radius: 0 !important;
-  padding: 0 !important; font-size: inherit !important; font-family: inherit !important;
-  font-weight: inherit !important; color: inherit !important; height: auto !important;
-  box-shadow: none !important; width: 100%; outline: none !important;
-}
-.mb-inline-input:focus { border-bottom-color: #8c6e33 !important; }
-.mb-name-input   { font-size: var(--fs-sm) !important; font-weight: 500; color: var(--primary-ink) !important; }
-.mb-price-input  { font-size: var(--fs-sm) !important; font-weight: 600; color: #8c6e33 !important; text-align: right; }
-.mb-group-input  { font-size: var(--fs-sm) !important; font-weight: 700; text-transform: uppercase; color: #8c6e33 !important; }
-.mb-notes-input  { font-size: var(--fs-sm) !important; font-style: italic; color: #8c6e33 !important; text-align: center; }
-.mb-calo-input   { width: 55px !important; font-size: .72rem !important; font-weight: 600; color: var(--primary) !important; }
-
-/* ── Dish selector chips (presence) ── */
-.mb-selectors { display:flex; align-items:center; gap:0; margin-right:4px; flex-shrink:0; }
-.mb-sel-av {
-  width:18px; height:18px; border-radius:50%;
-  border:1.5px solid var(--card,#fffdf9);
-  background:var(--sc,#888);
-  margin-left:-4px; overflow:hidden;
-  display:flex; align-items:center; justify-content:center;
-  font-size:7px; font-weight:800; color:#fff;
-}
-.mb-sel-av:first-child { margin-left:0; }
-.mb-sel-av img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-.mb-fomo { font-size:9px; font-weight:800; color:var(--accent); margin-left:3px; white-space:nowrap; flex-shrink:0; }
-.mb-dish-row--hot { background:rgba(226,84,43,.04) !important; }
-.mb-dish-row--hot::before { content:''; position:absolute; left:0; top:4px; bottom:4px; width:2.5px; border-radius:2px; background:var(--accent); }
-.mb-dish-row { position:relative; }
-
-/* ── Animations ── */
-@keyframes warmGlow {
-  0%,100% { text-shadow: 0 0 8px rgba(220,180,100,.2); color: #8c6e33; }
-  50%      { text-shadow: 0 0 16px rgba(220,180,100,.65); color: #b08e49; }
-}
-@keyframes pulseGold {
-  0%   { transform: scale(1);    opacity: .7; }
-  100% { transform: scale(1.25); opacity: 1;  }
-}
+.menu-board { min-width:0; }
+.mb-header { margin-bottom:20px; }
+.mb-title { margin:0; font-size:1.1rem; color:var(--ink); }
+.mb-title-line,.mb-ornament { display:none; }
+.mb-notes-wrap { margin-top:8px; }
+.mb-notes-text { white-space:pre-line; color:var(--ink-soft); font-size:var(--fs-sm); }
+.mb-body { display:grid; gap:24px; }
+.mb-group-name { margin:0 0 8px; font-size:var(--fs-xs); color:var(--ink-soft); font-weight:600; }
+.mb-dish-card { border-bottom:1px solid var(--line); padding:8px 0; }
+.mb-dish-row { display:flex; align-items:center; gap:12px; min-height:56px; width:100%; padding:12px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--ink); font:inherit; text-align:left; }
+button.mb-dish-row { cursor:pointer; }
+button.mb-dish-row:hover:not(:disabled) { background:var(--bg-tint); }
+.mb-dish-row--picked { border-color:var(--primary); }
+.mb-dish-row--picked .mb-pick-check { background:var(--primary); color:white; }
+.mb-dish-row--unavailable { color:var(--ink-soft); }
+.mb-dish-name-cell { display:flex; align-items:center; flex-wrap:wrap; gap:8px; flex:1; min-width:0; overflow-wrap:anywhere; }
+.mb-dish-name { font-weight:600; }
+.mb-dish-price { flex-shrink:0; font-size:var(--fs-xs); color:var(--ink-soft); }
+.mb-pick-check { display:grid; place-items:center; flex-shrink:0; width:28px; height:28px; border:1px solid var(--line-strong); border-radius:6px; }
+.mb-pick-check :deep(svg) { width:16px; height:16px; }
+.mb-feedback { display:flex; flex-wrap:wrap; align-items:center; gap:0 12px; padding:0 12px; }
+.mb-feedback-labels { display:flex; flex-wrap:wrap; align-items:center; gap:6px; width:100%; }
+.mb-feedback-link { min-height:44px; border:0; background:transparent; padding:8px 0; font:inherit; font-size:var(--fs-xs); text-decoration:underline; color:var(--ink-soft); cursor:pointer; }
+.mb-live-picks { padding:0 12px 8px; }
+.mb-filters { margin-bottom:20px; }
+.mb-categories { display:flex; flex-wrap:wrap; gap:8px; }
+.mb-categories .label-chip { min-height:44px; }
+.mb-categories .selected { color:var(--ink); border-color:var(--ink); background:transparent; }
+.mb-empty { padding:24px 0; color:var(--ink-soft); }
+.mb-group-header { display:flex; gap:12px; align-items:center; justify-content:space-between; }
+.mb-group-dishes { display:grid; gap:8px; }
+.mb-dish-row--edit { border:1px solid var(--line); }
+.mb-inline-wrap { min-width:0; width:100%; }
+.mb-price-wrap { width:104px; }
+.mb-inline-input { min-height:44px; font-size:16px; }
+.mb-editable,.mb-notes-display { border:0; padding:8px 0; background:transparent; font:inherit; color:inherit; min-height:44px; text-align:left; cursor:pointer; }
+.mb-placeholder { color:var(--ink-soft); font-size:var(--fs-sm); }
+.mb-dot-leader { display:none; }
+.mb-delete-btn,.mb-add-dish-btn,.mb-add-btn { min-height:44px; min-width:44px; border:1px solid var(--line-strong); background:transparent; color:var(--ink); border-radius:8px; padding:8px 12px; font:inherit; font-size:var(--fs-xs); cursor:pointer; }
+.mb-add-row,.mb-edit-toolbar { margin-top:12px; }
+button:disabled { cursor:default; }
+button:focus-visible,input:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
+@media(max-width:600px) { .mb-dish-row { gap:8px; padding:10px 8px; flex-wrap:wrap; }.mb-dish-name-cell { flex-basis:calc(100% - 144px); }.mb-feedback { padding:0 8px; }.mb-delete-btn { padding:8px; }.mb-dish-row--edit .mb-dish-name-cell { flex-basis:calc(100% - 60px); } }
 </style>

@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "lunch-feedback-suggestions",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "ai": { "binding": "AI" },
+  // These example namespace IDs MUST be replaced/confirmed unique by the account owner.
+  "ratelimits": [
+    { "name": "USER_RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+    { "name": "SERVICE_RATE_LIMITER", "namespace_id": "1002", "simple": { "limit": 60, "period": 60 } }
+  ],
+  // Fail closed until the owner supplies these nonsecret values. No account/origin is guessed.
+  "vars": {
+    "CLERK_ISSUER": "",
+    "ALLOWED_ORIGINS": "",
+    "SUPABASE_URL": "",
+    "SUPABASE_PUBLISHABLE_KEY": ""
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1,
+    "logs": { "enabled": true, "invocation_logs": false },
+    "traces": { "enabled": false }
+  }
+}

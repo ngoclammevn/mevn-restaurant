@@ -1,1315 +1,257 @@
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUser } from '@clerk/vue'
 import { useMenus } from '../composables/useMenus'
 import { useOrders } from '../composables/useOrders'
-import { usePresence, getPersonColor } from '../composables/usePresence'
-import { formatVNDate, formatVNTime } from '../lib/date'
+import { useReviews } from '../composables/useReviews'
+import { useAppPresence } from '../composables/useAppPresence'
+import OrderConfirmDialog from '../components/OrderConfirmDialog.vue'
+import DishFeedbackDialog from '../components/DishFeedbackDialog.vue'
+import { useCatalog } from '../composables/useCatalog'
+import { normalizeMenu, menuDishes, parseMenuNote, serializeMenu } from '../lib/menu'
+import { formatVNDate } from '../lib/date'
 import { autolink } from '../lib/autolink'
-import {
-  AppCard,
-  AppButton,
-  Avatar,
-  TextField,
-  TextArea,
-  PageHeader,
-  EmptyState,
-  OrderSummaryPanel,
-  PaidStamp,
-  PaidToggle,
-  Spinner,
-  MenuBoard,
-  SparklesText,
-  ConfettiBurst,
-  SignInModal,
-  PaymentQRModal,
-} from '../components/ui'
-const route = useRoute()
-const router = useRouter()
+import { AppButton, PageHeader, Spinner, EmptyState, MenuBoard, OrderSummaryPanel, PaidStamp, SignInModal, AppDialog } from '../components/ui'
+import OrderCard from '../components/OrderCard.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
+const route = useRoute(), router = useRouter()
 const { user } = useUser()
-const { getMenu, deleteMenu, setMenuClosed } = useMenus()
-const { createOrder, updateOrder, togglePaid, listProfiles } = useOrders()
-const { viewers, setActiveDish, setMyPicks, selfRemotePicks, myPresenceKey, onCartUpdated, isPresenceReady } = usePresence(route.params.id)
-const confettiRef = ref(null)
-const showSignIn = ref(false)
-
-const myId = computed(() => user.value?.id)
-const otherViewers = computed(() => viewers.value.filter(v => v.presenceKey !== myPresenceKey.value))
-const gridRippling = ref(false)
-watch(() => viewers.value.length, (newLen, oldLen) => {
-  if (newLen > (oldLen ?? 0)) {
-    gridRippling.value = true
-    setTimeout(() => { gridRippling.value = false }, 1500)
+const { getMenu, setMenuClosed } = useMenus()
+const { createOrder, updateOrder, listProfiles } = useOrders()
+const { listDishes } = useCatalog()
+const { listRestaurantReviews, listDishReviews } = useReviews()
+const presence = useAppPresence()
+const menu = ref(null), profiles = ref([]), ratings = ref([]), loading = ref(true), error = ref(''), actionError = ref(''), showSignIn = ref(false), copied = ref(false), busy = ref(false)
+const selected = ref(Object.create(null)), itemText = ref(''), note = ref(''), recipient = ref(''), editing = ref(null)
+const zoomImage = ref(false)
+const showConfirm = ref(false), feedbackDish = ref(null), feedbackReviews = ref([]), feedbackLoading = ref(false), feedbackError = ref(''), recentReviews = ref([]), feedbackBatchError = ref('')
+const orderForm = ref(null), formVisible = ref(false), savedMessage = ref('')
+const myOrders = computed(() => (menu.value?.orders ?? []).filter(order => order.user_id === user.value?.id))
+const otherOrders = computed(() => (menu.value?.orders ?? []).filter(order => order.user_id !== user.value?.id))
+const ownMenu = computed(() => menu.value?.poster_id === user.value?.id)
+const structured = computed(() => !!parseMenuNote(menu.value?.note))
+const dishes = computed(() => menuDishes(menu.value))
+const boardNote = computed(() => serializeMenu(dishes.value, parseMenuNote(menu.value?.note)?.notes || ''))
+const feedback = computed(() => {
+  const map = Object.create(null), restaurantId = menu.value?.restaurant_id
+  for (const stat of ratings.value) {
+    if (stat.restaurant_id !== restaurantId) continue
+    const counts = new Map()
+    for (const review of recentReviews.value) {
+      if (review.restaurant_id !== restaurantId || review.restaurant_dish_id !== stat.id) continue
+      for (const label of new Set(review.labels ?? [])) counts.set(label, (counts.get(label) || 0) + 1)
+    }
+    map[`${restaurantId}:${stat.id}`] = { ...stat, labels: [...counts].sort((a,b) => b[1] - a[1]).slice(0, 2).map(([label]) => label) }
   }
+  return map
 })
-const isGuest = computed(() => !user.value)
-const soloWords = 'Hãy rủ mọi người cùng ăn cơm nhé! 🍱'.split(' ')
-
-const showQRModal = ref(false)
-const selectedQROrder = ref(null)
-
-function openQRModal(order) {
-  selectedQROrder.value = order
-  showQRModal.value = true
-}
-
-function handleQRModalPaid() {
-  if (selectedQROrder.value) {
-    handleToggle(selectedQROrder.value, true)
-  }
-  showQRModal.value = false
-}
-
-function hasQRConfig(poster) {
-  if (!poster?.payment_info) return false
-  return poster.payment_info.includes('STK:') || poster.payment_info.includes('Momo:')
-}
-
-const loading = ref(true)
-const errorMsg = ref('')
-const menu = ref(null)
-const profiles = ref([])
-
-// Form draft
-const draft = reactive({
-  item_text: '',
-  note: '',
-  orderFor: '',
-  submitting: false,
-  submitError: ''
-})
-
-const toggleLoading = reactive({})
-const toggleError = reactive({})
-
-const editingOrderId = ref(null)
-const editDraft = reactive({ item_text: '', note: '' })
-const editSaving = ref(false)
-const editError = ref('')
-const closeError = ref('')
-const editPicks = reactive({})
-const deleting = ref(false)
-const deleteError = ref('')
-const copied = ref(false)
-const picks = reactive({})
-const picksTotal = computed(() => {
-  const dishes = Object.values(picks)
-  if (!dishes.length) return null
-  if (!dishes.every(d => d.price)) return null
-  return dishes.reduce((s, d) => s + Number(d.price), 0)
-})
-
-function isStructured(note) {
-  if (!note) return false
-  try { const d = JSON.parse(note); return d && Array.isArray(d.dishes) } catch { return false }
-}
-
-function fmt(val) {
-  if (!val) return ''
-  return new Intl.NumberFormat('vi-VN').format(val) + 'đ'
-}
-function findDishByName(name, menuData) {
-  if (!menuData?.note) return null
+const boardViewers = computed(() => presence.viewers.value.filter(v => v.menuId === menu.value?.id))
+const recipientName = computed(() => editing.value || !recipient.value ? (user.value?.fullName || 'Tôi') : profiles.value.find(p => p.id === recipient.value)?.full_name || 'Người nhận')
+const selectedDishes = computed(() => Object.values(selected.value))
+const total = computed(() => selectedDishes.value.length && selectedDishes.value.every(d => d.price != null && d.price !== '' && Number.isFinite(Number(d.price))) ? selectedDishes.value.reduce((sum, d) => sum + Number(d.price), 0) : null)
+const canSave = computed(() => structured.value ? selectedDishes.value.length > 0 : itemText.value.trim().length > 0)
+const draftKey = computed(() => user.value?.id && menu.value ? `lunch-order-v2:${user.value.id}:${menu.value.id}` : null)
+let generation = 0, feedbackGeneration = 0, refreshGeneration = 0, restoring = false, refreshTimer
+function resetForm() { selected.value = Object.create(null); itemText.value = ''; note.value = ''; recipient.value = ''; editing.value = null; actionError.value = '' }
+async function load(guestDraft = null) {
+  const current = ++generation; clearTimeout(refreshTimer); feedbackGeneration++; refreshGeneration++; restoring = true; resetForm(); showConfirm.value = false; feedbackDish.value = null; busy.value = false; copied.value = false; zoomImage.value = false; showSignIn.value = false; presence.clearMenuDraft(); menu.value = null; profiles.value = []; ratings.value = []; recentReviews.value = []; feedbackBatchError.value = ''; error.value = ''; loading.value = true
   try {
-    const parsed = JSON.parse(menuData.note)
-    return (parsed.dishes ?? []).find(d => d.name === name) ?? null
-  } catch {}
-  return null
-}
-
-function getAllDishes() {
-  if (!menu.value?.note) return []
-  try {
-    const parsed = JSON.parse(menu.value.note)
-    return Array.isArray(parsed.dishes) ? parsed.dishes : []
-  } catch {
-    return []
+  const result = await getMenu(route.params.id)
+  if (current !== generation) return
+  if (result.error || !result.data) { error.value = 'Không tải được menu. Menu có thể đã bị xóa hoặc kết nối bị gián đoạn.'; loading.value = false; restoring = false; return }
+  menu.value = normalizeMenu(result.data)
+  if (user.value) {
+    const profileResult = await listProfiles()
+    if (current !== generation) return
+    profiles.value = profileResult.data ?? []
+    if (draftKey.value && !menu.value.is_closed) {
+      try {
+        const saved = guestDraft?.menuId === menu.value.id ? guestDraft : JSON.parse(sessionStorage.getItem(draftKey.value) || 'null')
+        if (saved) { note.value = saved.note || ''; recipient.value = profiles.value.some(p => p.id === saved.recipient) ? saved.recipient : ''; itemText.value = saved.itemText || ''; for (const name of saved.names ?? []) { const dish = dishes.value.find(d => d.name === name && d.available !== false); if (dish) selected.value[name] = dish } }
+      } catch {}
+    }
+    if (route.query.edit) startEdit(String(route.query.edit))
+    if (menu.value.restaurant_id) {
+      const [ratingResult, reviewResult] = await Promise.all([listDishes(menu.value.restaurant_id), listRestaurantReviews(menu.value.restaurant_id)].map(request => request.catch(error => ({ data: null, error }))))
+      if (current !== generation) return
+      ratings.value = ratingResult.data ?? []; recentReviews.value = reviewResult.data ?? []
+      if (ratingResult.error || reviewResult.error) feedbackBatchError.value = 'Chưa tải được đánh giá món.'
+    }
   }
+  await nextTick()
+  } catch { if (current === generation) error.value = 'Chưa tải được menu. Kiểm tra kết nối rồi thử lại.' }
+  finally { if (current === generation) { restoring = false; loading.value = false } }
 }
-
-
-function savePicksToLocal() {
+watch([() => route.params.id, () => user.value?.id], (current, previous = []) => {
+  savedMessage.value = ''
+  const guestDraft = !previous[1] && current[1] && current[0] === previous[0] && menu.value
+    ? { menuId: menu.value.id, names: Object.keys(selected.value), itemText: itemText.value, note: note.value, recipient: '' } : null
+  if (guestDraft) {
+    try { sessionStorage.setItem(`lunch-order-v2:${current[1]}:${guestDraft.menuId}`, JSON.stringify(guestDraft)) } catch {}
+  }
+  load(guestDraft)
+}, { immediate: true })
+watch(() => route.query.edit, id => { if (id && menu.value) startEdit(String(id)) })
+watch([selected, itemText, note, recipient], () => {
+  if (restoring || editing.value || !draftKey.value) return
+  try { sessionStorage.setItem(draftKey.value, JSON.stringify({names:Object.keys(selected.value), itemText:itemText.value, note:note.value, recipient:recipient.value})) } catch {}
+}, { deep: true })
+let formObserver
+watch(orderForm, element => {
+  formObserver?.disconnect(); formVisible.value = false
+  if (element && typeof IntersectionObserver !== 'undefined') {
+    formObserver = new IntersectionObserver(entries => { formVisible.value = entries[0]?.isIntersecting ?? false }, { threshold: 0 })
+    formObserver.observe(element)
+  }
+}, { flush: 'post' })
+const unsubscribe = presence.onOrderChanged(menuId => { if (menuId === menu.value?.id) queueRefresh() })
+watch([selectedDishes, () => menu.value?.id], () => {
+  if (menu.value) presence.setMenuDraft({ id: menu.value.id, restaurantName: menu.value.restaurant?.name || '' }, selectedDishes.value.map(d => d.name))
+}, { deep: true })
+onUnmounted(() => { generation++; feedbackGeneration++; refreshGeneration++; clearTimeout(refreshTimer); unsubscribe(); presence.clearMenuDraft(); formObserver?.disconnect() })
+function queueRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshMenu, 250) }
+async function refreshMenu() {
   if (!menu.value) return
+  const current = generation, request = ++refreshGeneration, menuId = menu.value.id, account = user.value?.id
+  const result = await getMenu(menuId).catch(error => ({ data: null, error }))
+  if (current !== generation || request !== refreshGeneration || menu.value?.id !== menuId || user.value?.id !== account) return
+  if (result.error || !result.data) { actionError.value = 'Chưa cập nhật được menu. Các món đang chọn vẫn được giữ.'; return }
+  menu.value = normalizeMenu(result.data)
+  for (const [name, dish] of Object.entries(selected.value)) {
+    const fresh = dishes.value.find(d => dish.id ? d.id === dish.id : d.name === name)
+    selected.value[name] = fresh || { ...dish, available: false }
+  }
+}
+function orderChanged() { queueRefresh(); loadFeedbackBatch() }
+async function loadFeedbackBatch() {
+  if (!user.value || !menu.value?.restaurant_id) return
+  const current = generation, account = user.value.id, menuId = menu.value.id, restaurantId = menu.value.restaurant_id
+  const [ratingResult, reviewResult] = await Promise.all([listDishes(restaurantId), listRestaurantReviews(restaurantId)].map(request => request.catch(error => ({ data: null, error }))))
+  if (current !== generation || user.value?.id !== account || menu.value?.id !== menuId) return
+  if (ratingResult.error || reviewResult.error) { feedbackBatchError.value = 'Chưa tải được đánh giá món.'; return }
+  ratings.value = ratingResult.data ?? []; recentReviews.value = reviewResult.data ?? []; feedbackBatchError.value = ''
+}
+async function loadFeedback() {
+  if (!user.value || !menu.value?.restaurant_id || !feedbackDish.value?.restaurant_dish_id) return
+  const current = ++feedbackGeneration, account = user.value.id, menuId = menu.value.id, restaurantId = menu.value.restaurant_id, dishId = feedbackDish.value.restaurant_dish_id
+  feedbackLoading.value = true; feedbackError.value = ''; feedbackReviews.value = []
   try {
-    localStorage.setItem(`picks_menu_${menu.value.id}`, JSON.stringify(Object.keys(picks)))
-  } catch {}
+    const result = await listDishReviews(restaurantId, dishId)
+    if (current !== feedbackGeneration || user.value?.id !== account || menu.value?.id !== menuId || feedbackDish.value?.restaurant_dish_id !== dishId) return
+    if (result.error) throw result.error
+    feedbackReviews.value = result.data ?? []
+  } catch { if (current === feedbackGeneration) feedbackError.value = 'Chưa tải được đánh giá. Thử lại.' }
+  finally { if (current === feedbackGeneration) feedbackLoading.value = false }
+}
+function openFeedback(dish) { feedbackDish.value = dish; loadFeedback() }
+function closeFeedback() { feedbackGeneration++; feedbackDish.value = null; feedbackReviews.value = []; feedbackLoading.value = false }
+function requestConfirmation() {
+  if (!user.value) { showSignIn.value = true; return }
+  if (menu.value?.is_closed || busy.value || !canSave.value) return
+  const originalNames = editing.value ? (myOrders.value.find(o => o.id === editing.value)?.item_text || '').split('\n').map(n => n.trim()) : []
+  if (selectedDishes.value.some(d => d.available === false && !originalNames.includes(d.name))) { actionError.value = 'Có món vừa hết. Bỏ món đó trước khi đặt.'; return }
+  actionError.value = ''; showConfirm.value = true
 }
 
+function reviewSelection() {
+  const form = orderForm.value
+  if (!form) return
+  form.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+  form.querySelector('h2')?.focus({ preventScroll: true })
+}
 function toggleDish(dish) {
-  let action = 'add'
-  if (picks[dish.name]) {
-    delete picks[dish.name]
-    action = 'remove'
-  } else {
-    picks[dish.name] = dish
-    action = 'add'
-    setActiveDish(dish.name)
-  }
-  draft.item_text = Object.values(picks).map(d => d.name).join('\n')
-  setMyPicks(Object.keys(picks), action, dish.name)
-  savePicksToLocal()
+  if (menu.value?.is_closed || busy.value) return
+  if (selected.value[dish.name]) delete selected.value[dish.name]
+  else if (dish.available !== false) selected.value[dish.name] = dish
 }
-
-onMounted(() => {
-  load()
-})
-
-function applyRemotePicks(remotePicks) {
-  if (!menu.value || !isPresenceReady.value) return
-  const safeRemotePicks = remotePicks || []
-  let changed = false
-
-  // 1. Remove dishes from picks that are no longer in remotePicks
-  const remotePicksSet = new Set(safeRemotePicks)
-  for (const name of Object.keys(picks)) {
-    if (!remotePicksSet.has(name)) {
-      delete picks[name]
-      changed = true
+function startEdit(id) {
+  const order = menu.value?.orders?.find(o => o.id === id && o.user_id === user.value?.id)
+  if (!order || menu.value.is_closed) return
+  resetForm(); editing.value = order.id; itemText.value = order.item_text; note.value = order.note ?? ''
+  for (const name of order.item_text.split('\n').map(s => s.trim())) { const dish = dishes.value.find(d => d.name === name); if (dish) selected.value[name] = dish }
+  nextTick(() => document.getElementById('order-form')?.scrollIntoView({behavior:'smooth', block:'center'}))
+}
+function cancelEdit() { resetForm(); router.replace({ path:route.path, query:{} }) }
+async function submit() {
+  if (!user.value) { showSignIn.value = true; return }
+  if (!menu.value || busy.value || !canSave.value) return
+  if (menu.value.is_closed) { actionError.value = 'Menu đã chốt. Liên hệ người đăng nếu cần đổi món.'; return }
+  const originalNames = editing.value ? (myOrders.value.find(o => o.id === editing.value)?.item_text || '').split('\n').map(n => n.trim()) : []
+  if (selectedDishes.value.some(d => d.available === false && !originalNames.includes(d.name))) { actionError.value = 'Có món vừa hết. Quay lại để bỏ món đó.'; return }
+  const account = user.value.id, menuId = menu.value.id, current = generation
+  busy.value = true; actionError.value = ''
+  try {
+    const payload = { item_text:structured.value ? selectedDishes.value.map(d => d.name).join('\n') : itemText.value.trim(), note:note.value.trim() || null }
+    if (structured.value && selectedDishes.value.every(d => d.id)) payload.menu_item_ids = selectedDishes.value.map(d => d.id)
+    const result = editing.value ? await updateOrder({id:editing.value, ...payload}) : await createOrder({menu_id:menuId, user_id:recipient.value || null, ...payload})
+    if (current !== generation || user.value?.id !== account || menu.value?.id !== menuId) return
+    if (result.error) {
+      const refreshed = await getMenu(menuId)
+      if (current === generation && user.value?.id === account && menu.value?.id === menuId && refreshed.data) menu.value.is_closed = refreshed.data.is_closed
+      throw result.error
     }
-  }
-
-  // 2. Add dishes to picks that are in remotePicks but not in picks
-  for (const name of safeRemotePicks) {
-    if (!picks[name]) {
-      const dish = findDishByName(name, menu.value)
-      if (dish) {
-        picks[name] = dish
-        changed = true
-      }
-    }
-  }
-
-  if (changed) {
-    draft.item_text = Object.values(picks).map(d => d.name).join('\n')
-    savePicksToLocal()
-  }
+    try { sessionStorage.removeItem(draftKey.value) } catch {}
+    const wasEditing = !!editing.value
+    showConfirm.value = false; presence.notifyOrderChanged(menuId); resetForm(); await router.replace({path:route.path, query:{}}); if (current !== generation || user.value?.id !== account) return; await load()
+    if (user.value?.id !== account || menu.value?.id !== menuId) return
+    savedMessage.value = wasEditing ? 'Đã lưu thay đổi trong đơn.' : 'Đã đặt món. Bạn tự đánh dấu đã trả sau khi chuyển khoản.'
+  } catch { if (user.value?.id === account && menu.value?.id === menuId) actionError.value = menu.value?.is_closed ? 'Đơn đã chốt. Liên hệ người đăng menu nếu cần thay đổi món.' : 'Chưa lưu được đơn. Các món đã chọn vẫn được giữ, hãy thử lại.' }
+  finally { if (current === generation) busy.value = false }
 }
-
-watch(selfRemotePicks, applyRemotePicks)
-watch(menu, () => applyRemotePicks(selfRemotePicks.value))
-watch(isPresenceReady, (ready) => {
-  if (ready) applyRemotePicks(selfRemotePicks.value)
-})
-
-async function load() {
-  loading.value = true
-  errorMsg.value = ''
-  
-  const menuId = route.params.id
-  if (!menuId) {
-    errorMsg.value = 'Không tìm thấy ID của menu.'
-    loading.value = false
-    return
-  }
-
-  const { data, error } = await getMenu(menuId)
-  if (error) {
-    errorMsg.value = 'Không tải được chi tiết menu. Menu có thể không tồn tại hoặc đã bị xoá.'
-  } else {
-    menu.value = data
-  }
-
-  // Load profiles for ordering on behalf
-  const { data: profileData } = await listProfiles()
-  profiles.value = profileData ?? []
-
-  // Khôi phục giỏ hàng đã chọn từ localStorage
-  if (menu.value) {
-    try {
-      const saved = localStorage.getItem(`picks_menu_${menu.value.id}`)
-      if (saved) {
-        const savedNames = JSON.parse(saved)
-        savedNames.forEach(name => {
-          const dish = findDishByName(name, menu.value)
-          if (dish) picks[name] = dish
-        })
-        draft.item_text = Object.values(picks).map(d => d.name).join('\n')
-        setMyPicks(Object.keys(picks))
-      }
-      
-      const savedNote = sessionStorage.getItem(`draft_note_menu_${menu.value.id}`)
-      if (savedNote) draft.note = savedNote
-
-      const savedOrderFor = sessionStorage.getItem(`draft_orderFor_menu_${menu.value.id}`)
-      if (savedOrderFor) draft.orderFor = savedOrderFor
-    } catch (e) {
-      console.error('Failed to restore picks:', e)
-    }
-  }
-
-  watch(() => [draft.note, draft.orderFor], () => {
-    if (!menu.value) return
-    try {
-      sessionStorage.setItem(`draft_note_menu_${menu.value.id}`, draft.note || '')
-      sessionStorage.setItem(`draft_orderFor_menu_${menu.value.id}`, draft.orderFor || '')
-    } catch (e) {}
-  }, { deep: true })
-
-  loading.value = false
-}
-
-async function submitOrder() {
-  if (!menu.value || !draft.item_text.trim()) return
-  draft.submitting = true
-  draft.submitError = ''
-
-  const { data, error } = await createOrder({
-    menu_id: menu.value.id,
-    item_text: draft.item_text.trim(),
-    note: draft.note.trim() || null,
-    user_id: draft.orderFor || null,
-  })
-
-  if (error) {
-    const closed = await resyncClosedState()
-    draft.submitError = closed
-      ? 'Đơn đã chốt. Liên hệ trực tiếp người đặt cơm để thêm món.'
-      : 'Đặt món không thành công. Thử lại nhé.'
-  } else {
-    const orderedFor = draft.orderFor
-      ? profiles.value.find((p) => p.id === draft.orderFor)
-      : null
-    const newOrder = {
-      ...data,
-      user: orderedFor ?? {
-        id: user.value?.id,
-        full_name: user.value?.fullName ?? '',
-        avatar_url: user.value?.imageUrl ?? '',
-      },
-    }
-    menu.value.orders = [...(menu.value.orders ?? []), newOrder]
-    draft.item_text = ''
-    draft.note = ''
-    draft.orderFor = ''
-    Object.keys(picks).forEach(k => delete picks[k])
-    setMyPicks([])
-    localStorage.removeItem(`picks_menu_${menu.value.id}`)
-    try {
-      sessionStorage.removeItem(`draft_note_menu_${menu.value.id}`)
-      sessionStorage.removeItem(`draft_orderFor_menu_${menu.value.id}`)
-    } catch (e) {}
-    confettiRef.value?.fire()
-  }
-  draft.submitting = false
-}
-
-function handleFormSubmit() {
-  if (isGuest.value) {
-    showSignIn.value = true
-  } else {
-    submitOrder()
-  }
-}
-
-// Copy danh sách (OrderSummaryPanel) = chốt đơn, khoá member thêm/sửa món.
 async function closeOrdering() {
-  if (!menu.value || menu.value.is_closed) return
-  if (!confirm('Chốt đơn? Member khác sẽ không đặt/sửa món được nữa cho tới khi bạn mở lại.')) return
-  closeError.value = ''
-  menu.value.is_closed = true
-  const { error } = await setMenuClosed(menu.value.id, true)
-  if (error) {
-    menu.value.is_closed = false
-    closeError.value = 'Chốt đơn không thành công. Thử lại nhé.'
-  }
+  if (!ownMenu.value || busy.value) return false
+  if (!menu.value.is_closed && !confirm('Chốt đơn? Mọi người sẽ không thêm hoặc sửa món cho đến khi bạn mở lại.')) return false
+  const account = user.value.id, menuId = menu.value.id, current = generation
+  busy.value = true; actionError.value = ''
+  try {
+    const result = await setMenuClosed(menuId, true)
+    if (result.error || !result.data) throw result.error || new Error('missing_menu')
+    if (user.value?.id !== account || menu.value?.id !== menuId) return false
+    menu.value = normalizeMenu(result.data)
+    presence.notifyOrderChanged(menuId)
+    await nextTick()
+    return true
+  } catch { if (current === generation) actionError.value = 'Chưa chốt được đơn. Thử lại.'; return false }
+  finally { if (current === generation) busy.value = false }
 }
-
 async function reopenOrdering() {
-  if (!menu.value) return
-  closeError.value = ''
-  menu.value.is_closed = false
-  const { error } = await setMenuClosed(menu.value.id, false)
-  if (error) {
-    menu.value.is_closed = true
-    closeError.value = 'Mở lại nhận đơn không thành công. Thử lại nhé.'
-  }
+  if (!ownMenu.value || busy.value || !confirm('Mở lại menu để mọi người thêm và sửa món?')) return
+  const account = user.value.id, menuId = menu.value.id, current = generation
+  busy.value = true; actionError.value = ''
+  try {
+    const result = await setMenuClosed(menuId, false)
+    if (current !== generation || user.value?.id !== account || menu.value?.id !== menuId) return
+    if (result.error) throw result.error
+    menu.value.is_closed = false; presence.notifyOrderChanged(menuId)
+  } catch { if (current === generation) actionError.value = 'Chưa mở lại được menu. Thử lại.' }
+  finally { if (current === generation) busy.value = false }
 }
-
-// Trang có thể đang mở từ trước khi poster chốt đơn ở tab/máy khác (không có
-// realtime sync) — khi gặp lỗi lưu/đặt món, refetch is_closed để UI hết "thử lại vô ích".
-async function resyncClosedState() {
-  if (!menu.value) return false
-  const { data, error } = await getMenu(menu.value.id)
-  // lỗi mạng — không xác minh được trạng thái thật, giữ nguyên state đã biết thay vì coi như "chưa đóng"
-  if (error) return menu.value.is_closed
-  menu.value.is_closed = data.is_closed
-  return !!data?.is_closed
+async function copyLink() {
+  try { await navigator.clipboard.writeText(`${location.origin}/share/${menu.value.id}`); copied.value = true }
+  catch { actionError.value = 'Trình duyệt chưa cho phép sao chép đường dẫn.' }
 }
-
-async function handleToggle(order, newVal) {
-  toggleLoading[order.id] = true
-  toggleError[order.id] = ''
-  const { data, error } = await togglePaid(order.id, newVal)
-  if (error) {
-    toggleError[order.id] = 'Cập nhật trạng thái không thành công. Thử lại nhé.'
-  } else if (data) {
-    const idx = menu.value.orders.findIndex((o) => o.id === order.id)
-    if (idx !== -1) {
-      menu.value.orders[idx] = { ...menu.value.orders[idx], is_paid: data.is_paid }
-    }
-  }
-  toggleLoading[order.id] = false
-}
-
-function startEdit(order) {
-  editingOrderId.value = order.id
-  editDraft.item_text = order.item_text
-  editDraft.note = order.note ?? ''
-  editError.value = ''
-  Object.keys(editPicks).forEach(k => delete editPicks[k])
-  if (isStructured(menu.value?.note)) {
-    const dishes = getAllDishes()
-    const lines = (order.item_text || '').split('\n').map(l => l.trim()).filter(Boolean)
-    for (const line of lines) {
-      const dish = dishes.find(d => d.name === line)
-      if (dish) editPicks[dish.name] = dish
-    }
-  }
-}
-
-function cancelEdit() {
-  editingOrderId.value = null
-  editError.value = ''
-}
-
-function toggleEditDish(dish) {
-  if (editPicks[dish.name]) {
-    delete editPicks[dish.name]
-  } else {
-    editPicks[dish.name] = dish
-  }
-  editDraft.item_text = Object.values(editPicks).map(d => d.name).join('\n')
-}
-
-async function saveEdit(order) {
-  if (!editDraft.item_text.trim()) return
-  editSaving.value = true
-  editError.value = ''
-  const { data, error } = await updateOrder({
-    id: order.id,
-    item_text: editDraft.item_text.trim(),
-    note: editDraft.note.trim() || null,
-  })
-  if (error) {
-    const closed = await resyncClosedState()
-    editError.value = closed
-      ? 'Đơn đã chốt, không thể sửa món nữa.'
-      : 'Lưu không thành công. Thử lại nhé.'
-  } else if (data) {
-    const idx = menu.value.orders.findIndex((o) => o.id === order.id)
-    if (idx !== -1) {
-      menu.value.orders[idx] = { ...menu.value.orders[idx], ...data }
-    }
-    editingOrderId.value = null
-  }
-  editSaving.value = false
-}
-
-async function confirmDeleteMenu() {
-  if (!menu.value) return
-  const message = menu.value.orders?.length > 0
-    ? `Bạn có chắc chắn muốn xoá menu "${menu.value.title}"?\nThao tác này sẽ xoá toàn bộ ${menu.value.orders.length} đơn đặt món đi kèm!`
-    : `Bạn có chắc chắn muốn xoá menu "${menu.value.title}"?`
-    
-  if (!confirm(message)) return
-
-  deleting.value = true
-  deleteError.value = ''
-  
-  const { error } = await deleteMenu(menu.value.id, menu.value.image_url)
-  if (error) {
-    deleteError.value = 'Xoá menu không thành công. Thử lại nhé.'
-    deleting.value = false
-  } else {
-    router.push('/')
-  }
-}
-
-function copyMenuLink() {
-  if (!menu.value) return
-  const url = `${window.location.origin}/share/${menu.value.id}`
-  navigator.clipboard.writeText(url).then(() => {
-    copied.value = true
-    setTimeout(() => {
-      copied.value = false
-    }, 2000)
-  }).catch((err) => {
-    console.error('Failed to copy link: ', err)
-  })
-}
-
-const zoomedImageUrl = ref(null)
-
-function zoomImage(url) {
-  zoomedImageUrl.value = url
-  window.addEventListener('keydown', handleEsc)
-}
-
-function closeZoom() {
-  zoomedImageUrl.value = null
-  window.removeEventListener('keydown', handleEsc)
-}
-
-function handleEsc(e) {
-  if (e.key === 'Escape') closeZoom()
-}
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleEsc)
-})
 </script>
-
-<template>
-  <div class="menu-page">
-    <div style="margin-bottom: 1.5rem;">
-      <router-link to="/" class="back-link">
-        ← Quay lại trang Hôm nay
-      </router-link>
-    </div>
-
-    <!-- Loading -->
-    <Spinner v-if="loading" />
-
-    <!-- Load error -->
-    <div v-else-if="errorMsg">
-      <EmptyState
-        title="Không tìm thấy menu"
-        :description="errorMsg"
-        icon="🔍"
-      >
-        <AppButton :to="'/'">Quay lại Hôm nay</AppButton>
-      </EmptyState>
-    </div>
-
-    <!-- Menu Detail -->
-    <div v-else class="stack">
-      <PageHeader
-        eyebrow="Chi tiết menu"
-        :title="menu.title"
-        :sub="`Đăng ngày ${formatVNDate(menu.menu_date)}`"
-      />
-
-      <AppCard ticket>
-        <div class="stack">
-          <!-- Poster header -->
-          <div class="row row-wrap">
-            <Avatar
-              :src="menu.poster?.avatar_url"
-              :name="menu.poster?.full_name"
-              :size="40"
-            />
-            <div>
-              <div class="poster-name">{{ menu.poster?.full_name }}</div>
-              <div class="meta">Người đăng</div>
-            </div>
-            <span class="spacer" />
-            <div class="row row-wrap" style="gap: 0.5rem;">
-              <AppButton
-                variant="ghost"
-                size="sm"
-                @click="copyMenuLink"
-              >
-                {{ copied ? 'Đã chép ✓' : 'Sao chép link' }}
-              </AppButton>
-              <AppButton
-                v-if="menu.poster_id === myId"
-                variant="danger"
-                size="sm"
-                :loading="deleting"
-                @click="confirmDeleteMenu"
-              >
-                Xoá Menu
-              </AppButton>
-            </div>
-          </div>
-
-          <p v-if="deleteError" class="alert">
-            {{ deleteError }}
-          </p>
-
-          <!-- Payment info (shown only when set and structured QR is not configured) -->
-          <div v-if="menu.poster?.payment_info && !hasQRConfig(menu.poster)" class="payment-info-block">
-            <span class="eyebrow">Thông tin chuyển khoản</span>
-            <p class="payment-info">{{ menu.poster.payment_info }}</p>
-          </div>
-
-          <hr class="divider" />
-
-          <!-- Image -->
-          <img
-            v-if="menu.image_url"
-            :src="menu.image_url"
-            :alt="menu.title"
-            class="menu-image clickable"
-            @click="zoomImage(menu.image_url)"
-          />
-
-          <!-- OCR board or plain note -->
-          <MenuBoard
-            v-if="isStructured(menu.note)"
-            :note="menu.note"
-            :picks="picks"
-            :viewers="otherViewers"
-            @toggle-dish="toggleDish"
-            @hover-dish="setActiveDish"
-          />
-          <!-- eslint-disable-next-line vue/no-v-html -- autolink() escapes all input; only generated <a> tags are emitted -->
-          <p v-else-if="menu.note" class="menu-note" v-html="autolink(menu.note)"></p>
-
-          <!-- Shopping list — chỉ hiện cho chủ menu -->
-          <OrderSummaryPanel
-            v-if="menu.poster_id === myId"
-            :orders="menu.orders ?? []"
-            :menu-note="menu.note ?? ''"
-            :is-closed="!!menu.is_closed"
-            @copied="closeOrdering"
-            @reopen="reopenOrdering"
-          />
-          <p v-if="menu.poster_id === myId && closeError" class="alert">{{ closeError }}</p>
-
-          <!-- Orders list -->
-          <div v-if="menu.orders && menu.orders.length > 0" class="stack-sm orders-section">
-            <div class="eyebrow">Đơn đặt ({{ menu.orders.length }})</div>
-            <div
-              v-for="order in menu.orders"
-              :key="order.id"
-              class="order-row"
-            >
-              <div class="row row-wrap order-header">
-                <Avatar
-                  :src="order.user?.avatar_url"
-                  :name="order.user?.full_name"
-                  :size="32"
-                />
-                <span class="order-name">{{ order.user?.full_name }}</span>
-                <span class="spacer" />
-                <AppButton
-                  v-if="order.user_id === myId && editingOrderId !== order.id && !menu.is_closed"
-                  variant="ghost"
-                  size="sm"
-                  @click="startEdit(order)"
-                >
-                  Sửa
-                </AppButton>
-                <PaidStamp :paid="order.is_paid" />
-              </div>
-
-              <!-- Edit inline form -->
-              <template v-if="editingOrderId === order.id && !menu.is_closed">
-                <template v-if="isStructured(menu.note)">
-                  <div class="field">
-                    <label>Món bạn muốn đặt</label>
-                    <div class="edit-dish-picker">
-                      <div
-                        v-for="dish in getAllDishes()"
-                        :key="dish.name"
-                        class="edit-dish-row"
-                        :class="{ 'edit-dish-row--selected': editPicks[dish.name] }"
-                        @click="toggleEditDish(dish)"
-                      >
-                        <span class="edit-dish-check">{{ editPicks[dish.name] ? '✓' : '' }}</span>
-                        <span class="edit-dish-name">{{ dish.name }}</span>
-                        <span v-if="dish.price" class="edit-dish-price">{{ fmt(dish.price) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-                <template v-else>
-                  <TextArea
-                    v-model="editDraft.item_text"
-                    label="Món bạn muốn đặt"
-                    :rows="3"
-                  />
-                </template>
-                <TextField
-                  v-model="editDraft.note"
-                  label="Ghi chú (tuỳ chọn)"
-                />
-                <div class="row" style="gap: 0.5rem;">
-                  <AppButton
-                    size="sm"
-                    :loading="editSaving"
-                    :disabled="isStructured(menu.note) ? !Object.keys(editPicks).length : !editDraft.item_text.trim()"
-                    @click="saveEdit(order)"
-                  >
-                    Lưu
-                  </AppButton>
-                  <AppButton variant="ghost" size="sm" @click="cancelEdit">
-                    Huỷ
-                  </AppButton>
-                </div>
-              </template>
-
-              <!-- Display mode -->
-              <template v-else>
-                <p class="order-item" style="white-space: pre-wrap;">{{ order.item_text }}</p>
-                <p v-if="order.note" class="meta order-user-note">{{ order.note }}</p>
-                <p v-if="order.updated_at" class="meta order-edited-at">
-                  đã sửa lúc {{ formatVNTime(order.updated_at) }}
-                </p>
-              </template>
-
-              <!-- Đặt ngoài cặp v-if/v-else trên: saveEdit() lỗi có thể tự đổi is_closed
-                   thành true (resyncClosedState), làm nhánh sửa (từng chứa editError) unmount
-                   trước khi user kịp thấy — gate theo editingOrderId để sống sót qua đổi is_closed. -->
-              <p v-if="editingOrderId === order.id && editError" class="alert">{{ editError }}</p>
-
-              <!-- Self-tick: only for own order -->
-              <div class="row row-wrap" style="gap: 0.5rem; align-items: center;">
-                <PaidToggle
-                  v-if="order.user_id === myId"
-                  :paid="order.is_paid"
-                  :loading="!!toggleLoading[order.id]"
-                  @toggle="(val) => handleToggle(order, val)"
-                />
-                <AppButton
-                  v-if="order.user_id === myId && !order.is_paid && hasQRConfig(menu?.poster)"
-                  variant="ghost"
-                  size="sm"
-                  style="padding: 0.25rem 0.5rem;"
-                  @click="openQRModal(order)"
-                >
-                  🔗 Quét QR
-                </AppButton>
-              </div>
-              <p v-if="order.user_id === myId && toggleError[order.id]" class="alert">
-                {{ toggleError[order.id] }}
-              </p>
-            </div>
-          </div>
-
-          <div v-else class="meta no-orders">Chưa có ai đặt món.</div>
-
-          <hr class="divider" />
-
-          <!-- Đơn đã chốt: không cho đặt thêm nữa -->
-          <div v-if="menu.is_closed" class="alert">
-            🔒 Đơn đã chốt. Liên hệ trực tiếp {{ menu.poster?.full_name || 'người đặt cơm' }} để thêm món, không thông qua app.
-          </div>
-
-          <!-- Order form -->
-          <form v-else class="stack-sm" @submit.prevent="handleFormSubmit">
-            <div class="eyebrow">Đặt món</div>
-            <div v-if="!isGuest" class="field">
-              <label>Đặt cho</label>
-              <select v-model="draft.orderFor" class="input">
-                <option value="">Tôi (chính mình)</option>
-                <option v-for="p in profiles" :key="p.id" :value="p.id">
-                  {{ p.full_name }}
-                </option>
-              </select>
-            </div>
-            <template v-if="isStructured(menu.note)">
-              <div class="field">
-                <label>Món bạn muốn đặt</label>
-                <div v-if="!Object.keys(picks).length" class="picks-empty">
-                  Chưa chọn món nào — nhấp vào thực đơn bên trên để chọn
-                </div>
-                <div v-else class="picks-summary">
-                  <div v-for="dish in Object.values(picks)" :key="dish.name" class="pick-row">
-                    <span class="pick-name">{{ dish.name }}</span>
-                    <span v-if="dish.price" class="pick-price">{{ fmt(dish.price) }}</span>
-                    <button type="button" class="pick-remove" @click="toggleDish(dish)">✕</button>
-                  </div>
-                  <div v-if="picksTotal" class="picks-total">Tổng: {{ fmt(picksTotal) }}</div>
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <TextArea
-                v-model="draft.item_text"
-                label="Món bạn muốn đặt"
-                placeholder="Ví dụ: cơm tấm sườn bì chả"
-                :rows="3"
-              />
-            </template>
-            <TextField
-              v-model="draft.note"
-              label="Ghi chú (tuỳ chọn)"
-              placeholder="Ví dụ: ít cay, không hành"
-            />
-            <p v-if="draft.submitError" class="alert">
-              {{ draft.submitError }}
-            </p>
-            <AppButton
-              type="submit"
-              :loading="draft.submitting"
-              :disabled="isStructured(menu.note) ? !Object.keys(picks).length : !draft.item_text.trim()"
-            >
-              {{ isGuest ? 'Đăng nhập để đặt món' : 'Đặt món' }}
-            </AppButton>
-          </form>
-        </div>
-      </AppCard>
-    </div>
-
-    <!-- Presence widget — mobile pill (hidden on desktop) -->
-    <Transition name="presence">
-      <div v-if="viewers.length >= 1" class="presence-pill" :class="{ 'presence-pill--solo': viewers.length === 1 }">
-        <span class="presence-dot"></span>
-        <template v-if="viewers.length === 1">
-          <SparklesText text="Bạn là người đầu tiên ở đây! ✨" :count="6" />
-        </template>
-        <template v-else>
-          <div class="presence-avs">
-            <div v-for="(v, i) in otherViewers.slice(0, 4)" :key="v.deviceId || v.presenceKey"
-              class="pav-wrap pav-wrap--sm" :style="{'--pc': v.color || 'var(--muted)', zIndex: 10 - i}">
-              <div class="pav-ring">
-                <Transition name="avatar-fade" mode="out-in">
-                  <img v-if="v.avatar" :key="v.avatar" :src="v.avatar" />
-                  <div v-else :key="v.emoji || v.name" class="pav-inner">{{ v.emoji ?? v.name?.[0] ?? '?' }}</div>
-                </Transition>
-              </div>
-            </div>
-          </div>
-          <span class="presence-label"><b>{{ otherViewers.length }}</b> người khác đang xem</span>
-        </template>
-      </div>
-    </Transition>
-
-    <!-- Presence widget — desktop sidebar card (hidden on mobile) -->
-    <Transition name="presence-card">
-      <div v-if="otherViewers.length >= 1" class="presence-card">
-        <div class="presence-card-grid" :class="{ 'presence-card-grid--ripple': gridRippling }"></div>
-        <div class="presence-card-inner">
-          <div class="pc-dot-row">
-            <span class="presence-dot"></span>
-          </div>
-          <TransitionGroup name="viewer-morph" tag="div" class="presence-card-list">
-            <div
-              v-for="v in otherViewers.slice(0, 6)"
-              :key="v.deviceId || v.presenceKey"
-              class="presence-card-row"
-            >
-              <div class="pav-wrap pav-wrap--md" :style="{'--pc': v.color || 'var(--muted)'}">
-                <div class="pav-ring">
-                  <Transition name="avatar-fade" mode="out-in">
-                    <img v-if="v.avatar" :key="v.avatar" :src="v.avatar" />
-                    <div v-else :key="v.emoji || v.name" class="pav-inner">{{ v.emoji ?? v.name?.[0] ?? '?' }}</div>
-                  </Transition>
-                </div>
-                <svg v-if="v.presenceKey === menu?.poster?.id" class="pav-chef" viewBox="0 0 28 24" xmlns="http://www.w3.org/2000/svg">
-                  <ellipse cx="14" cy="11" rx="9" ry="10" fill="white"/>
-                  <rect x="4" y="17" width="20" height="4.5" rx="2.2" fill="white"/>
-                  <rect x="4" y="18.8" width="20" height="2" rx="1" fill="rgba(200,200,200,.45)"/>
-                  <line x1="14" y1="3" x2="14" y2="17" stroke="rgba(220,220,220,.4)" stroke-width="1"/>
-                </svg>
-              </div>
-              <Transition name="text-fade" mode="out-in">
-                <span :key="v.name" class="presence-card-name" :class="{ 'presence-card-name--anon': v.isAnon }">{{ v.name }}</span>
-              </Transition>
-            </div>
-          </TransitionGroup>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Desktop solo state — only when authenticated user is alone, desktop only -->
-    <Transition name="presence-card">
-      <div v-if="viewers.length >= 1 && otherViewers.length === 0" class="presence-card presence-card--solo">
-        <div class="presence-card-grid"></div>
-        <div class="presence-card-inner">
-          <p class="pc-solo-text">
-            <span
-              v-for="(word, i) in soloWords"
-              :key="i"
-              class="tge-word"
-              :style="{ animationDelay: `${150 + i * 90}ms` }"
-            >{{ word }}</span>
-          </p>
-          <AppButton size="sm" class="pc-solo-btn" @click="copyMenuLink">
-            {{ copied ? '✓ Đã chép!' : '🔗 Chia sẻ menu' }}
-          </AppButton>
-        </div>
-      </div>
-    </Transition>
-
-    <ConfettiBurst ref="confettiRef" />
-
-    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
-
-    <PaymentQRModal
-      v-if="showQRModal && selectedQROrder"
-      :order="selectedQROrder"
-      :poster="menu.poster"
-      :menu-date="menu.menu_date"
-      :menu="menu"
-      @close="showQRModal = false"
-      @paid="handleQRModalPaid"
-    />
-
-    <!-- Image Zoom Lightbox Overlay -->
-    <div
-      v-if="zoomedImageUrl"
-      class="lightbox-overlay"
-      @click="closeZoom"
-    >
-      <button class="lightbox-close" @click.stop="closeZoom">✕</button>
-      <img
-        :src="zoomedImageUrl"
-        class="lightbox-image"
-        @click.stop
-      />
-    </div>
-  </div>
-</template>
+<template><div class="stack menu-page" :class="{ 'menu-page--selection': selectedDishes.length && !menu?.is_closed }"><router-link to="/" class="back-link"><AppIcon name="arrow" />Hôm nay</router-link><Spinner v-if="loading" /><EmptyState v-else-if="error" title="Chưa xem được menu" :description="error"><AppButton variant="ghost" @click="load()">Thử lại</AppButton></EmptyState>
+  <template v-else-if="menu"><PageHeader :eyebrow="menu.restaurant?.name ? menu.title : 'Chọn món'" :title="menu.restaurant?.name || menu.title" :sub="`${formatVNDate(menu.menu_date)} · ${menu.poster?.full_name || 'Người đăng menu'}`" /><div class="row-wrap"><span class="badge">{{ menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn' }}</span><AppButton variant="ghost" size="sm" @click="copyLink">{{ copied ? 'Đã chép link' : 'Sao chép link' }}</AppButton><AppButton v-if="ownMenu" variant="ghost" size="sm" :to="{path:'/manage',query:{menu_id:menu.id}}">Quản lý menu</AppButton></div>
+    <p v-if="savedMessage" class="success-message" role="status">{{ savedMessage }}</p>
+    <section v-if="myOrders.length" class="stack-sm personal-lunch" aria-labelledby="my-menu-orders"><h2 id="my-menu-orders" class="section-title">Đơn của tôi <span class="meta">({{ myOrders.length }})</span></h2><OrderCard v-for="order in myOrders" :key="order.id" :order="order" :menu="menu" @changed="orderChanged" /></section>
+    <section class="card stack"><details v-if="menu.image_url && structured"><summary>Ảnh thực đơn gốc</summary><button type="button" class="menu-image-button" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></button></details><button v-else-if="menu.image_url" type="button" class="menu-image-button" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></button><MenuBoard v-if="structured" :note="boardNote" :picks="selected" :disabled="menu.is_closed || busy" :viewers="boardViewers" :feedback="feedback" :restaurant-id="menu.restaurant_id" show-feedback :feedback-state="!menu.restaurant_id ? 'Chưa ghi nhận quán' : !user ? 'Đăng nhập để xem đánh giá' : ratings.length ? '' : feedbackBatchError" @toggle-dish="toggleDish" @feedback="openFeedback" /><p v-else-if="menu.note" class="order-lines" v-html="autolink(menu.note)" /><AppButton v-if="feedbackBatchError" variant="ghost" @click="loadFeedbackBatch">Tải lại đánh giá</AppButton>
+      <p v-if="menu.poster?.payment_info" class="meta order-lines">Thông tin chuyển khoản: {{ menu.poster.payment_info }}</p>
+    </section>
+    <form v-if="!menu.is_closed" id="order-form" ref="orderForm" class="card stack" @submit.prevent="requestConfirmation"><h2 tabindex="-1" class="section-title">{{ editing ? 'Sửa món trong đơn' : 'Món đã chọn' }}</h2><template v-if="structured"><p class="meta">{{ selectedDishes.length ? `${selectedDishes.length} món đã chọn. Kiểm tra ghi chú và người nhận trước khi lưu.` : 'Chọn món ở thực đơn phía trên để bắt đầu.' }}</p><ul v-if="selectedDishes.length" class="selected-dish-list"><li v-for="dish in selectedDishes" :key="dish.name"><span>{{ dish.name }}</span><button type="button" class="selection-remove" :disabled="busy" :aria-label="`Bỏ món ${dish.name}`" @click="toggleDish(dish)">Bỏ</button></li></ul><p v-if="total !== null" class="rating-line">Tổng tiền: {{ Number(total).toLocaleString('vi-VN') }}đ</p><p v-else-if="selectedDishes.length" class="meta">Có món chưa có giá. Xác nhận tiền với người đăng menu.</p></template><label v-else class="field">Món muốn đặt<textarea v-model="itemText" class="textarea" required :disabled="busy" rows="3" /></label><label class="field">Ghi chú (tùy chọn)<input v-model="note" class="input" :disabled="busy" maxlength="1000" placeholder="Ít cơm, không hành…" /></label><label v-if="!editing && user" class="field">Đặt cho<select v-model="recipient" class="input" :disabled="busy"><option value="">Tôi</option><option v-for="profile in profiles.filter(p => p.id !== user.id)" :key="profile.id" :value="profile.id">{{ profile.full_name }}</option></select></label><p v-if="recipient" class="meta">Đơn thuộc về người được đặt hộ; người đó tự đánh dấu đã trả và đánh giá món.</p><p v-if="!user" class="meta">Bạn có thể chọn món trước. Đăng nhập để lưu đơn.</p><p v-if="actionError" class="alert" role="alert">{{ actionError }}</p><div class="row-wrap"><AppButton type="submit" :disabled="!canSave" :loading="busy">{{ !user ? 'Đăng nhập để đặt món' : editing ? 'Xem lại thay đổi' : 'Xem lại đơn' }}</AppButton><AppButton v-if="editing" variant="ghost" :disabled="busy" @click="cancelEdit">Hủy sửa</AppButton></div></form>
+    <p v-else class="meta">Menu đã chốt. Bạn vẫn có thể chuyển khoản và đánh giá đơn của mình.</p><p v-if="actionError && menu.is_closed" class="alert" role="alert">{{ actionError }}</p>
+    <aside v-if="structured && selectedDishes.length && !menu.is_closed && !formVisible" class="selection-bar" aria-label="Món đang chọn"><div class="selection-bar__content"><div class="stack-sm"><strong>{{ selectedDishes.length }} món đã chọn<span v-if="total !== null"> · {{ Number(total).toLocaleString('vi-VN') }}đ</span></strong><span class="meta">{{ editing ? 'Kiểm tra thay đổi trước khi lưu' : 'Chưa lưu đơn · Kiểm tra ghi chú và người nhận' }}</span></div><AppButton :disabled="busy" @click="reviewSelection">Tiếp tục</AppButton></div></aside>
+    <OrderSummaryPanel v-if="ownMenu" :orders="menu.orders ?? []" :menu-note="menu.note || ''" :is-closed="!!menu.is_closed" :before-copy="closeOrdering" @reopen="reopenOrdering" />
+    <section class="stack-sm"><h2 class="section-title">Đơn của mọi người <span class="meta">({{ otherOrders.length }})</span></h2><article v-for="order in otherOrders" :key="order.id" class="card stack-sm"><div class="row-wrap"><strong>{{ order.user?.full_name || 'Chưa đặt tên' }}</strong><PaidStamp class="spacer" :paid="order.is_paid" /></div><p class="order-lines">{{ order.item_text }}</p><p v-if="order.note" class="meta">{{ order.note }}</p></article><p v-if="!otherOrders.length" class="meta">Chưa có đơn của người khác.</p></section>
+  <AppDialog :open="zoomImage" title="Ảnh thực đơn" @close="zoomImage = false"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></AppDialog>
+  <OrderConfirmDialog :open="showConfirm" :menu="menu" :dishes="structured ? selectedDishes : []" :item-text="itemText" :note="note" :recipient-name="recipientName" :total="total" :busy="busy" :error="actionError" :editing="!!editing" @close="!busy && (showConfirm = false)" @confirm="submit" />
+    <DishFeedbackDialog :open="!!feedbackDish" :dish="feedbackDish" :restaurant="menu.restaurant" :stats="feedback[`${menu.restaurant_id}:${feedbackDish?.restaurant_dish_id}`]" :reviews="feedbackReviews" :loading="feedbackLoading" :error="feedbackError" @close="closeFeedback" @retry="loadFeedback" />
+  </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
+</div></template>
 
 <style scoped>
-.back-link {
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: var(--fs-sm);
-  display: inline-flex;
-  align-items: center;
-  transition: color 0.15s ease;
-}
-.back-link:hover {
-  color: var(--primary-hover);
-}
-
-.poster-name {
-  font-weight: 700;
-}
-
-.payment-info-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  background: var(--bg-tint);
-  border-radius: var(--radius-sm);
-  padding: 0.65rem 0.8rem;
-}
-
-.payment-info {
-  white-space: pre-line;
-  font-size: var(--fs-sm);
-  color: var(--ink-soft);
-}
-
-.menu-image {
-  width: 100%;
-  border-radius: var(--radius-sm);
-  object-fit: contain;
-  max-height: 480px;
-  background: var(--bg-tint);
-}
-
-.menu-note {
-  white-space: pre-line;
-  color: var(--ink-soft);
-  font-size: var(--fs-sm);
-}
-
-.orders-section {
-  background: var(--bg-tint);
-  border-radius: var(--radius-sm);
-  padding: 0.7rem 0.8rem;
-}
-
-.order-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.order-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.order-header {
-  align-items: center;
-}
-
-.order-name {
-  font-weight: 600;
-  font-size: var(--fs-sm);
-}
-
-.order-item {
-  font-size: var(--fs-sm);
-  color: var(--ink);
-  padding-left: 0.2rem;
-}
-
-.order-user-note {
-  padding-left: 0.2rem;
-}
-
-.order-edited-at {
-  padding-left: 0.2rem;
-  font-style: italic;
-  font-size: var(--fs-xs, 0.75rem);
-  color: var(--ink-faint, var(--ink-soft));
-}
-
-.no-orders {
-  padding: 0.4rem 0;
-}
-
-.guest-banner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  background: var(--primary-soft);
-  border: 1px solid rgba(31,110,69,0.2);
-  border-radius: var(--radius-sm);
-  text-align: center;
-}
-
-.guest-banner-text {
-  font-size: var(--fs-sm);
-  color: var(--primary-ink);
-  font-weight: 600;
-  margin: 0;
-}
-
-.menu-image.clickable {
-  cursor: zoom-in;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.menu-image.clickable:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.lightbox-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  cursor: zoom-out;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.lightbox-image {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
-  cursor: default;
-  animation: zoomIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.lightbox-close {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  font-size: 1.5rem;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s ease, transform 0.15s ease;
-}
-
-.lightbox-close:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: scale(1.05);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes zoomIn {
-  from { transform: scale(0.9); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-/* ── Presence: avatar ring ── */
-.pav-wrap { position: relative; flex-shrink: 0; display: inline-flex; }
-.pav-wrap--sm .pav-ring { width: 24px; height: 24px; padding: 1.5px; }
-.pav-wrap--sm .pav-ring img, .pav-wrap--sm .pav-inner { width: 21px; height: 21px; font-size: 8px; }
-.pav-wrap--md .pav-ring { width: 34px; height: 34px; padding: 2px; }
-.pav-wrap--md .pav-ring img, .pav-wrap--md .pav-inner { width: 30px; height: 30px; font-size: 11px; }
-.pav-ring { border-radius: 50%; background: var(--pc, var(--muted)); display: flex; align-items: center; justify-content: center; transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-.pav-ring img { border-radius: 50%; object-fit: cover; }
-.pav-inner { border-radius: 50%; background: var(--pc, var(--muted)); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; overflow: hidden; transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-.pav-chef {
-  position: absolute; top: -9px; right: -8px;
-  width: 20px; height: 17px; z-index: 2;
-  transform: rotate(15deg);
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
-  pointer-events: none;
-}
-
-/* Live dot */
-.presence-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--primary); box-shadow: 0 0 5px var(--primary);
-  flex-shrink: 0; animation: pdot 2s ease-in-out infinite;
-}
-@keyframes pdot { 0%,100%{opacity:1} 50%{opacity:0.25} }
-
-/* Mobile: clear space so the fixed presence-pill never covers the order form */
-.menu-page { padding-bottom: 8rem; }
-@media (min-width: 1080px) { .menu-page { padding-bottom: 0; } }
-
-/* Mobile pill */
-.presence-avs { display: flex; }
-.presence-avs .pav-wrap { margin-left: -6px; }
-.presence-avs .pav-wrap:first-child { margin-left: 0; }
-.presence-pill {
-  position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%);
-  background: var(--card); border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill); padding: 6px 14px 6px 9px;
-  display: flex; align-items: center; gap: 8px;
-  box-shadow: var(--shadow-lift); z-index: 60; white-space: nowrap;
-}
-.presence-pill--solo :deep(.sparkles-text) { font-size: var(--fs-sm); font-weight: 700; color: var(--gold); }
-.presence-label { font-size: var(--fs-sm); color: var(--ink-soft); }
-.presence-label b { color: var(--primary-ink); }
-@media (min-width: 1080px) { .presence-pill { display: none; } }
-
-/* Desktop sidebar */
-.presence-card { display: none; }
-@media (min-width: 1080px) {
-  .presence-card {
-    display: block; position: fixed; top: 80px; right: 40px;
-    width: 210px; z-index: 60; overflow: clip;
-  }
-}
-.presence-card-grid {
-  position: absolute; inset: -24px; pointer-events: none; z-index: 0;
-  background-image:
-    linear-gradient(to right, var(--line-strong, rgba(0,0,0,.07)) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--line-strong, rgba(0,0,0,.07)) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: radial-gradient(ellipse 70% 75% at 50% 50%, black 0%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 75% at 50% 50%, black 0%, transparent 70%);
-}
-.presence-card-grid::after {
-  content: '';
-  position: absolute;
-  inset: 24px;
-  border-radius: inherit;
-  background: radial-gradient(ellipse 60% 60% at 50% 50%, var(--primary) 0%, transparent 70%);
-  opacity: 0;
-  pointer-events: none;
-  transform-origin: center;
-  transform: scale(0.3);
-}
-.presence-card-grid--ripple::after {
-  animation: grid-join-ripple 1.5s ease-out forwards;
-}
-@keyframes grid-join-ripple {
-  0%   { opacity: 0.25; transform: scale(0.3); }
-  40%  { opacity: 0.12; transform: scale(1.1); }
-  100% { opacity: 0;    transform: scale(1.6); }
-}
-.presence-card-inner { position: relative; z-index: 1; padding: 12px 12px 10px; }
-.pc-dot-row { margin-bottom: 10px; }
-.presence-card-list { display: flex; flex-direction: column; gap: 6px; position: relative; }
-.presence-card-row { display: flex; align-items: center; gap: 9px; }
-.presence-card-name { font-size: 12px; color: var(--ink); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.presence-card-name--anon { color: var(--muted); font-style: italic; font-weight: 400; }
-
-/* Viewer morph (inspira-ui blur style) */
-.viewer-morph-enter-active { transition: all 0.5s ease; }
-.viewer-morph-leave-active { transition: all 0.3s ease; position: absolute; width: 100%; }
-.viewer-morph-enter-from { opacity: 0; filter: blur(6px); transform: translateY(6px) scale(.9); }
-.viewer-morph-leave-to   { opacity: 0; filter: blur(6px); transform: translateY(-4px) scale(.9); }
-.presence-card-row--morphing .presence-card-name { animation: morph-name-in 0.7s ease forwards; }
-@keyframes morph-name-in { 0%{ filter:blur(8px); opacity:0; } 100%{ filter:blur(0); opacity:1; } }
-
-/* Text & Avatar morph transitions (Inspira UI styled) */
-.text-fade-enter-active, .text-fade-leave-active {
-  transition: opacity 0.35s ease, filter 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.text-fade-enter-from {
-  opacity: 0;
-  filter: blur(2px);
-  transform: translateY(3px);
-}
-.text-fade-leave-to {
-  opacity: 0;
-  filter: blur(2px);
-  transform: translateY(-3px);
-}
-
-.avatar-fade-enter-active, .avatar-fade-leave-active {
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.avatar-fade-enter-from {
-  opacity: 0;
-  transform: scale(0.6) rotate(-15deg);
-}
-.avatar-fade-leave-to {
-  opacity: 0;
-  transform: scale(0.6) rotate(15deg);
-}
-
-/* Pill transitions */
-.presence-enter-active { transition: opacity 0.35s ease, transform 0.35s ease; }
-.presence-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.presence-enter-from { opacity: 0; transform: translateX(-50%) translateY(10px); }
-.presence-leave-to   { opacity: 0; transform: translateX(-50%) translateY(6px); }
-/* Sidebar transitions */
-.presence-card-enter-active { transition: opacity 0.35s ease, transform 0.35s ease; }
-.presence-card-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.presence-card-enter-from { opacity: 0; transform: translateY(-8px); }
-.presence-card-leave-to   { opacity: 0; transform: translateY(-4px); }
-
-/* Solo desktop state */
-.presence-card--solo .presence-card-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
-}
-.pc-solo-text {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.28em;
-  align-items: baseline;
-  margin: 0;
-  font-size: var(--fs-sm);
-  font-style: italic;
-  color: var(--ink-soft);
-  font-weight: 400;
-  line-height: 1.5;
-}
-.tge-word {
-  display: inline-block;
-  opacity: 0;
-  filter: blur(6px);
-  animation: tge-reveal 0.55s ease-out forwards;
-}
-@keyframes tge-reveal {
-  to { opacity: 1; filter: blur(0); }
-}
-.pc-solo-btn {
-  white-space: nowrap;
-  font-size: var(--fs-sm);
-}
-
-.picks-empty {
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  font-style: italic;
-  padding: 0.5rem 0.8rem;
-  border: 1.5px dashed var(--line-strong);
-  border-radius: var(--radius-sm);
-}
-
-.picks-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  background: var(--bg-tint);
-  border-radius: var(--radius-sm);
-  padding: 0.65rem 0.8rem;
-  border: 1.5px solid var(--line-strong);
-}
-
-.pick-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.pick-name {
-  flex: 1;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.pick-price {
-  font-size: var(--fs-sm);
-  color: var(--primary-ink);
-  font-weight: 600;
-}
-
-.pick-remove {
-  background: none;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: var(--fs-xs);
-  padding: 0.1rem 0.35rem;
-  border-radius: 3px;
-  transition: all 0.15s;
-  line-height: 1;
-}
-.pick-remove:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.picks-total {
-  font-size: var(--fs-sm);
-  font-weight: 700;
-  color: var(--primary-ink);
-  padding-top: 0.35rem;
-  border-top: 1px solid var(--line);
-  margin-top: 0.1rem;
-}
-
-.edit-dish-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  max-height: 220px;
-  overflow-y: auto;
-  border: 1.5px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 0.4rem;
-  background: var(--bg);
-}
-
-.edit-dish-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.32rem 0.4rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.1s;
-  user-select: none;
-}
-.edit-dish-row:hover { background: var(--bg-tint); }
-.edit-dish-row--selected { background: var(--primary-soft); }
-
-.edit-dish-check {
-  width: 1rem;
-  color: var(--primary);
-  font-weight: 700;
-  font-size: var(--fs-sm);
-  flex-shrink: 0;
-}
-
-.edit-dish-name {
-  flex: 1;
-  font-size: var(--fs-sm);
-}
-
-.edit-dish-price {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  flex-shrink: 0;
-}
-
+.menu-image-button { display:block; width:100%; padding:0; border:0; background:transparent; cursor:zoom-in; }
+.menu-image-button:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
+.menu-page .rating-line { color:var(--ink); }
 </style>

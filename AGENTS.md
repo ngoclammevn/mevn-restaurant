@@ -2,7 +2,27 @@
 
 > **Tài liệu chính thức cho mọi AI agent / dev làm việc trên dự án này.**
 > Đọc file này TRƯỚC khi viết code. Chi tiết sâu (data model, RLS, luồng) ở
-> `docs/superpowers/specs/2026-06-19-lunch-order-tracker-design.md`.
+> `docs/README.md` và thiết kế đã duyệt
+> `docs/superpowers/specs/2026-10-03-main-ui-ux-restaurants-feedback-ai-design.md`.
+
+## Thiết kế mở rộng đã duyệt ngày 2026-10-03
+
+Chủ dự án đã duyệt danh mục quán/món, đánh giá từng món, lịch sử dạng lịch và
+Cloudflare AI Worker trong `ai-worker/`. Các ngoại lệ dưới đây thay thế ràng buộc
+ba bảng/không backend của thiết kế cũ trong đúng phạm vi này:
+
+- Vue vẫn là static app; dữ liệu nghiệp vụ gọi trực tiếp Supabase và được bảo vệ bằng RLS.
+- Năm bảng mới: `restaurants`, `restaurant_dishes`, `menu_items`, `order_items`, `dish_reviews`.
+  Món thuộc một quán cụ thể; cùng tên ở hai quán vẫn là hai món độc lập. Dữ liệu cũ
+  không biết quán được giữ nguyên, không tự suy đoán liên kết.
+- `ai-worker/` deploy riêng trên tài khoản Cloudflare của chủ dự án, chỉ gợi ý
+  cảm nhận theo từng món; người dùng tự chọn sao/nhãn và có ghi chú tự do.
+- Vue gọi Worker bằng token Clerk của phiên đăng nhập đang có. Không nhúng API key
+  bí mật trong frontend, không thêm đăng nhập riêng, không dùng Supabase service_role.
+- Giữ free tier; chưa có ủy quyền kích hoạt gói trả phí. Workers AI dùng hạn mức
+  tài khoản chủ dự án; khi AI lỗi hoặc hết hạn mức, app vẫn có gợi ý cục bộ.
+- Chủ dự án yêu cầu không chạy GitNexus trong đợt này. Dùng `rg`, đọc diff và review
+  để kiểm tra phạm vi thay đổi. Triển khai xong mới chạy kiểm tra tập trung.
 
 ## Dự án này là gì
 
@@ -17,7 +37,8 @@ người thu tiền thấy **ai chưa trả**. Nhóm **< 25 người, tin tưở
 | Frontend | **Vue (Vite)**, static | deploy Vercel |
 | Auth | **Clerk** + Google OAuth | native third-party auth với Supabase |
 | DB + ảnh | **Supabase** (Postgres + Storage) | free tier |
-| Backend | **KHÔNG có** | frontend gọi thẳng Supabase, RLS lo bảo mật |
+| Backend nghiệp vụ | **KHÔNG có** | frontend gọi thẳng Supabase, RLS lo bảo mật |
+| AI | **Cloudflare Worker** | `ai-worker/`, dịch vụ gợi ý riêng đã được duyệt |
 | Hosting | **Vercel** (free) | chỉ static site |
 
 > Tên thư mục là `mevn-restaurent` (lịch sử) nhưng **không dùng MongoDB/Express**. Dùng Supabase/Postgres.
@@ -25,7 +46,7 @@ người thu tiền thấy **ai chưa trả**. Nhóm **< 25 người, tin tưở
 ## Ràng buộc nền (không được phá)
 
 1. **Miễn phí hoàn toàn.** Mọi lựa chọn phải nằm trong free tier (Vercel, Supabase, Clerk). Nhóm <25 người nên không lo quota.
-2. **Không backend riêng.** Không thêm Express/serverless function/Clerk webhook trừ khi bàn lại thiết kế. Nhu cầu "cần service_role / cần webhook" = dấu hiệu đang phá mô hình.
+2. **Không backend nghiệp vụ riêng.** Ngoại lệ đã duyệt là AI Worker ở trên. Không thêm Express/Clerk webhook hoặc dùng service_role.
 3. **Deploy dễ trên Vercel** — chỉ là static build.
 
 ## Bảo mật — ĐỌC KỸ (yêu cầu cao nhất của chủ dự án)
@@ -56,13 +77,15 @@ người thu tiền thấy **ai chưa trả**. Nhóm **< 25 người, tin tưở
 | Cố định (đã chốt — đừng đổi nếu không hỏi) | Mở (Antigravity / dev tự quyết) |
 |---|---|
 | Stack, không-backend, free | Layout, navigation, component structure |
-| Data model (3 bảng) & RLS policies | Visual design, màu, typography, spacing |
+| Data model đã duyệt (8 bảng) & RLS policies | Visual design, màu, typography, spacing |
 | Hợp đồng hành vi ở trên | Cách trình bày từng màn hình |
 | Mô hình bảo mật & key | Thư viện UI, state management |
 
 ## Cấu trúc tài liệu
 
 - `AGENTS.md` (file này) — tổng quan + ràng buộc, đọc trước.
+- `docs/README.md` — chỉ mục kiến trúc, bảo mật, API và triển khai hiện hành.
+- `docs/superpowers/specs/2026-10-03-main-ui-ux-restaurants-feedback-ai-design.md` — thiết kế mở rộng đã duyệt.
 - `docs/superpowers/specs/2026-06-19-lunch-order-tracker-design.md` — **spec sâu**: data model, RLS SQL đầy đủ, luồng màn hình, query dashboard, kiểm thử.
 - `CLAUDE.md`, `GEMINI.md` — trỏ về file này.
 

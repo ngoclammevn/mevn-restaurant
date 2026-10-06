@@ -1,206 +1,91 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useOrders } from '../composables/useOrders'
-import { formatVNDate } from '../lib/date'
-import {
-  PageHeader,
-  Spinner,
-  EmptyState,
-  AppButton,
-  PaidStamp,
-  SignInModal,
-} from '../components/ui'
-
-const { listMyOrders } = useOrders()
+import { useAppPresence } from '../composables/useAppPresence'
+import { monthDays, shiftMonth } from '../lib/calendar'
+import { todayInVN, formatVNDate } from '../lib/date'
+import { AppButton, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
+import OrderCard from '../components/OrderCard.vue'
 const { user, isSignedIn } = useUser()
-const showSignIn = ref(false)
-
-const loading = ref(true)
-const errorMsg = ref('')
-const orders = ref([])
-
-onMounted(load)
-watch(user, () => {
-  load()
-})
-
-async function load() {
-  if (!isSignedIn.value) {
-    loading.value = false
-    return
-  }
-  loading.value = true
-  errorMsg.value = ''
-  const { data, error } = await listMyOrders()
-  if (error) {
-    errorMsg.value = 'Không thể tải lịch sử đơn. Kiểm tra kết nối rồi thử lại.'
-  } else {
-    orders.value = data ?? []
-  }
-  loading.value = false
-}
-
-// Count of orders the user still owes money for.
-const unpaidCount = computed(() => orders.value.filter((o) => !o.is_paid).length)
-
-// Group by menu.menu_date, descending (newest day first).
-// Orders without a menu are skipped defensively.
-const groupedByDay = computed(() => {
-  const map = new Map()
+const { listMyOrders } = useOrders()
+const { onOrderChanged } = useAppPresence()
+const today = todayInVN(), month = ref(today.slice(0, 7)), selected = ref(today)
+const days = computed(() => monthDays(month.value))
+const orders = ref([]), loading = ref(false), error = ref(''), showSignIn = ref(false)
+const unpaidOrders = ref([]), unpaidLoading = ref(false), unpaidError = ref('')
+const grouped = computed(() => {
+  const result = {}
   for (const order of orders.value) {
-    const menuDate = order.menu?.menu_date
-    if (!menuDate) continue // guard: skip orphaned orders
-    if (!map.has(menuDate)) map.set(menuDate, [])
-    map.get(menuDate).push(order)
+    const date = order.menu?.menu_date
+    if (date) (result[date] ??= []).push(order)
   }
-  // Convert to sorted array: newest date first
-  return Array.from(map.entries())
-    .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))
-    .map(([date, dayOrders]) => ({ date, orders: dayOrders }))
+  return result
 })
-
-// ---- Display Helpers ----
-function formatPrice(value) {
-  if (value === undefined || value === null) return ''
-  return new Intl.NumberFormat('vi-VN').format(value) + 'đ'
-}
-
-function displayOrderNote(note) {
-  if (!note) return ''
-  try {
-    const parsed = JSON.parse(note)
-    if (parsed && typeof parsed === 'object') {
-      return parsed.user_note || ''
-    }
-  } catch (e) {}
-  return note
-}
-
-function displayOrderItemText(order) {
-  let suffix = ''
-  if (order.note) {
-    try {
-      const parsed = JSON.parse(order.note)
-      if (parsed?.selected_dish?.price) {
-        suffix = ` [${formatPrice(parsed.selected_dish.price)}]`
-      }
-    } catch (e) {}
+const selectedOrders = computed(() => grouped.value[selected.value] ?? [])
+const unpaid = computed(() => orders.value.filter(o => !o.is_paid).length)
+const monthTitle = computed(() => new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month.value}-01T12:00:00Z`)))
+let generation = 0, unpaidGeneration = 0
+watch([month, () => user.value?.id], () => load(), { immediate: true })
+watch(() => user.value?.id, () => loadUnpaid(), { immediate: true })
+const unsubscribe = onOrderChanged(() => { load(false); loadUnpaid(false) })
+onUnmounted(() => { generation++; unpaidGeneration++; unsubscribe() })
+async function readAll(range, current, isCurrent) {
+  const result = []
+  for (let offset = 0; ; offset += 100) {
+    const page = await listMyOrders({ ...range, offset, limit: 100 })
+    if (!isCurrent(current)) return null
+    if (page.error) throw page.error
+    result.push(...(page.data ?? []))
+    if ((page.data ?? []).length < 100 || (page.count != null && offset + page.data.length >= page.count)) return result
   }
-  return `${order.item_text}${suffix}`
 }
+async function loadUnpaid(clear = true) {
+  const current = ++unpaidGeneration; if (clear) unpaidOrders.value = []; unpaidError.value = ''
+  if (!isSignedIn.value) { unpaidLoading.value = false; return }
+  unpaidLoading.value = true
+  try {
+    const result = await readAll({ unpaidOnly: true }, current, value => value === unpaidGeneration)
+    if (current !== unpaidGeneration) return
+    unpaidOrders.value = result ?? []
+  } catch { if (current === unpaidGeneration) unpaidError.value = 'Chưa tải được các đơn chưa trả.' }
+  finally { if (current === unpaidGeneration) unpaidLoading.value = false }
+}
+function orderChanged(order) {
+  for (const entry of [...orders.value, ...unpaidOrders.value]) {
+    if (entry.id === order.id) { entry.is_paid = order.is_paid; entry.order_items = order.order_items }
+  }
+  unpaidOrders.value = unpaidOrders.value.filter(entry => !entry.is_paid)
+  if (!order.is_paid && !unpaidOrders.value.some(entry => entry.id === order.id)) unpaidOrders.value.push(order)
+}
+async function load(clear = true) {
+  const current = ++generation; if (clear) orders.value = []; error.value = ''
+  if (!isSignedIn.value) { loading.value = false; return }
+  loading.value = true
+  const range = days.value
+  try {
+    const result = await readAll({ from: range[0], to: range[range.length - 1] }, current, value => value === generation)
+    if (current !== generation) return
+    orders.value = result ?? []
+  } catch { if (current === generation) error.value = 'Chưa tải được lịch cơm. Thử lại.' }
+  finally { if (current === generation) loading.value = false }
+}
+function move(offset) { month.value = shiftMonth(month.value, offset); selected.value = `${month.value}-01` }
+function goToday() { month.value = today.slice(0, 7); selected.value = today }
 </script>
-
-<template>
-  <div>
-    <PageHeader
-      eyebrow="Lịch sử"
-      title="Đơn của tôi"
-      sub="Toàn bộ các đơn bạn đã đặt, mới nhất trước."
-    />
-
-    <div v-if="!isSignedIn" style="margin-top: 1.5rem">
-      <EmptyState
-        title="Chưa đăng nhập"
-        description="Vui lòng đăng nhập để xem lịch sử đặt cơm của bạn."
-        icon="🔒"
-      >
-        <AppButton @click="showSignIn = true">Đăng nhập</AppButton>
-      </EmptyState>
+<template><div class="stack">
+  <PageHeader title="Lịch cơm" sub="Đơn đã đặt và những đánh giá của bạn." /><router-link class="taste-link" to="/taste">Khẩu vị của tôi →</router-link>
+  <EmptyState v-if="!isSignedIn" title="Đăng nhập để xem lịch cơm"><AppButton @click="showSignIn = true">Đăng nhập</AppButton></EmptyState>
+  <template v-else>
+    <details class="card stack-sm"><summary>Đơn chưa trả · {{ unpaidOrders.length }}</summary><Spinner v-if="unpaidLoading" label="Đang tải đơn chưa trả…" /><p v-if="unpaidError" class="alert">{{ unpaidError }} <button type="button" @click="loadUnpaid">Thử lại</button></p><div v-for="order in unpaidOrders" :key="order.id" class="stack-sm"><p class="meta">{{ formatVNDate(order.menu.menu_date) }}</p><OrderCard :order="order" :menu="order.menu" @changed="orderChanged(order)" /></div><p v-if="!unpaidLoading && !unpaidError && !unpaidOrders.length" class="meta">Bạn đã thanh toán tất cả đơn cơm.</p></details>
+    <div class="row-wrap"><AppButton variant="ghost" size="sm" aria-label="Tháng trước" @click="move(-1)">←</AppButton><h2 class="section-title">{{ monthTitle }}</h2><AppButton variant="ghost" size="sm" aria-label="Tháng sau" @click="move(1)">→</AppButton><AppButton variant="ghost" size="sm" @click="goToday">Hôm nay</AppButton><span class="badge badge--unpaid spacer">{{ unpaid }} đơn chưa trả trong khoảng đang xem</span></div>
+    <p v-if="error" class="alert">{{ error }} <button type="button" @click="load">Thử lại</button></p>
+    <div class="calendar-layout"><section class="card calendar" :aria-busy="loading"><div class="calendar-grid"><span v-for="label in ['T2','T3','T4','T5','T6','T7','CN']" :key="label" class="calendar-weekday">{{ label }}</span><button v-for="date in days" :key="date" type="button" class="calendar-cell" :class="{ outside: !date.startsWith(month), active: selected === date, today: date === today }" :aria-label="`${formatVNDate(date)}, ${(grouped[date] ?? []).length} đơn`" :aria-pressed="selected === date" @click="selected = date"><span>{{ Number(date.slice(-2)) }}</span><span v-if="grouped[date]?.length" class="calendar-count">{{ grouped[date].length }}<span class="calendar-desktop"> đơn</span></span><span v-if="grouped[date]?.length" class="calendar-dishes calendar-desktop">{{ grouped[date].map(order => order.item_text).join(', ') }}</span><span v-if="grouped[date]?.some(o => !o.is_paid)" class="unpaid-dot" aria-label="Có đơn chưa trả" /></button></div><p class="meta calendar-legend"><span class="unpaid-dot" /> Chưa trả · Chọn một ngày để xem tất cả đơn</p></section>
+      <section class="stack-sm day-panel"><h2 class="section-title">{{ formatVNDate(selected) }}</h2><Spinner v-if="loading" label="Đang tải đơn…" /><template v-if="selectedOrders.length || (!loading && !error)"><OrderCard v-for="order in selectedOrders" :key="order.id" :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn vào ngày này" description="Đơn đặt hộ bạn cũng sẽ xuất hiện ở đây." /></template></section>
     </div>
-
-    <div v-else>
-      <Spinner v-if="loading" label="Đang tải đơn…" />
-
-    <p v-else-if="errorMsg" class="alert">{{ errorMsg }}</p>
-
-    <EmptyState
-      v-else-if="groupedByDay.length === 0"
-      icon="🍱"
-      title="Bạn chưa đặt món nào"
-      description="Vào màn hình Hôm nay để đặt cơm trưa đầu tiên của bạn."
-    >
-      <AppButton :to="'/'">Đến Hôm nay</AppButton>
-    </EmptyState>
-
-    <div v-else class="stack">
-      <p v-if="unpaidCount > 0" class="unpaid-banner">
-        Bạn còn {{ unpaidCount }} đơn chưa trả
-      </p>
-      <section
-        v-for="group in groupedByDay"
-        :key="group.date"
-        class="stack-sm"
-      >
-        <!-- Day header -->
-        <div class="day-header row">
-          <span class="eyebrow">{{ formatVNDate(group.date) }}</span>
-          <hr class="divider day-divider" />
-        </div>
-
-        <!-- Ticket per order -->
-        <router-link
-          v-for="order in group.orders"
-          :key="order.id"
-          :to="`/menu/${order.menu_id}`"
-          class="ticket clickable-ticket"
-        >
-          <div class="stack-sm">
-            <!-- Menu title + stamp -->
-            <div class="row row-wrap">
-              <span class="section-title order-menu-title">{{ order.menu?.title ?? '—' }}</span>
-              <span class="spacer" />
-              <PaidStamp :paid="order.is_paid" />
-            </div>
-
-            <!-- Item text -->
-            <p class="order-item">{{ displayOrderItemText(order) }}</p>
-
-            <!-- Optional note -->
-            <p v-if="order.note" class="meta">{{ displayOrderNote(order.note) }}</p>
-          </div>
-        </router-link>
-      </section>
-    </div>
-    </div>
-    <SignInModal v-if="showSignIn" @close="showSignIn = false" />
-  </div>
-</template>
+  </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
+</div></template>
 
 <style scoped>
-.unpaid-banner {
-  padding: 0.7rem 0.9rem;
-  border-radius: var(--radius-sm);
-  background: var(--bg-tint);
-  color: var(--ink);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-.day-header {
-  gap: 0.7rem;
-  align-items: center;
-  margin-top: 0.5rem;
-}
-.day-divider {
-  flex: 1;
-}
-.order-menu-title {
-  font-size: var(--fs-base);
-}
-.order-item {
-  font-weight: 600;
-  color: var(--ink);
-  font-size: var(--fs-base);
-}
-.clickable-ticket {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.clickable-ticket:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lift);
-  border-color: var(--line-strong);
-}
+.taste-link { align-self:flex-start; display:inline-flex; align-items:center; min-height:44px; color:var(--ink); }.calendar-dishes { overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:var(--fs-xs); text-align:left; overflow-wrap:anywhere; width:100%; }.calendar-cell { min-height:100px; }.calendar-cell.active { background:var(--card); outline:2px solid var(--primary); outline-offset:-2px; }.calendar-count { color:var(--ink-soft); }@media(max-width:600px) { .calendar-dishes { display:none; }.calendar-cell { min-height:64px; } }
 </style>

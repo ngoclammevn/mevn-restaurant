@@ -16,7 +16,7 @@ beforeEach(async () => {
   ])
   const { data: m } = await admin
     .from('menus')
-    .insert({ poster_id: USER_A, menu_date: '2026-06-23', title: 'Test menu', is_closed: true })
+    .insert({ poster_id: USER_A, menu_date: '2026-06-23', title: 'Test menu', is_closed: false })
     .select()
     .single()
   menu = m
@@ -27,6 +27,8 @@ beforeEach(async () => {
     .select()
     .single()
   orderByB = o
+  // Seed through the same invariant as the app: place the order before closing.
+  await admin.from('menus').update({ is_closed: true }).eq('id', menu.id)
 })
 
 afterAll(() => cleanAll())

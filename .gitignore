@@ -10,3 +10,4 @@ dist/
 .gitnexus
 .vercel
 .env*
+!.env.example
