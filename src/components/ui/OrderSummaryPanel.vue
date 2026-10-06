@@ -116,8 +116,8 @@ async function copyList() {
   overflow: hidden;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -141,7 +141,7 @@ async function copyList() {
   min-height: 44px;
   border: 1px solid var(--line);
   background: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   padding: 0.1rem 0.45rem;
   font-size: var(--fs-xs);
   line-height: 1.4;
@@ -162,7 +162,7 @@ async function copyList() {
   min-height: 44px;
   border: 1px solid var(--line);
   background: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   padding: 0.1rem 0.5rem;
   font-size: var(--fs-xs);
   line-height: 1.4;
@@ -213,7 +213,7 @@ async function copyList() {
   font-size: var(--fs-xs);
   font-weight: 700;
   padding: 0.05rem 0.45rem;
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   flex-shrink: 0;
 }
 

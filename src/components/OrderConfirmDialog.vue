@@ -6,7 +6,7 @@ const emit = defineEmits(['close', 'confirm'])
 <template>
   <AppDialog :open="open" :title="editing ? 'Xem lại thay đổi' : 'Xem lại đơn'" @close="!busy && emit('close')">
     <div class="stack confirm-order">
-      <p class="meta">{{ menu?.restaurant?.name || menu?.title }} · Đặt cho {{ recipientName }}</p>
+      <p class="meta">{{ menu?.restaurant?.name || menu?.title }} · Đặt cho {{ recipientName }}</p><slot name="recipient" />
       <ul v-if="dishes.length" class="confirm-dishes"><li v-for="dish in dishes" :key="dish.id || dish.name"><strong>{{ dish.name }}</strong><span class="meta">{{ dish.price == null || dish.price === '' ? 'Chưa có giá' : `${Number(dish.price).toLocaleString('vi-VN')}đ` }}</span></li></ul>
       <p v-else class="order-lines">{{ itemText }}</p>
       <div v-if="note" class="stack-sm"><strong>Ghi chú</strong><p class="order-lines">{{ note }}</p></div>

@@ -75,7 +75,7 @@ async function clear(draft) {
 function close() { if (drafts.value.some(d => d.saving)) return; if (drafts.value.some(dirty) && !confirm('Bạn có đánh giá chưa lưu. Đóng và bỏ các thay đổi này?')) return; emit('close') }
 </script>
 <template>
-  <AppDialog open title="Đánh giá bữa ăn" @close="close">
+  <AppDialog open title="Đánh giá món" @close="close">
     <section ref="panel" class="review-dialog stack">
       <p class="meta">{{ menu.restaurant?.name || 'Quán chưa được ghi nhận' }} · {{ completed }}/{{ drafts.length }} món đã đánh giá</p>
       <p v-if="!editable" class="alert">Chỉ chủ đơn mới đánh giá được bữa ăn hôm nay hoặc trước đó.</p>
@@ -98,24 +98,5 @@ function close() { if (drafts.value.some(d => d.saving)) return; if (drafts.valu
   </AppDialog>
 </template>
 <style scoped>
-.review-dialog { min-width:0; overflow-wrap:anywhere; }
-.review-tabs { display:flex; gap:8px; overflow:auto; padding:4px 0 10px; }
-.review-tabs button { flex-shrink:0; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-height:44px; padding:10px 12px; border:1px solid var(--line-strong); border-radius:10px; background:var(--card); color:var(--ink-soft); cursor:pointer; }
-.review-tabs button.active { border-color:var(--ink); background:transparent; color:var(--ink); font-weight:600; }
-.review-item h3 { margin:0; font-size:1.2rem; }
-.review-question { font-size:var(--fs-sm); font-weight:600; margin-top:16px; }
-.review-item .star-button { min-width:44px; min-height:48px; font-size:2rem; border-radius:8px; color:var(--ink-soft); }
-.review-item .star-button.selected { color:var(--ink); background:var(--bg-tint); }
-.rating-caption { font-size:var(--fs-sm); color:var(--ink-soft); min-height:22px; }
-.review-item h4 { margin:14px 0 0; font-size:1rem; }
-.review-label-group { margin:12px 0 4px; }
-.review-label-group > p { font-size:var(--fs-xs); color:var(--ink-soft); font-weight:600; margin:0 0 8px; }
-.review-label-group .label-chip { min-height:44px; padding:10px 12px; transition:background 150ms,color 150ms,border-color 150ms; }
-.review-label-group .label-chip:hover { border-color:var(--ink); }
-.review-label-group .label-chip.selected { color:var(--ink); background:transparent; border-color:var(--ink); }
-.review-note { margin-top:16px; }
-.review-actions { padding-top:16px; border-top:1px solid var(--line); }
-.review-dialog button:focus-visible,.review-dialog textarea:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
-@media (max-width:600px) { .review-actions > :first-child { width:100%; } }
-@media (prefers-reduced-motion:reduce) { .review-label-group .label-chip { transition:none; } }
+.review-dialog { min-width:0; overflow-wrap:anywhere; gap:18px; }.review-dialog > .meta:first-child { margin-top:-10px; font-size:12px; }.review-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:0; padding:0; }.review-tabs button { max-width:100%; min-height:44px; padding:9px 13px; border:1px solid var(--line-strong); border-radius:11px; background:var(--card); font-size:13px; cursor:pointer; }.review-tabs button.active { background:#f2f3ef; color:#35412e; border-color:#d8dcd1; }.review-item { border:0; padding:0; gap:7px; }.review-item > .meta:first-child { display:none; }.review-item h3 { margin:0; font-size:17px; line-height:1.4; }.review-question { font-size:12px; font-weight:400; color:var(--ink-soft); margin-top:8px; }.review-item .star-button { min-width:48px; width:48px; min-height:44px; font-size:30px; padding:3px; border:0; border-radius:11px; background:transparent; color:#737f70; }.review-item .star-button.selected { color:#9a650c; background:#fff4d9; }.review-item > [role=group] { gap:7px; margin-top:9px; }.rating-caption { font-size:12px; color:var(--ink-soft); min-height:18px; }.review-item h4 { margin:12px 0 0; font-size:14px; font-weight:500; }.review-item h4 + .meta { font-size:12px; }.review-label-group { margin:12px 0 0; }.review-label-group > p { font-size:13px; color:var(--ink); font-weight:600; margin:0 0 8px; }.review-label-group .row-wrap { gap:8px; }.review-label-group .label-chip { min-height:44px; padding:8px 11px; border-radius:11px; font-size:13px; background:var(--card); border-color:var(--line-strong); }.review-label-group .label-chip.selected { background:var(--primary-soft); color:var(--primary-ink); border-color:var(--primary); }.review-note { margin:16px 0 0; font-size:14px; font-weight:600; }.review-note textarea { font-size:15px; border-radius:11px; }.review-note + .meta { font-size:12px; }.review-actions { padding-top:18px; margin-top:15px; border-top:1px solid var(--line); gap:9px; }.review-actions > .btn:first-child { margin-left:auto; order:2; }.review-actions > .btn:not(:first-child) { order:1; }.review-dialog button:focus-visible,.review-dialog textarea:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }@media(max-width:640px) { .review-actions > .btn:first-child { flex:1; min-width:160px; }.review-tabs button { white-space:normal; text-align:left; }.review-label-group .label-chip { text-align:left; } }
 </style>

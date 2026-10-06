@@ -474,3 +474,24 @@ body:has(.selection-bar) .presence-float{bottom:calc(var(--mobile-nav-height) + 
 html{scroll-padding-top:84px;scroll-padding-bottom:calc(220px + env(safe-area-inset-bottom))}.input,.textarea,select.input{font-size:16px}
 }
 @media(max-height:500px) and (max-width:800px){body:has(.selection-bar) .presence-float{bottom:calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom))}}
+
+/* Match the final approved prototype: geometry, hierarchy and quiet surfaces. */
+:root{--maxw:1080px;--pad:24px;--gap:20px;--font:'Be Vietnam Pro',system-ui,sans-serif;--line:#e0e2da;--line-strong:#bfc4ba;--muted:#65675f;--ink-soft:#566657;--radius:16px;--fs-2xl:30px}
+.app-bar{min-height:66px;padding:10px 28px;gap:24px}
+.brand{font-size:20px;font-weight:750;letter-spacing:-.5px}.brand>.app-icon{color:var(--ink);width:24px;height:24px}
+.app-main{padding:32px 24px 150px}.page-title{font-size:30px;line-height:1.2;letter-spacing:-.03em}.page-sub{margin-top:4px;font-size:16px;color:var(--ink-soft)}.page-header .eyebrow{font-size:12px;letter-spacing:1px;line-height:1.5;color:#626b58}
+.app-navigation--desktop{gap:6px}.app-navigation--desktop .nav-link{padding:10px 13px;font-size:14px;font-weight:500;position:relative;border-bottom:0;min-height:44px}
+.app-navigation--desktop .nav-link.is-active{font-weight:650}.app-navigation--desktop .nav-link.is-active:after{content:'';position:absolute;left:13px;right:13px;bottom:-10px;height:2px;background:var(--ink)}
+.user-action{padding-left:20px;border-left:1px solid #e4e5df;gap:8px}.post-action{font-size:14px;font-weight:600;border-radius:9px;min-height:44px;padding:10px 14px;background:white}.profile-action{border:1px solid #e0e2db;background:#f1f2ed;min-width:44px;width:44px;height:44px}.profile-action .avatar{background:#f1f2ed;color:#3d4538;font-size:13px;font-weight:700}
+.btn{border-radius:12px;padding:10px 16px;font-size:16px;min-height:44px;font-weight:400;border-width:1px;line-height:1.5}.btn--sm{font-size:14px;padding:10px 14px}.badge{border-radius:999px;padding:4px 10px;font-size:13px;font-weight:650;background:#f2f3ef;color:#58624f}.card{padding:24px;border:1px solid #e0e2da}.section-title{font-size:21px;line-height:1.35}.menu-grid{gap:20px}.meta{font-size:14px}.eyebrow{font-size:12px;letter-spacing:1px;color:#626b58}
+@media(max-width:900px){.app-bar{padding:10px 18px;gap:14px}.user-action{padding-left:12px}.app-navigation--desktop .nav-link{padding:10px 8px}.app-navigation--desktop .nav-link.is-active:after{left:8px;right:8px}}
+@media(max-width:700px){.app-bar{padding:10px 16px;min-height:66px;gap:10px}.brand{font-size:18px}.user-action{padding:0;border:0;gap:3px}.post-action{border:0;width:44px;min-width:44px;padding:10px}.profile-action{display:inline-flex}.app-main{padding:24px 16px 170px}.card{padding:20px}.page-title{font-size:27px}.section-title{font-size:20px}.app-navigation--mobile .nav-link{border-bottom:0;position:relative;font-size:11px}.app-navigation--mobile .nav-link.is-active:before{content:'';position:absolute;top:0;left:35%;right:35%;height:2px;background:var(--ink)}}
+
+/* The desktop menu uses the side form; the floating continuation is mobile/tablet only. */
+@media(min-width:701px){body:has(.selection-bar) .presence-float{bottom:112px}}
+
+.user-action .post-action{font-size:14px;font-weight:600;border-radius:9px;padding:10px 14px;}
+
+#main-content:focus{outline:none;box-shadow:none;}
+
+@media(max-width:700px){.user-action .post-action{padding:10px;border:0;font-size:22px;}}

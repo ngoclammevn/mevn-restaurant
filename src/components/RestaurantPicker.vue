@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useCatalog } from '../composables/useCatalog'
 import { AppButton } from './ui'
-const props = defineProps({ modelValue: { type: String, default: '' }, disabled: Boolean, lockReason: { type: String, default: '' } })
+const props = defineProps({ modelValue: { type: String, default: '' }, disabled: Boolean, compact: Boolean, lockReason: { type: String, default: '' } })
 const emit = defineEmits(['update:modelValue','selection'])
 const { user } = useUser()
 const { listRestaurants, createRestaurant } = useCatalog()
@@ -33,8 +33,8 @@ async function add() {
   finally { if (current === generation) busy.value = false }
 }
 </script>
-<template><div class="stack-sm restaurant-picker">
-  <div class="picker-fields"><label v-if="!disabled" class="field">Tìm quán<input v-model="query" class="input" type="search" placeholder="Tên quán hoặc chi nhánh…" /></label><label class="field">Quán cho menu này<select class="input" :value="modelValue" :disabled="disabled || busy" @change="emit('update:modelValue', $event.target.value)"><option value="">Chưa xác định quán</option><option v-for="r in filtered" :key="r.id" :value="r.id">{{ r.name }}{{ r.branch ? ` · ${r.branch}` : '' }}</option></select></label></div>
+<template><div class="stack-sm restaurant-picker" :class="{compact}">
+  <div class="picker-fields"><label v-if="!disabled && !compact" class="field">Tìm quán<input v-model="query" class="input" type="search" placeholder="Tên quán hoặc chi nhánh…" /></label><label class="field">Menu này của quán nào?<select class="input" :value="modelValue" :disabled="disabled || busy" @change="emit('update:modelValue', $event.target.value)"><option value="">Chưa xác định quán</option><option v-for="r in filtered" :key="r.id" :value="r.id">{{ r.name }}{{ r.branch ? ` · ${r.branch}` : '' }}</option></select></label></div>
   <p v-if="disabled && lockReason" class="meta">{{ lockReason }}</p>
   <p v-else-if="selection" class="meta">Đã chọn {{ selection.name }}{{ selection.branch ? ` · ${selection.branch}` : '' }}. Món và đánh giá sẽ thuộc quán này.</p>
   <p v-else class="meta">Chọn quán để ghi nhận đánh giá.</p>
@@ -43,7 +43,7 @@ async function add() {
   <p v-if="error" class="alert" role="alert">{{ error }}</p>
 </div></template>
 <style scoped>
-.picker-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .75rem; }
+.compact .picker-fields{grid-template-columns:1fr}.compact .field{font-size:14px;gap:7px}.compact .meta{font-size:12px;line-height:1.6}.compact :deep(.btn){font-size:13px}.compact .input{min-height:46px;border-radius:10px}.picker-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .75rem; }
 .add-restaurant { padding: 1rem; background: var(--bg-tint); border: 1px solid var(--line); border-radius: var(--radius-sm); }
-@media (max-width: 600px) { .picker-fields { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .compact .picker-fields{grid-template-columns:1fr}.compact .field{font-size:14px;gap:7px}.compact .meta{font-size:12px;line-height:1.6}.compact :deep(.btn){font-size:13px}.compact .input{min-height:46px;border-radius:10px}.picker-fields { grid-template-columns: minmax(0, 1fr); } }
 </style>

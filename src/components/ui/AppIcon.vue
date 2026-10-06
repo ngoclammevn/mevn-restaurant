@@ -1,7 +1,7 @@
 <script setup>
 defineProps({ name: { type: String, default: 'lunch' } })
 const paths = {
-  lunch: ['M4 8h16v12H4z', 'M8 4v4m8-4v4M4 13h16M10 8v12'],
+  lunch: ['M3 10h18a9 9 0 0 1-18 0Z', 'M8 21h8M12 19v2M7 3v3m5-4v4m5-3v3'],
   today: ['M8 3v4m8-4v4M4 5h16v16H4zM4 10h16M9 15l2 2 4-4'],
   calendar: ['M8 3v4m8-4v4M4 5h16v16H4zM4 10h16M8 14h2m4 0h2m-8 4h2'],
   restaurant: ['M4 10h16M5 10v10h14V10M3 10l2-6h14l2 6M9 20v-6h6v6'],

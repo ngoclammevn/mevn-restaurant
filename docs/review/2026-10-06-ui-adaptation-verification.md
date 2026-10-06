@@ -20,7 +20,15 @@ Nhánh `codex/lunch-experience-ai` từ main `e13f916`. Không merge/push main; 
 - Không deploy AI Worker hoặc bật cron. Chủ app sẽ triển khai Worker khi release; chưa có daily-insight pipeline. Gợi ý local vẫn dùng được khi Worker chưa cấu hình/lỗi.
 - Không áp dụng migration trong lượt UI này. Migration catalog đã được chủ app duyệt và áp dụng ở lượt trước; xem báo cáo 04/10 và đối chiếu timestamp thật trước `db push`.
 - Kênh Realtime đang dùng mô hình public như kế hoạch đã duyệt: frontend chỉ kết nối sau đăng nhập và lọc metadata trang riêng trước gửi. Đây không phải authorization nhóm kín ở server; không gửi token, ghi chú, thanh toán hoặc chi tiết lịch sử. Private channel/RLS authorization cần thay đổi riêng.
-- PaymentQRModal giữ phiên bản trước thích ứng. Automatic approval review từ chối viết lại luồng VietQR/MoMo gửi tài khoản/điện thoại, tên, số tiền và nội dung chuyển khoản ra bên ngoài, cả bản có disclosure/click. Hồ sơ chỉ xem thông tin người nhận tại máy. Không phát sinh request thanh toán trong kiểm tra.
+- PaymentQRModal đã đồng bộ sau khi chủ app xác nhận riêng luồng VietQR/MoMo. Chỉ chủ đơn xác nhận đã trả; có loading/error, giá chưa biết yêu cầu nhập tay, đổi tài khoản đóng hộp thoại. Kiểm thử QR dùng endpoint SVG fixture tại localhost, không gửi thông tin tài chính thật hoặc chuyển tiền.
 - Không tuyên bố đã kiểm Supabase HTTP/Storage/realtime đa người và inference thật. Test DB nhúng không chứng minh tranh chấp transaction song song. Không chạy bộ RLS cần Docker/Supabase local trong lượt này.
 
 Ảnh bằng chứng dùng dữ liệu giả: [quản lý mobile](assets/manage-mobile-20261006.jpg), [menu desktop](assets/menu-desktop-20261006.jpg).
+
+## Đối chiếu lại demo sau phản hồi
+
+Đã sửa bố cục Today/Menu/Post/Manage/History/Profile/Taste theo các override cuối của prototype. Menu dùng danh sách món toàn chiều ngang và thanh đặt món phía dưới ở desktop/mobile. Nav có nút Đăng menu trung tính, account trong Hồ sơ. Nút toàn app theo đúng kích thước, viền, độ đậm của từng nhóm trong demo.
+
+Unit 20 và build qua sau khi ráp; build được kiểm tra lại sau sửa wrapper lịch. Trình duyệt xác nhận 375px không tràn ngang, nút tiếp tục mở đúng xác nhận (35.000đ và người nhận), QR ngân hàng/MoMo với dữ liệu thử, lưu đánh giá trong Lịch vẫn giữ hộp thoại sau refresh. Chỉ dữ liệu mẫu khác demo; không thêm giờ chốt/điểm đánh giá giả.
+
+Ảnh sau đồng bộ: [desktop](assets/today-desktop-final-20261006.jpg), [mobile](assets/today-mobile-final-20261006.jpg). Ảnh bên trên ghi lại vòng ráp đầu, không phải bản cuối.

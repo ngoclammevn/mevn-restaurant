@@ -62,7 +62,7 @@ async function save() {
 </div></template>
 <style scoped>
 .field-error { color: var(--unpaid-ink); font-size: .875rem; }
-.menu-editor { padding: 1rem; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg-tint); }
+.menu-editor { padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
 .dish-association { display: grid; gap: .5rem; padding: .75rem; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .sold-out-toggle { display: flex; align-items: center; gap: .5rem; min-height: 44px; cursor: pointer; }
 .sold-out-toggle input { width: 20px; height: 20px; accent-color: var(--primary); }
