@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-10-17",
+    "changes": [
+      "Trang Thu tiền hiển thị toàn bộ thành viên chưa chuyển khoản qua tất cả các ngày (bỏ bộ lọc theo từng ngày lẻ)",
+      "Thêm tính năng Thống kê đặt cơm có bộ lọc chọn ngày bắt đầu và ngày kết thúc, hiển thị rõ tổng tiền đã chi, tổng tiền đã thu, tiền còn chưa thu và thống kê theo từng thành viên"
+    ]
+  },
+  {
     "date": "2026-08-19",
     "changes": [
       "Người đăng cơm có thể chốt đơn (bấm nút copy danh sách sẽ tự khoá nhận món), và mở lại khi cần",
