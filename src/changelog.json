@@ -1,5 +1,18 @@
 [
   {
+    "date": "2026-10-29",
+    "changes": [
+      "Giữ đầy đủ thống kê và các khoản chưa thu từ những ngày trước khi nâng cấp giao diện"
+    ]
+  },
+  {
+    "date": "2026-10-17",
+    "changes": [
+      "Trang Thu tiền hiển thị toàn bộ thành viên chưa chuyển khoản qua tất cả các ngày (bỏ bộ lọc theo từng ngày lẻ)",
+      "Thêm tính năng Thống kê đặt cơm có bộ lọc chọn ngày bắt đầu và ngày kết thúc, hiển thị rõ tổng tiền đã chi, tổng tiền đã thu, tiền còn chưa thu và thống kê theo từng thành viên"
+    ]
+  },
+  {
     "date": "2026-10-06",
     "changes": [
       "Đơn giản hóa điều hướng và đồng bộ giao diện trên điện thoại, máy tính",
