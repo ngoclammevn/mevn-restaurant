@@ -249,10 +249,11 @@ export default async function handler(req, res) {
   const browser = await puppeteer.launch({
     args: chromium.args,
     defaultViewport: { width: 1200, height: 630 },
+    // Keep the pack version in sync with @sparticuz/chromium-min in package.json.
     executablePath: await chromium.executablePath(
-      'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
+      'https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar'
     ),
-    headless: chromium.headless,
+    headless: 'shell',
   })
 
   try {

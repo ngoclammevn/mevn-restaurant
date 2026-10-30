@@ -22,7 +22,8 @@
       "Lưu trữ menu trống từng chốt để giữ lịch sử và tránh lỗi khi xóa",
       "Viết gọn hướng dẫn lấy cơm, lịch nhắc Slack, xuất Excel và đổi ảnh đại diện",
       "Thu gọn popup đăng nhập trên máy tính và chuyển form đăng nhập sang tiếng Việt",
-      "Sửa lỗi đăng ảnh có tên tiếng Việt, dấu tách hoặc emoji"
+      "Sửa lỗi đăng ảnh có tên tiếng Việt, dấu tách hoặc emoji",
+      "Cập nhật bộ tạo ảnh xem trước khi chia sẻ link menu để vá lỗ hổng bảo mật"
     ]
   },
   {
