@@ -1,0 +1,1 @@
+export const MENU_CLOSURE_SELECT = 'current_closure:menu_closures!menus_current_closure_id_fkey(id,revision,closed_at,payment_mode,sponsor_user_id,items:closure_items!closure_items_closure_id_fkey(*))'

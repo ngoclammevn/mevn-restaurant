@@ -1,10 +1,3 @@
-<script setup>
-// Display-only payment status. The signature element: a rotated
-// rubber stamp when paid, a quiet chili badge when not.
-defineProps({ paid: Boolean })
-</script>
-
-<template>
-  <span v-if="paid" class="stamp">✓ Đã trả</span>
-  <span v-else class="badge badge--unpaid">● Chưa trả</span>
-</template>
+<script setup>defineProps({ paid: Boolean })</script>
+<template><span class="paid-status" :class="{ 'paid-status--paid': paid }">{{ paid ? 'Đã trả' : 'Chưa trả' }}</span></template>
+<style scoped>.paid-status { display:inline-flex; align-items:center; gap:.35rem; color:var(--ink-soft); font-size:var(--fs-sm); white-space:nowrap; }.paid-status::before { content:''; height:6px; width:6px; background:var(--muted); border-radius:50%; }.paid-status--paid::before { background:var(--primary); }</style>

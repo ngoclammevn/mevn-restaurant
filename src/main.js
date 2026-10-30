@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { clerkPlugin } from '@clerk/vue'
+import { viVN } from '@clerk/localizations/vi-VN'
 import App from './App.vue'
 import router from './router'
 import './styles/tokens.css'
@@ -9,5 +10,14 @@ if (!PUBLISHABLE_KEY) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY')
 
 createApp(App)
   .use(router)
-  .use(clerkPlugin, { publishableKey: PUBLISHABLE_KEY })
+  .use(clerkPlugin, {
+    publishableKey: PUBLISHABLE_KEY,
+    localization: {
+      ...viVN,
+      signIn: {
+        ...viVN.signIn,
+        start: { ...viVN.signIn.start, title: 'Đăng nhập Cơm Trưa', subtitle: 'Chọn tài khoản để tiếp tục.' },
+      },
+    },
+  })
   .mount('#app')

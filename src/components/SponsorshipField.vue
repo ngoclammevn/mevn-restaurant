@@ -1,0 +1,6 @@
+<script setup>
+defineProps({modelValue:{type:String,default:'self'},reason:{type:String,default:''},disabled:Boolean})
+defineEmits(['update:modelValue','update:reason'])
+</script>
+<template><fieldset class="sponsorship-field" :disabled="disabled"><legend>Thanh toán bữa này</legend><label><input type="radio" :checked="modelValue==='self'" @change="$emit('update:modelValue','self')" /> Mọi người tự thanh toán</label><label><input type="radio" :checked="modelValue==='sponsored'" @change="$emit('update:modelValue','sponsored')" /> Tôi mời cả nhóm · không cần trả tiền</label><label v-if="modelValue==='sponsored'" class="field">Nhân dịp gì? · Không bắt buộc<input class="input" maxlength="240" :value="reason" placeholder="Sinh nhật, hoàn thành dự án…" @input="$emit('update:reason',$event.target.value)" /></label><p v-if="modelValue==='sponsored'" class="meta">Đơn được mời vẫn được tổng hợp để gửi quán, không vào danh sách chưa trả.</p></fieldset></template>
+<style scoped>.sponsorship-field{border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}.sponsorship-field legend{font-size:15px;font-weight:650;padding:0 6px}.sponsorship-field>label{display:flex;gap:8px;align-items:center;min-height:44px;font-size:14px}.sponsorship-field>.field{display:grid;align-items:start}.sponsorship-field p{margin:0;font-size:12px}</style>

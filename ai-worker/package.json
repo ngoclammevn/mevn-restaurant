@@ -1,0 +1,22 @@
+{
+  "name": "lunch-feedback-suggestions",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --keep-vars",
+    "types": "wrangler types --env-interface Env --strict-vars=false",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "dry-run": "wrangler deploy --dry-run"
+  },
+  "dependencies": { "jose": "6.2.12" },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "wrangler": "4.147.0"
+  }
+}

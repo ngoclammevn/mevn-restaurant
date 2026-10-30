@@ -1,0 +1,121 @@
+{
+  "source": "https://github.com/nilbuild/page-mascot",
+  "commit": "76a44ed9180063bf4852b9dd724b656f4a828ac7",
+  "license": "MIT",
+  "rendererSource": "src/mascot.tsx",
+  "robotMapsTo": "clockwork",
+  "assets": [
+    {
+      "file": "fox-directions.webp",
+      "upstreamPath": "public/mascots/fox-directions.webp",
+      "gitBlobSha": "ee3e26119789ac05db81ff42a12a5d7314d50f60",
+      "sha256": "b3e47f9624860707c7e2811e759b3cc21ba350546d4a502aa96ff53cd82c3ca5",
+      "bytes": 191936
+    },
+    {
+      "file": "fox-reactions.webp",
+      "upstreamPath": "public/mascots/fox-reactions.webp",
+      "gitBlobSha": "0400c1c397ee1fc7bbf1f5fae1e16024c7b1975d",
+      "sha256": "f7a0e7a0a5e412ca812d4bde60444957a01ae55927769654d13913ec5287f490",
+      "bytes": 190152
+    },
+    {
+      "file": "cat-directions.webp",
+      "upstreamPath": "public/mascots/cat-directions.webp",
+      "gitBlobSha": "509178c942095fe045b2ec32002d6a196338ed37",
+      "sha256": "74fc16d0b0a906e87da4c8e0df875333d9f0f9fa1708ae8a71535d9e716ed199",
+      "bytes": 129600
+    },
+    {
+      "file": "cat-reactions.webp",
+      "upstreamPath": "public/mascots/cat-reactions.webp",
+      "gitBlobSha": "41719cb0bc58ae3217dd0bf01907e7e481cdc0a8",
+      "sha256": "71ec3b4b05dc314867bc0bf050dd70b81f289139d8569aaa23ab1f712a1fb939",
+      "bytes": 142868
+    },
+    {
+      "file": "bunny-directions.webp",
+      "upstreamPath": "public/mascots/bunny-directions.webp",
+      "gitBlobSha": "dc003b03f049568bb9ec664023b3c37cdadb2e2c",
+      "sha256": "ad6f9c235bdbd670520ceaef61641908232a06e16349756951ec674581ada4eb",
+      "bytes": 157694
+    },
+    {
+      "file": "bunny-reactions.webp",
+      "upstreamPath": "public/mascots/bunny-reactions.webp",
+      "gitBlobSha": "a09a48aa5ea06186cf372e029777a0888705ba9e",
+      "sha256": "684ffa9a58b5ee746122f4fe1d15184115962b63d39e65d76e786598d0e96875",
+      "bytes": 173236
+    },
+    {
+      "file": "panda-directions.webp",
+      "upstreamPath": "public/mascots/panda-directions.webp",
+      "gitBlobSha": "6f3f42dcf066c2b1c01e85913d2ea8828215f474",
+      "sha256": "f48637ac8e8251f5de034b653ac82b479f8af708a550aec8ef2e6e9e288d460f",
+      "bytes": 100590
+    },
+    {
+      "file": "panda-reactions.webp",
+      "upstreamPath": "public/mascots/panda-reactions.webp",
+      "gitBlobSha": "aaecccbcc7aaeb646aeb2a10145d31701ada5e9e",
+      "sha256": "46bd8ac9292582046d5e018606ad13be759e53727e53d7605aebe7fa98b3bcea",
+      "bytes": 111338
+    },
+    {
+      "file": "penguin-directions.webp",
+      "upstreamPath": "public/mascots/penguin-directions.webp",
+      "gitBlobSha": "3a671457df0b75e99a99dca7638575271e2b5166",
+      "sha256": "e028cfe20a915376272bc91292fa11395f32cd12768cc9030c12e5cb03c20899",
+      "bytes": 100424
+    },
+    {
+      "file": "penguin-reactions.webp",
+      "upstreamPath": "public/mascots/penguin-reactions.webp",
+      "gitBlobSha": "64e34e61311e2dd0420799c1116dd9e63d9c54c0",
+      "sha256": "4617a5005b5d3cec5a036e0949381e37a5ccce21a1945dce010c1dbc132c0ba3",
+      "bytes": 119244
+    },
+    {
+      "file": "otter-directions.webp",
+      "upstreamPath": "public/mascots/otter-directions.webp",
+      "gitBlobSha": "279915f7d3f5a3cef9190793cf39108485be5ba5",
+      "sha256": "7fabf10e330b2c81ca71ccdc4e120ddc0116614d52d4f54ac17cfe4a6c272eb4",
+      "bytes": 139156
+    },
+    {
+      "file": "otter-reactions.webp",
+      "upstreamPath": "public/mascots/otter-reactions.webp",
+      "gitBlobSha": "974b53ddb7be74411691c47a344d78e6c9a06187",
+      "sha256": "3453de4ab66e1df16d87d5b375f6aeaf190de8509a299dfc0fd699fc69be4406",
+      "bytes": 157528
+    },
+    {
+      "file": "robot-directions.webp",
+      "upstreamPath": "public/mascots/clockwork-directions.webp",
+      "gitBlobSha": "d7795869e5877c658d3806ae99253b2bd32b9c81",
+      "sha256": "2fe346a027233e46f268969c116ccaee8e08b89e2303034ee7b09d4e3e1d7af3",
+      "bytes": 154012
+    },
+    {
+      "file": "robot-reactions.webp",
+      "upstreamPath": "public/mascots/clockwork-reactions.webp",
+      "gitBlobSha": "68748ae1c9802155be444b4a65c23911d4f1ff88",
+      "sha256": "a433a840246b620463e6ed869b0a03b9d89ef60ff6d877f7fb10fd49f680de55",
+      "bytes": 171954
+    },
+    {
+      "file": "chef-directions.webp",
+      "upstreamPath": "public/mascots/chef-directions.webp",
+      "gitBlobSha": "ef40e3f13a6e73fa515137c68ba552f1d2d34662",
+      "sha256": "1c7b335df0ffa2ee73b3d7081537d7a728f54ebd904e2c7cac76d63411a08a0e",
+      "bytes": 162756
+    },
+    {
+      "file": "chef-reactions.webp",
+      "upstreamPath": "public/mascots/chef-reactions.webp",
+      "gitBlobSha": "2200d6a4a39cf1b4a95c84091a19b04b5a8bfae4",
+      "sha256": "d19c646a33e4743a7ae654493a56c06e1445ab7008cfef9e030bacc66c064890",
+      "bytes": 164832
+    }
+  ]
+}

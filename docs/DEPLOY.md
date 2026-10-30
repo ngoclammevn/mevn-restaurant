@@ -1,5 +1,7 @@
 # Deployment Guide — nhat → main
 
+> **Tài liệu lịch sử, đã được thay thế.** Dùng [triển khai Vue và Worker độc lập](architecture/deployment.md). Không làm theo cấu hình Clerk JWT template cũ hoặc giả định migration đã chạy trên production bên dưới; trạng thái từng môi trường cần được kiểm tra thực tế. Xem [mục lục hiện hành](README.md).
+
 > Branch `nhat` thêm: Presence system, OG share image, server-side OCR, public menu route, today page redesign.
 
 ---
