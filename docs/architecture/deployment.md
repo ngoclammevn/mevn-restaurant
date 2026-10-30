@@ -1,6 +1,8 @@
-# Setup và triển khai độc lập
+# Cấu hình môi trường và Deploy
 
 [Mục lục](../README.md) · [Kiến trúc](README.md) · [Bảo mật](../security/README.md) · [Worker](../../ai-worker/README.md)
+
+Hướng dẫn này dùng lệnh CLI thông thường. Với đợt cập nhật chồng lên main đang chạy production, làm theo [runbook backup và phát hành](../operations/2026-10-29-main-rollout.md) trước khi merge: giữ database/ảnh cũ, backup code + DB + Storage, restore thử và chỉ áp migration còn thiếu.
 
 Hướng dẫn này thay thế phần setup/deploy trong tài liệu cũ. Các bước dưới là công việc vận hành cần thực hiện trên tài khoản đúng; việc có file cấu hình trong repo không chứng minh production đã cấu hình. Giữ các dịch vụ trong free tier, không bật billing để xử lý hết quota AI.
 
@@ -22,50 +24,65 @@ Không cần Supabase service-role/secret key hoặc Clerk secret. [Tài liệu 
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Public key Supabase |
 | `VITE_AI_API_BASE_URL` | Origin HTTPS của Worker; để trống dùng nhãn dự phòng |
 
-Mọi biến `VITE_*` đều được người dùng đọc được trong bundle. Không đặt token dài hạn hay secret vào đây. Dùng Node 22.18+ hoặc 24.11+ theo `package.json`; sao chép `.env.example` sang file env local bị Git ignore, điền giá trị của đúng môi trường rồi chạy từ root:
+Người dùng có thể đọc mọi biến `VITE_*` trong bundle. Không đặt token dài hạn hay secret vào đây. Dùng Node 22.18+ hoặc 24.11+ theo `package.json`; sao chép `.env.example` sang file env local mà Git ignore, điền giá trị của đúng môi trường rồi chạy từ root:
 
 ```sh
-rtk proxy npm ci
-rtk proxy npm run dev
+npm ci
+npm run dev
 ```
 
 Vercel dùng Vite, build `npm run build`, output `dist`, cùng [`vercel.json`](../../vercel.json). Root package và Worker package có lockfile riêng. Cấu hình các biến frontend trên môi trường Vercel tương ứng, rồi build/deploy khi đến bước phát hành. Đổi biến frontend cần rebuild.
 
-Các API Vercel hiện hữu (OCR/share/OG) vẫn theo cấu hình riêng trong `api/`. `GEMINI_API_KEY` hiện chỉ dành cho OCR phía server; không thêm prefix `VITE_`, không dùng nó cho AI Worker. Xem giới hạn bảo mật endpoint cũ ở [security](../security/README.md#giới-hạn-và-cấu-hình-chưa-kiểm-chứng).
+Các API Vercel hiện có (OCR/share/OG) vẫn theo cấu hình riêng trong `api/`. `GEMINI_API_KEY` hiện chỉ dành cho OCR phía server; không thêm prefix `VITE_`, không dùng nó cho AI Worker. Xem giới hạn bảo mật endpoint cũ ở [security](../security/README.md#giới-hạn-và-cấu-hình-chưa-kiểm-chứng).
 
-## 3. Worker / Cloudflare
+## 3. Một Worker chung AI + Slack, thao tác bằng Wrangler CLI
 
-Chạy từ `ai-worker/` trong repository với Node 22+; Worker cần import `../shared/feedback.js` khi bundle.
-
-```sh
-rtk proxy npm ci
-rtk proxy cp .dev.vars.example .dev.vars
-rtk proxy cp wrangler.jsonc wrangler.owner.jsonc
-```
-
-Điền bốn giá trị không bí mật vào cấu hình local/owner: `CLERK_ISSUER`, `ALLOWED_ORIGINS`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`. Issuer/Supabase URL là origin HTTPS chính xác, không path/trailing slash. Origins là danh sách tách dấu phẩy; không wildcard, tối đa 20 origin duy nhất; HTTP chỉ chấp nhận loopback localhost cho dev. Dùng modern `sb_publishable_…`, Worker chủ động từ chối secret và legacy JWT key.
-
-Owner điền `account_id` trong `wrangler.owner.jsonc` bị ignore và xác nhận hai `namespace_id` rate limiter khác nhau, duy nhất trong tài khoản. `1001`/`1002` trong repo chỉ là ví dụ. Không tự đoán tài khoản/domain. Không đưa credential đăng nhập Cloudflare vào repo.
-
-Kiểm thử cuối và kiểm tra bundle (không gọi inference thật):
+Cài Git, Node.js 22.18+ và npm trên máy. Mở terminal tại repository, rồi chạy:
 
 ```sh
-rtk proxy npm test
-rtk proxy npm run typecheck
-rtk proxy npm run dry-run
+cd ai-worker
+npm ci
+npx wrangler --version
+npx wrangler login
+npx wrangler whoami
 ```
 
-Khi đã đến bước phát hành, owner đăng nhập và deploy cấu hình đã xem lại:
+`npm ci` cài Wrangler đúng lockfile; không cần cài global hay nâng `latest`. `login` mở trình duyệt để đăng nhập Cloudflare; `whoami` giúp đối chiếu đúng account. Giữ thư mục `shared/` trong repo khi bundle. [Wrangler trong project](https://developers.cloudflare.com/workers/wrangler/install-and-update/) · [Đăng nhập CLI](https://developers.cloudflare.com/workers/wrangler/commands/general/)
+
+Chỉ lần đầu khi file chưa có, copy cấu hình mẫu tại `ai-worker/`:
 
 ```sh
-rtk proxy npx wrangler login
-rtk proxy npx wrangler types --config wrangler.owner.jsonc --strict-vars=false
-rtk proxy npx wrangler deploy --config wrangler.owner.jsonc
+cp wrangler.jsonc wrangler.owner.jsonc
 ```
 
-Worker và Vercel triển khai độc lập. Lấy URL Worker vào `VITE_AI_API_BASE_URL`, cho phép đúng origin app trong Worker rồi rebuild Vue. Với preview, thêm từng origin cần thiết; không dùng wildcard `*.vercel.app`. Không để localhost trong allowlist production nếu không cần.
+Windows PowerShell dùng `Copy-Item wrangler.jsonc wrangler.owner.jsonc`. Git ignore file cấu hình riêng; kiểm bằng `git check-ignore wrangler.owner.jsonc`. Không ghi đè file owner đang dùng bằng file mẫu.
 
-## 4. Xác minh sau phát hành
+Mở file owner, đặt `account_id` và `name` đúng Worker đang chạy, không đặt tên mới. Điền đủ `CLERK_ISSUER`, `ALLOWED_ORIGINS`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` và năm vars Slack trong [bảng env của runbook](../operations/2026-10-29-main-rollout.md#2-môi-trường-và-từng-biếnkey-đặt-ở-đâu). Issuer/URL là origin HTTPS chính xác; Supabase key dạng `sb_publishable_…`. Giữ binding `AI` và **bốn limiter namespace IDs khác nhau**: `USER_RATE_LIMITER`, `SERVICE_RATE_LIMITER`, `SLACK_USER_RATE_LIMITER`, `SLACK_SERVICE_RATE_LIMITER`. `1001`–`1004` chỉ là ví dụ, người Deploy phải kiểm không trùng trong account; không cần tạo KV namespace.
+
+Dùng một Worker đang chạy trên Free cho cả AI + Slack; không thêm hạ tầng. Slack App chỉ cần bot scopes `chat:write`, `users:read`, thêm bot vào hai kênh đã chọn. Production chỉ cho origin production chính xác; preview dùng mock/local/tài nguyên thử, không tự cho gửi vào Slack production.
+
+Ghi version active cũ từ Worker Deployments để rollback và kiểm bundle:
+
+```sh
+npx wrangler versions list --config wrangler.owner.jsonc
+npx wrangler deploy --dry-run --config wrangler.owner.jsonc
+```
+
+**Sau backup/restore thử, đối chiếu migration, dependency gate và xác nhận cửa sổ phát hành**, nhập từng secret qua prompt, rồi deploy:
+
+```sh
+npx wrangler secret put SLACK_BOT_TOKEN --config wrangler.owner.jsonc
+npx wrangler secret put SLACK_RECEIPT_SIGNING_KEY --config wrangler.owner.jsonc
+npx wrangler deploy --config wrangler.owner.jsonc
+```
+
+`secret put` là thay đổi thật, có thể deploy version ngay. Nếu secret đang đúng, không đặt lại; đặc biệt giữ receipt key cũ để đọc receipts/cancel lịch. Không gõ giá trị token vào command, không lưu ở `vars` hoặc `VITE_*`. CLI không trả lại plaintext secret đã lưu. Điền đủ vars không bí mật trong file cấu hình riêng; `--keep-vars` chỉ phù hợp khi đã kiểm Dashboard vars và không còn vars rỗng ghi đè. [Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
+
+Lấy origin HTTPS `workers.dev` thực tế CLI in sau deploy, đặt vào Vercel Production `VITE_AI_API_BASE_URL`, không thêm `/v1`; build lại Vue. AI + Slack dùng cùng URL. Dry-run/health không chứng minh E2E; kiểm hai tài khoản, quyền DB/Storage và một tin được phép trong kênh đã chọn theo runbook trước mở sử dụng.
+
+Nếu lỗi, tại `ai-worker/` chạy `npx wrangler rollback <version-id-đã-ghi> --config wrangler.owner.jsonc`, thay placeholder bằng version active cũ. Rollback code không xóa dữ liệu hoặc hủy lịch Slack; xem [kế hoạch rollback đầy đủ](../operations/2026-10-29-main-rollout.md#8-rollback-không-làm-mất-dữ-liệu-mới). Không drop bảng hoặc restore snapshot cũ đè live để rollback giao diện.
+
+## 4. Kiểm tra sau Deploy
 
 - `/health` trả phiên bản; sau đó dùng phiên thật kiểm một đơn của mình và một đơn của người khác (phải bị từ chối).
 - Hai tài khoản kiểm đặt hộ, tự trả, chốt/mở lại, review từ đúng ngày VN; đối chiếu RLS trên DB thực tế.

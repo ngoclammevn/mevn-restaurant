@@ -52,7 +52,7 @@ async function save() {
     if (user.value?.id !== account || props.menu.id !== menuId) return
     if (result.error) throw result.error
     emit('saved', result.data)
-  } catch { if (user.value?.id===account && props.menu.id===menuId) error.value = 'Chưa lưu được menu. Các thay đổi vẫn được giữ để bạn thử lại.' }
+  } catch { if (user.value?.id===account && props.menu.id===menuId) error.value = 'Chưa lưu được menu. Bạn vẫn còn các thay đổi để thử lại.' }
   finally { if (user.value?.id===account) saving.value = false }
 }
 </script>

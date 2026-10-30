@@ -21,7 +21,7 @@ async function load(){
     savedPhone.value=result.data?.contact?.phone_e164 || ''; phone.value=savedPhone.value
     loadedChoice=result.data?.availability?.available ?? null; available.value=loadedChoice
     editing.value=loadedChoice===null; ready.value=true
-  }catch{if(current===generation)error.value='Chưa tải được thông tin nhận cơm. Thử lại trước khi lưu.'}
+  }catch{if(current===generation)error.value='Chưa tải được thông tin lấy cơm. Thử lại trước khi lưu.'}
   finally{if(current===generation)loading.value=false}
 }
 watch([()=>props.date,()=>props.enabled,()=>user.value?.id],load,{immediate:true})
@@ -29,8 +29,8 @@ onUnmounted(()=>generation++)
 function validate(){
   if(!props.enabled)return true
   error.value=''
-  if(!ready.value){error.value='Chưa tải xong thông tin nhận cơm. Vui lòng thử lại.';return false}
-  if(available.value===null){error.value='Chọn hôm nay bạn có thể nhận cơm hay không.';return false}
+  if(!ready.value){error.value='Chưa tải xong thông tin lấy cơm. Vui lòng thử lại.';return false}
+  if(available.value===null){error.value='Chọn “Mình lấy được” hoặc “Hôm nay không tiện” nhé.';return false}
   if(available.value || editingPhone.value){
     try{normalizePickupPhone(phone.value)}catch{error.value='Nhập số di động Việt Nam hợp lệ, ví dụ 0901234567.';return false}
   }
@@ -50,7 +50,7 @@ async function save(){
     if(result.error)throw result.error
     if(available.value || editingPhone.value){savedPhone.value=normalizePickupPhone(phone.value);phone.value=savedPhone.value}
     loadedChoice=available.value;editing.value=false;editingPhone.value=false;emit('saved');return true
-  }catch{if(current===generation)error.value='Chưa lưu được thông tin nhận cơm. Đơn đã lưu vẫn được giữ; bạn có thể thử lại ở đây.';return false}
+  }catch{if(current===generation)error.value='Chưa lưu được thông tin lấy cơm. Đơn vẫn còn. Bạn thử lưu lại thông tin lấy cơm nhé.';return false}
   finally{if(current===generation)saving.value=false}
 }
 defineExpose({validate,save,reload:load})
@@ -70,7 +70,7 @@ defineExpose({validate,save,reload:load})
     <p v-if="error" class="alert" role="alert">{{ error }} <button v-if="!ready && !loading" type="button" @click="load">Thử lại</button></p>
     <slot name="actions" :save="save" :saving="saving" />
   </section>
-  <p v-else class="meta">Bạn ấy sẽ tự chọn việc lấy cơm và lưu số điện thoại nhé.</p>
+  <p v-else class="meta">Bạn ấy sẽ tự chọn lấy cơm và lưu số điện thoại nhé.</p>
 </template>
 <style scoped>
 .pickup-preferences{padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--bg-tint);display:grid;gap:12px}.pickup-preferences h3{font-size:15px;margin:0}.pickup-preferences fieldset{border:0;margin:0;padding:0;display:flex;gap:18px;flex-wrap:wrap}.pickup-preferences label{min-height:44px;display:flex;align-items:center;gap:8px;font-size:14px}.pickup-preferences .field{display:grid;align-items:start}.pickup-preferences .meta{font-size:12px;margin:0}.sr-only{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden}

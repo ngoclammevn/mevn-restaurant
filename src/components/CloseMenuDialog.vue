@@ -25,7 +25,7 @@ async function load(){
     if(previous.data?.status==='received'){completedPickup.value=previous.data;primary.value=previous.data.primary_user_id;backup.value=''}
     if(!completedPickup.value && eligible.value.some(row=>row.user_id===previous.data?.primary_user_id))primary.value=previous.data.primary_user_id
     if(!completedPickup.value && eligible.value.some(row=>row.user_id===previous.data?.backup_user_id))backup.value=previous.data.backup_user_id
-  }catch{if(current===generation)loadError.value='Chưa tải được danh sách người nhận. Thử lại.'}
+  }catch{if(current===generation)loadError.value='Chưa tải được danh sách người lấy cơm. Thử lại.'}
   finally{if(current===generation)loading.value=false}
 }
 watch([()=>props.open,()=>props.menu?.id],load,{immediate:true})
@@ -41,13 +41,13 @@ function confirm(){if((!primary.value && !manualDelivery.value) || (primary.valu
       <p v-if="loading" role="status" class="meta">Đang xem ai lấy cơm được…</p>
       <p v-if="loadError" class="alert" role="alert">{{ loadError }} <button type="button" @click="load">Thử lại</button></p>
       <template v-if="!loading && !loadError">
-        <p v-if="completedPickup" class="meta">{{ completedPickup.primary?.full_name || 'Bạn được chọn' }} đã lấy cơm. Lần chốt này vẫn giữ người lấy cũ.</p><p v-if="!eligible.length && !completedPickup" class="meta">Chưa ai đăng ký lấy cơm. Bạn có thể tự nhận hoặc tự thu xếp.</p>
+        <p v-if="completedPickup" class="meta">{{ completedPickup.primary?.full_name || 'Người lấy cơm' }} đã lấy cơm. Lần chốt này vẫn giữ người lấy cũ.</p><p v-if="!eligible.length && !completedPickup" class="meta">Chưa ai đăng ký lấy cơm. Bạn có thể tự nhận hoặc tự thu xếp.</p>
         <AppButton v-if="eligible.length && !completedPickup" variant="ghost" :disabled="busy" @click="draw">Bốc thăm người lấy</AppButton>
         <label v-if="eligible.length && !completedPickup" class="field">Người lấy cơm<select v-model="primary" class="input" :disabled="busy"><option value="">Chọn một người</option><option v-for="row in eligible" :key="row.user_id" :value="row.user_id">{{ row.full_name }} · {{ row.received_count }} lần/30 ngày</option></select></label>
         <label v-if="eligible.length > 1 && !completedPickup" class="field">Dự phòng · không bắt buộc<select v-model="backup" class="input" :disabled="busy"><option value="">Không chọn</option><option v-for="row in eligible.filter(item=>item.user_id!==primary)" :key="row.user_id" :value="row.user_id">{{ row.full_name }}</option></select></label>
         <AppButton v-if="!completedPickup && !eligible.some(row=>row.user_id===user?.id)" variant="ghost" :disabled="busy" @click="registerSelf=!registerSelf">Mình lấy được</AppButton>
         <PickupPreferenceForm v-if="registerSelf" ref="preferences" :date="menu.menu_date" :disabled="busy"><template #actions><AppButton variant="ghost" @click="saveSelf">Lưu lựa chọn</AppButton></template></PickupPreferenceForm>
-        <label v-if="!eligible.length && !completedPickup" class="field"><span class="row"><input v-model="manualDelivery" type="checkbox" :disabled="busy" /> Mình tự thu xếp, chưa cần chọn người lấy</span></label><p v-if="primary && !completedPickup" class="meta">Bot sẽ tag người lấy cơm. Dự phòng chỉ được nhắc khi bạn gọi.</p>
+        <label v-if="!eligible.length && !completedPickup" class="field"><span class="row"><input v-model="manualDelivery" type="checkbox" :disabled="busy" /> Mình tự thu xếp, chưa cần chọn người lấy</span></label><p v-if="primary && !completedPickup" class="meta">Bot sẽ tag người lấy cơm trên Slack nếu họ đã liên kết tài khoản. Khi bạn gọi dự phòng, bot mới nhắc người dự phòng.</p>
       </template><p v-if="error" class="alert" role="alert">{{ error }}</p>
     </div>
     <template #footer><AppButton variant="ghost" :disabled="busy" @click="emit('close')">Quay lại</AppButton><AppButton :loading="busy" :disabled="loading || (!primary && !manualDelivery) || (!!primary && primary===backup)" @click="confirm">Chốt đơn</AppButton></template>

@@ -5,7 +5,7 @@ export async function createLunchWorkbook(model){
   const labels={paid:'Đã trả',unpaid:'Chưa trả',sponsored:'Được mời'}
   const definitions=[
     {name:'Gui quan',title:'Danh sách gửi quán',columns:[['Ngày','menuDate',14],['Quán','restaurant',24],['Món','name',30],['Số suất','servings',12],['Tổng đã biết','knownTotal',20],['Suất chưa có giá','unknownPriceCount',20],['Ghi chú','note',46]],rows:model.buyRows},
-    {name:'Theo nguoi',title:'Đơn theo người',columns:[['Ngày','menuDate',14],['Quán','restaurant',24],['Người ăn','name',24],['Món','items',32],['Ghi chú','note',36],['Giá quán','vendorAmount',18],['Phải trả','amountDue',18],['Trạng thái','stateLabel',18],['Giá chưa biết','unknownLabel',20],['Đã trả lúc','paidAt',26],['Phiên chốt','closureRevision',22]],rows:model.personRows},
+    {name:'Theo nguoi',title:'Đơn theo người',columns:[['Ngày','menuDate',14],['Quán','restaurant',24],['Người ăn','name',24],['Món','items',32],['Ghi chú','note',36],['Giá quán','vendorAmount',18],['Phải trả','amountDue',18],['Trạng thái','stateLabel',18],['Giá chưa biết','unknownLabel',20],['Đã trả lúc','paidAt',26],['Lần chốt','closureRevision',22]],rows:model.personRows},
     {name:'Chua thu',title:'Các khoản chưa thu',columns:[['Ngày','menuDate',14],['Quán','restaurant',24],['Người ăn','name',24],['Món','items',32],['Phải trả','amountDue',18],['Giá chưa biết','unknownLabel',20],['Ghi chú','note',36]],rows:model.outstandingRows},
   ]
   for(const definition of definitions){

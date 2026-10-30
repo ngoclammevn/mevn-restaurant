@@ -38,7 +38,7 @@ test('copy is allowed only after the updated closure snapshot has reached the pa
  mount();host.updateProps({onUpdated:value=>host.updateProps({menu:value})})
  const copied=host.vm.closeMenu();await nextTick();state.confirmClose({allowUnassigned:true})
  await expect(copied).resolves.toBe(true)
- expect(hostText(host.root)).toContain('Phiên chốt 1')
+ expect(hostText(host.root)).toContain('Lần chốt 1')
 })
 test('a committed reopen remains success and notifies when the refresh failed',async()=>{
  state.setClosed.mockResolvedValue({committed:true,data:null,error:null,refreshError:new Error('offline')})

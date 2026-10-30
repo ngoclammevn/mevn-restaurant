@@ -18,7 +18,7 @@ async function load(){
   if(!uid)return
   loading.value=true
   try{const result=await api.getPickup(props.menu.id);if(current!==generation || user.value?.id!==uid)return;if(result.error)throw result.error;pickup.value=result.data}
-  catch{if(current===generation)error.value='Chưa tải được phân công nhận cơm.'}
+  catch{if(current===generation)error.value='Chưa tải được thông tin người lấy cơm. Thử lại nhé.'}
   finally{if(current===generation)loading.value=false}
 }
 watch([()=>props.menu.id,()=>props.menu.current_closure_id,()=>user.value?.id],load,{immediate:true})
@@ -33,7 +33,7 @@ async function change(kind){
     if(current!==generation || user.value?.id!==uid)return
     if(result.error)throw result.error
     await load();emit('changed',kind==='backup'?'pickup_changed':'received')
-  }catch{if(user.value?.id===uid)error.value='Chưa cập nhật được lượt nhận cơm. Tải lại rồi thử lại.'}
+  }catch{if(user.value?.id===uid)error.value='Chưa cập nhật được lượt lấy cơm. Tải lại rồi thử lại.'}
   finally{busy.value=false}
 }
 async function savePreferences(){if(await form.value?.save()){showPreferences.value=false;await load()}}

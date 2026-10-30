@@ -62,7 +62,7 @@ onUnmounted(()=>{generation++;releasePreview()})
   <section class="avatar-settings">
     <div><h2>Ảnh đại diện</h2><p class="meta">Chọn một người bạn nhỏ, ảnh Google hoặc ảnh của bạn.</p></div>
     <div class="avatar-settings-actions"><AppButton variant="ghost" :disabled="disabled || !profile" @click="begin">Đổi ảnh đại diện</AppButton><span v-if="saved" role="status" class="meta">Đã lưu ảnh đại diện</span></div>
-    <p v-if="cleanupPending" class="meta" role="status">Ảnh mới đã được lưu. Một ảnh cũ chưa dọn xong. <button type="button" class="avatar-text-button" @click="retryCleanup">Thử dọn lại</button></p>
+    <p v-if="cleanupPending" class="meta" role="status">Đã lưu ảnh mới. App chưa xóa xong ảnh cũ. <button type="button" class="avatar-text-button" @click="retryCleanup">Thử xóa ảnh cũ</button></p>
     <AppDialog :open="open" title="Ảnh đại diện của bạn" @close="cancel">
       <div class="avatar-picker-preview">
         <div v-if="mode==='upload' && previewUrl" class="avatar-crop avatar-crop--small"><img :src="previewUrl" alt="Xem trước ảnh đã cắt" :style="cropStyle" /></div>
@@ -80,14 +80,14 @@ onUnmounted(()=>{generation++;releasePreview()})
         </template>
         <template v-if="mode==='upload'">
           <label class="field avatar-file-label" :for="inputId">Chọn ảnh JPG, PNG hoặc WebP<input :id="inputId" type="file" accept="image/jpeg,image/png,image/webp" @change="chooseFile" /></label>
-          <p class="meta">Tối đa 2 MB · 8192 px mỗi cạnh · 25 triệu pixel. Ảnh được cắt vuông và bỏ dữ liệu đính kèm trước khi tải lên.</p>
+          <p class="meta">Tối đa 2 MB · 8192 px mỗi cạnh · 25 triệu pixel. App cắt ảnh vuông và bỏ dữ liệu đính kèm trước khi tải lên.</p>
           <div v-if="previewUrl" class="avatar-crop-controls">
-            <div class="avatar-crop"><img :src="previewUrl" alt="Vùng ảnh vuông sẽ được lưu" :style="cropStyle" /></div>
+            <div class="avatar-crop"><img :src="previewUrl" alt="Xem trước phần ảnh sau khi cắt" :style="cropStyle" /></div>
             <label>Phóng to<input v-model.number="zoom" type="range" min="1" max="3" step="0.01" /></label>
             <label>Vị trí ngang<input v-model.number="horizontal" type="range" min="0" max="100" step="1" /></label>
             <label>Vị trí dọc<input v-model.number="vertical" type="range" min="0" max="100" step="1" /></label>
           </div>
-          <p v-else-if="profile?.uploaded_avatar_path" class="meta avatar-picker-help">Ảnh bạn đã tải trước đó sẽ được dùng lại.</p>
+          <p v-else-if="profile?.uploaded_avatar_path" class="meta avatar-picker-help">App sẽ dùng lại ảnh bạn đã tải trước đó.</p>
         </template>
       </fieldset>
       <p v-if="reading" class="meta" role="status">Đang kiểm tra ảnh…</p><p v-if="error" class="alert" role="alert">{{ error }}</p>

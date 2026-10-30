@@ -77,7 +77,7 @@ function close() { if (drafts.value.some(d => d.saving)) return; if (drafts.valu
 <template>
   <AppDialog open title="Đánh giá món" @close="close">
     <section ref="panel" class="review-dialog stack">
-      <p class="meta">{{ menu.restaurant?.name || 'Quán chưa được ghi nhận' }} · {{ completed }}/{{ drafts.length }} món đã đánh giá</p>
+      <p class="meta">{{ menu.restaurant?.name || 'Chưa có tên quán' }} · {{ completed }}/{{ drafts.length }} món đã đánh giá</p>
       <p v-if="!editable" class="alert">Chỉ chủ đơn mới đánh giá được bữa ăn hôm nay hoặc trước đó.</p>
       <nav v-if="drafts.length > 1" class="review-tabs" aria-label="Chọn món để đánh giá"><button v-for="(draft,index) in drafts" :key="draft.item.id" type="button" :class="{active:index === activeIndex}" :aria-current="index === activeIndex ? 'step' : undefined" :disabled="drafts.some(d => d.saving)" @click="activate(index)">{{ index + 1 }}. {{ draft.item.name_snapshot }}{{ draft.review ? ' ✓' : '' }}</button></nav>
       <article v-for="draft in activeDraft ? [activeDraft] : []" :key="draft.item.id" class="review-item stack-sm">

@@ -16,6 +16,7 @@
     "test:watch": "vitest tests/rls"
   },
   "dependencies": {
+    "@clerk/localizations": "4.24.3",
     "@clerk/vue": "^2.4.5",
     "@sparticuz/chromium-min": "^147.0.0",
     "@supabase/supabase-js": "^2.108.2",

@@ -39,7 +39,7 @@ export function buildLunchExport({menus,orders,from='',to=''}){
 export function lunchExportCsv(model){
   const cell=value=>{let text=String(value ?? '');if(/^\s*[=+\-@]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"'}
   const labels={paid:'Đã trả',unpaid:'Chưa trả',sponsored:'Được mời'}
-  const rows=[['Ngày','Quán','Người ăn','Món','Ghi chú','Giá quán','Phải trả','Thanh toán','Đã trả lúc','Phiên chốt']]
+  const rows=[['Ngày','Quán','Người ăn','Món','Ghi chú','Giá quán','Phải trả','Thanh toán','Đã trả lúc','Lần chốt']]
   for(const row of model.personRows)rows.push([row.menuDate,row.restaurant,row.name,row.items,row.note,row.vendorAmount,row.amountDue,labels[row.paymentState],row.paidAt,row.closureRevision])
   return '\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n')
 }

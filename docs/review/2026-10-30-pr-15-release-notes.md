@@ -1,6 +1,6 @@
 # Nội dung PR #15 — bản nâng cấp đặt cơm
 
-Ứng dụng nội bộ cần gom đặt cơm theo ngày, chọn người nhận hàng và đối soát rõ cả bữa tự trả lẫn bữa được mời. PR hoàn thiện luồng từ đăng menu đến nhận cơm và xuất sổ, dùng **một Cloudflare Worker chung AI + Slack**. Đã tích hợp `origin/main` ở commit `81b9457`, giữ dashboard/thống kê và nợ cũ của main.
+Ứng dụng nội bộ cần gom đặt cơm theo ngày, chọn người lấy cơm và theo dõi tiền của cả bữa tự trả lẫn bữa được mời. PR hoàn thiện luồng từ đăng menu đến lấy cơm và xuất Excel, dùng **một Cloudflare Worker chung AI + Slack**. Đã tích hợp `origin/main` ở commit `81b9457`, giữ dashboard/thống kê và nợ cũ của main.
 
 ## Changelog đầy đủ
 
@@ -18,13 +18,13 @@
 - Khả năng nhận theo từng ngày Việt Nam, riêng với số đã lưu. Đặt hộ không tự đồng ý nhận hàng hoặc ghi số thay người nhận đơn.
 - Bốc thăm mỗi người một lượt, ưu tiên người ít nhận trong 30 ngày; chọn thủ công người chính/dự phòng, kích hoạt dự phòng và xác nhận đã nhận.
 - Nếu chưa ai đăng ký, chủ menu có thể xác nhận tự thu xếp và chốt chưa phân công. Chốt lại sau khi đã nhận giữ người/liên hệ/thời điểm cũ.
-- Số liên hệ tách khỏi profile công khai, chỉ chính chủ và người điều phối đủ điều kiện đọc; không gửi phone, ngân hàng, JWT hoặc ghi chú riêng lên Slack.
+- Số liên hệ tách khỏi profile công khai, chỉ chính chủ và người đăng menu có quyền đọc; không gửi phone, ngân hàng, JWT hoặc ghi chú riêng lên Slack.
 
 ### Thanh toán, giá chốt và quản lý
 - Chế độ tự trả/được mời kèm lý do; bữa được mời có chi phí quán riêng nhưng người ăn phải trả 0, không vào công nợ/QR/nút trả tiền.
-- Chốt nguyên tử tạo phiên giá bất biến; mở lại/chốt lại có revision mới, xem lại lịch sử cũ. Danh sách gửi quán, dashboard, QR, công nợ và export cùng dùng nguồn giá này.
-- Menu cũ đã chốt chưa có snapshot giữ giá chưa biết; không đoán giá quá khứ và không đổi thành 0. `is_paid`/`paid_at` cũ được giữ.
-- Menu có đơn chuyển sang lưu trữ thay vì xóa; giữ đơn/ảnh/đánh giá/nợ. Database chặn đặt/sửa/xóa món trên menu đã lưu trữ, vẫn cho chủ đơn tự tick thanh toán. Menu rỗng vẫn xóa được.
+- Khi chốt, Database lưu món và giá trong cùng transaction. Mở lại rồi chốt lần nữa sẽ tạo revision mới; lịch sử vẫn giữ các lần trước. Danh sách gửi quán, dashboard, QR, công nợ và export cùng dùng nguồn giá này.
+- Menu cũ đã chốt chưa có snapshot giữ giá chưa biết; không đoán giá quá khứ và không đổi thành 0. Giữ nguyên `is_paid`/`paid_at` cũ.
+- Menu có đơn chuyển sang lưu trữ thay vì xóa; giữ đơn/ảnh/đánh giá/nợ. Database chặn đặt/sửa/xóa món trên menu đã lưu trữ, vẫn cho chủ đơn tự tick thanh toán. Chỉ xóa menu rỗng chưa từng chốt; menu từng chốt chuyển sang lưu trữ dù không còn đơn.
 - Xuất XLSX ba sheet **Gửi quán, Theo người, Chưa thu** và CSV theo menu/khoảng ngày; tải đủ trang, ô tiền là số, giá chưa biết riêng, tránh công thức từ nội dung người dùng. Hủy hoặc đổi tài khoản không tải dữ liệu dở.
 - Tách lỗi thông báo/tải lại khỏi thao tác DB đã thành công, giữ nháp khi lưu chưa thành công và không thúc người dùng tạo lại menu/đơn đã lưu.
 
@@ -38,13 +38,13 @@
 
 Năm migration mới bổ sung avatar, phone/consent, sponsorship/snapshot, close/pickup/archive và Slack registry. Không đổi ID, không xóa/reset dữ liệu cũ. Đã kiểm legacy trên DB tạm; **chưa xác nhận tình trạng/data production hiện tại**.
 
-History catalog từng được ghi dưới timestamp remote khác local; project từng báo `INACTIVE` và truy vấn timeout. Phải so schema/SQL/history thực, chỉ áp migration còn thiếu được xác nhận; không blind `db push`, `db reset` hoặc `migration repair`.
+Migration history của catalog có timestamp remote khác local; project từng báo `INACTIVE` và truy vấn timeout. Phải so schema/SQL/history thực, chỉ áp migration còn thiếu được xác nhận; không blind `db push`, `db reset` hoặc `migration repair`.
 
 - [Runbook chi tiết từng phần, môi trường, env/key, backup và rollback](../operations/2026-10-29-main-rollout.md).
 - [Báo cáo tổng quan và bằng chứng/giới hạn](./2026-10-29-company-lunch-overview.md).
 - [Đặc tả đã duyệt](../superpowers/specs/2026-10-29-slack-delivery-and-sponsor-proposal.md) và [kế hoạch triển khai](../superpowers/plans/2026-10-29-lunch-rollout.md).
 
-Trước merge main đang auto-deploy: ghi SHA `origin/main` **và SHA deployment Vercel đang phục vụ**, backup code/bundle → dump DB roles/schema/data/history + cấu hình RLS → tải **toàn bộ bytes Storage** kèm inventory/checksum → restore thử ngoài live → áp migration thiếu → Slack App + **một Worker hiện hữu** → Vercel Production → kiểm hai tài khoản và đối chiếu dữ liệu. Git branch backup không giữ DB/ảnh; DB dump không giữ bytes Storage. Backup nhạy cảm có mã hóa và nằm ngoài Git/PR.
+Trước merge main đang auto-deploy: ghi SHA `origin/main` **và SHA deployment Vercel đang phục vụ**, backup code/bundle → dump DB roles/schema/data/history + cấu hình RLS → tải **toàn bộ bytes Storage** kèm inventory/checksum → restore thử ngoài live → áp migration thiếu → Slack App + **một Worker đang chạy** → Vercel Production → kiểm hai tài khoản và đối chiếu dữ liệu. Git branch backup không giữ DB/ảnh; DB dump không giữ bytes Storage. Backup nhạy cảm có mã hóa và nằm ngoài Git/PR.
 
 `VITE_*` public ở Vercel; `GEMINI_API_KEY` chỉ Vercel server cho OCR hiện có; Slack bot token và receipt key **chỉ Worker Secrets**. Không Supabase service_role/Clerk secret, không webhook Clerk/backend riêng. Preview dùng mock/local/test resource rõ ràng; không mặc định cho preview ghi vào prod hay gửi kênh Slack prod. Rollback giữ DB additive và dữ liệu mới, không restore snapshot cũ đè live; lịch Slack cần đối soát riêng.
 
@@ -60,3 +60,12 @@ Trước merge main đang auto-deploy: ghi SHA `origin/main` **và SHA deploymen
 Giới hạn còn lại: chưa E2E trên Clerk/PostgREST/Storage/Slack thật hoặc kiểm CPU/quota Worker Free. Build còn cảnh báo chunk ExcelJS lazy khoảng 929 kB minify / 256 kB gzip. Audit cuối có **11 mục (9 high từ chuỗi Puppeteer cũ của API OG, 2 moderate ExcelJS→UUID)**; phân tích đường gọi và việc nâng major cần xử lý trước release nằm trong báo cáo. Không dùng `audit fix --force` để che cảnh báo.
 
 **PR này chưa merge main, chưa backup/restore production, chưa áp migration hoặc deploy Vercel/Worker mới, chưa gửi Slack thật.** Preview cũ ghi trong PR trước thuộc commit cũ, không dùng làm bằng chứng cho bản này.
+
+## Cập nhật sau lượt kiểm ban đầu
+
+- Worker chấp nhận HTTP 204 từ RPC void, tránh báo lỗi khi liên kết Slack, hủy lịch nhắc hoặc cập nhật trạng thái event.
+- Menu rỗng từng chốt chuyển sang lưu trữ để giữ lịch sử và tránh lỗi foreign key.
+- Rút gọn câu trong app; thống nhất “người lấy cơm”, giải thích lịch nhắc chung và hướng dẫn Wrangler CLI bằng tiếng Việt.
+- Các số liệu test ở trên thuộc lượt kiểm trước; xem Commit và Log mới khi quyết định release. Popup đăng nhập đã kiểm trên local với Clerk thật ở desktop/mobile; các luồng sau đăng nhập và dịch vụ thật vẫn nằm trong Test plan của PR.
+
+Chi tiết lượt rà câu chữ và popup: [báo cáo ngày 30/10](2026-10-30-language-audit.md).
