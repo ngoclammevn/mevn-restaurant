@@ -154,7 +154,8 @@ export function useMenus() {
     const existing = await getMenu(menuId)
     if (existing.error) return existing
     if (user.value?.id !== uid || existing.data?.poster_id !== uid) return signedOut()
-    if (existing.data.orders?.length) {
+    // Closure snapshots reference the menu without cascade, so a once-closed menu is archived too.
+    if (existing.data.orders?.length || existing.data.current_closure_id) {
       const archived = await sb.rpc('archive_lunch_menu', {p_menu_id:menuId})
       return {...archived,archived:true}
     }

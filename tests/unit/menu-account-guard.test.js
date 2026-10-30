@@ -54,4 +54,11 @@ describe('menu writes use the initiating account', () => {
     state.sb={from:()=>chain,rpc:vi.fn(async()=>({data:{menu_id:'menu',closure_id:'closure-1',revision:1},error:null}))}
     expect(await useMenus().setMenuClosed('menu',true,{allowUnassigned:true})).toMatchObject({committed:true,data:null,error:null,refreshError})
   })
+  it('archives an empty menu that was ever closed because closures keep a menu reference', async () => {
+    const chain={select:()=>chain,eq:()=>chain,delete:vi.fn(()=>chain),single:async()=>({data:{id:'menu',poster_id:'user_a',is_closed:false,current_closure_id:'closure-1',orders:[]},error:null})}
+    state.sb={from:()=>chain,rpc:vi.fn(async()=>({data:{id:'menu'},error:null}))}
+    expect(await useMenus().deleteMenu('menu')).toMatchObject({archived:true,error:null})
+    expect(state.sb.rpc).toHaveBeenCalledWith('archive_lunch_menu',{p_menu_id:'menu'})
+    expect(chain.delete).not.toHaveBeenCalled()
+  })
 })
