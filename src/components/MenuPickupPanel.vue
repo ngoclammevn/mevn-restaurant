@@ -40,12 +40,12 @@ async function savePreferences(){if(await form.value?.save()){showPreferences.va
 </script>
 <template>
   <section v-if="user" class="card pickup-panel">
-    <h2>Nhận cơm</h2><p v-if="loading" class="meta" role="status">Đang cập nhật phân công…</p>
-    <div v-if="pickup && pickup.status!=='unassigned'" class="pickup-person"><Avatar :profile="pickup.primary" :size="40" /><div><strong>{{ pickup.primary?.full_name || 'Người được phân công' }}</strong><p class="meta">{{ pickup.status==='received'?'Đã nhận cơm':'Người nhận cơm chính' }}</p><a v-if="contact && pickup.status==='assigned'" :href="'tel:'+contact">{{ contact }}</a></div></div>
-    <p v-else-if="!loading" class="meta">{{ menu.is_closed ? 'Chưa có phân công nhận cơm.' : 'Người đăng sẽ chọn người nhận khi chốt đơn.' }}</p>
+    <h2>Lấy cơm</h2><p v-if="loading" class="meta" role="status">Đang tải…</p>
+    <div v-if="pickup && pickup.status!=='unassigned'" class="pickup-person"><Avatar :profile="pickup.primary" :size="40" /><div><strong>{{ pickup.primary?.full_name || 'Người lấy cơm' }}</strong><p class="meta">{{ pickup.status==='received'?'Đã lấy cơm':'Người lấy cơm' }}</p><a v-if="contact && pickup.status==='assigned'" :href="'tel:'+contact">{{ contact }}</a></div></div>
+    <p v-else-if="!loading" class="meta">{{ menu.is_closed ? 'Chưa chọn người lấy cơm.' : 'Chốt đơn rồi chọn người lấy cơm nhé.' }}</p>
     <p v-if="pickup?.backup" class="meta">Dự phòng: {{ pickup.backup.full_name }}</p>
-    <div class="row-wrap"><AppButton v-if="canReceive" :loading="busy" @click="change('received')">Đã nhận cơm</AppButton><AppButton v-if="poster && pickup?.backup_user_id && pickup.status==='assigned'" variant="ghost" :disabled="busy" @click="change('backup')">Gọi người dự phòng</AppButton><AppButton variant="ghost" :disabled="busy" @click="showPreferences=!showPreferences">{{ showPreferences?'Đóng':'Khả năng nhận & đổi số của tôi' }}</AppButton></div>
-    <PickupPreferenceForm v-if="showPreferences" ref="form" :date="menu.menu_date" :disabled="busy"><template #actions="{saving}"><AppButton variant="ghost" :loading="saving" @click="savePreferences">Lưu thông tin nhận cơm</AppButton></template></PickupPreferenceForm>
+    <div class="row-wrap"><AppButton v-if="canReceive" :loading="busy" @click="change('received')">Đã lấy cơm</AppButton><AppButton v-if="poster && pickup?.backup_user_id && pickup.status==='assigned'" variant="ghost" :disabled="busy" @click="change('backup')">Gọi người dự phòng</AppButton><AppButton variant="ghost" :disabled="busy" @click="showPreferences=!showPreferences">{{ showPreferences?'Đóng':'Thông tin của mình' }}</AppButton></div>
+    <PickupPreferenceForm v-if="showPreferences" ref="form" :date="menu.menu_date" :disabled="busy"><template #actions="{saving}"><AppButton variant="ghost" :loading="saving" @click="savePreferences">Lưu thông tin</AppButton></template></PickupPreferenceForm>
     <p v-if="error" class="alert" role="alert">{{ error }} <button type="button" @click="load">Thử lại</button></p>
   </section>
 </template>

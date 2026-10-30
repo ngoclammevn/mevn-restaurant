@@ -200,7 +200,7 @@ async function submit() {
     }
     const pickupSaved=await pickupForm.value?.save()
     if(current!==generation || user.value?.id!==account || menu.value?.id!==menuId)return
-    pickupWarning.value=pickupSaved===false?'Đơn đã lưu. Chưa lưu được thông tin nhận cơm; mở mục Nhận cơm bên dưới để thử lại.':''
+    pickupWarning.value=pickupSaved===false?'Đơn đã lưu. Chưa lưu được thông tin lấy cơm; mở mục Lấy cơm bên dưới để thử lại.':''
     try { sessionStorage.removeItem(draftKey.value) } catch {}
     const wasEditing = !!editing.value
     showConfirm.value = false; presence.notifyOrderChanged(menuId); resetForm(); await router.replace({path:route.path, query:{}}); if (current !== generation || user.value?.id !== account) return; await load()

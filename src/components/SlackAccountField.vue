@@ -5,7 +5,7 @@ defineEmits(['update:modelValue','save'])
 <template>
   <div class="slack-account-field">
     <label for="slack-member-id">Slack member ID</label>
-    <p>Trong Slack, mở hồ sơ → More → Copy member ID. Chỉ dùng để nhắc đúng người nhận cơm.</p>
+    <p>Trong Slack, mở hồ sơ → More → Copy member ID. Để bot nhắc đúng người lấy cơm.</p>
     <div><input id="slack-member-id" :value="modelValue" placeholder="U0123456789" autocomplete="off" spellcheck="false" @input="$emit('update:modelValue',$event.target.value.trim())" /><button type="button" :disabled="busy || !/^[UW][A-Z0-9]{8,20}$/.test(modelValue)" @click="$emit('save',modelValue)">{{ busy?'Đang kiểm tra…':'Kiểm tra và lưu' }}</button></div>
     <span v-if="verifiedName" role="status">Đã liên kết: {{ verifiedName }}</span><span v-if="error" role="alert">{{ error }}</span>
   </div>

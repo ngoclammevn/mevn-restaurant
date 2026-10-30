@@ -57,20 +57,20 @@ defineExpose({validate,save,reload:load})
 </script>
 <template>
   <section v-if="enabled" class="pickup-preferences" aria-labelledby="pickup-question" :aria-busy="loading || saving">
-    <h3 id="pickup-question">Hôm nay bạn có thể xuống nhận cơm không?</h3>
+    <h3 id="pickup-question">Hôm nay bạn lấy cơm được không?</h3>
     <p v-if="loading" class="meta" role="status">Đang tải lựa chọn đã lưu…</p>
     <template v-else-if="ready">
-      <fieldset v-if="editing" :disabled="disabled || saving"><legend class="sr-only">Khả năng nhận cơm hôm nay</legend><label><input v-model="available" type="radio" :value="true" /> Có thể nhận</label><label><input v-model="available" type="radio" :value="false" /> Hôm nay không tiện</label></fieldset>
-      <div v-else class="row-wrap"><span>{{ available ? 'Hôm nay: có thể nhận cơm' : 'Hôm nay: không tiện nhận cơm' }}</span><AppButton variant="ghost" size="sm" :disabled="disabled || saving" @click="editing=true">Thay đổi</AppButton></div>
+      <fieldset v-if="editing" :disabled="disabled || saving"><legend class="sr-only">Lấy cơm hôm nay</legend><label><input v-model="available" type="radio" :value="true" /> Mình lấy được</label><label><input v-model="available" type="radio" :value="false" /> Hôm nay không tiện</label></fieldset>
+      <div v-else class="row-wrap"><span>{{ available ? 'Hôm nay mình lấy được' : 'Hôm nay không tiện' }}</span><AppButton variant="ghost" size="sm" :disabled="disabled || saving" @click="editing=true">Thay đổi</AppButton></div>
       <template v-if="available || savedPhone">
-        <label v-if="!savedPhone || editingPhone" class="field">Số điện thoại nhận cơm<input v-model.trim="phone" type="tel" inputmode="tel" autocomplete="tel" class="input" maxlength="24" :disabled="disabled || saving" placeholder="0901234567" /><span class="meta">Số này chỉ lưu một lần, chỉ người cần điều phối được xem.</span></label>
+        <label v-if="!savedPhone || editingPhone" class="field">Số điện thoại<input v-model.trim="phone" type="tel" inputmode="tel" autocomplete="tel" class="input" maxlength="24" :disabled="disabled || saving" placeholder="0901234567" /><span class="meta">Lưu cho lần sau. Chỉ bạn và người đăng xem được.</span></label>
         <div v-else class="row-wrap"><span class="meta">Số đã lưu: {{ savedPhone }}</span><AppButton variant="ghost" size="sm" :disabled="disabled || saving" @click="editingPhone=true">Đổi số</AppButton></div>
       </template>
     </template>
     <p v-if="error" class="alert" role="alert">{{ error }} <button v-if="!ready && !loading" type="button" @click="load">Thử lại</button></p>
     <slot name="actions" :save="save" :saving="saving" />
   </section>
-  <p v-else class="meta">Người được đặt hộ tự đăng ký khả năng nhận cơm và số điện thoại của họ trong menu.</p>
+  <p v-else class="meta">Bạn ấy sẽ tự chọn việc lấy cơm và lưu số điện thoại nhé.</p>
 </template>
 <style scoped>
 .pickup-preferences{padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--bg-tint);display:grid;gap:12px}.pickup-preferences h3{font-size:15px;margin:0}.pickup-preferences fieldset{border:0;margin:0;padding:0;display:flex;gap:18px;flex-wrap:wrap}.pickup-preferences label{min-height:44px;display:flex;align-items:center;gap:8px;font-size:14px}.pickup-preferences .field{display:grid;align-items:start}.pickup-preferences .meta{font-size:12px;margin:0}.sr-only{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden}
