@@ -17,7 +17,8 @@
       "Đồng bộ avatar trong menu, quản lý, thống kê và danh sách người đang hoạt động",
       "Thêm hiệu ứng tải ASCII nhẹ, tôn trọng tùy chọn giảm chuyển động và hiển thị dữ liệu ngay khi sẵn sàng",
       "Giữ đầy đủ thống kê và khoản chưa thu trên main; xử lý thông báo lỗi tách khỏi đơn đã lưu thành công",
-      "Làm gọn lời nhắc đặt món và lấy cơm, dùng cách xưng hô thân thiện hơn"
+      "Làm gọn lời nhắc đặt món và lấy cơm, dùng cách xưng hô thân thiện hơn",
+      "Sửa lỗi liên kết Slack, hủy lời nhắc và xử lý thông báo bị báo thất bại dù đã lưu xong"
     ]
   },
   {

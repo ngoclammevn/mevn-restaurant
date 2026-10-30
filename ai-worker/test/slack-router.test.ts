@@ -14,7 +14,8 @@ function fetchMock(){return mock.method(globalThis,'fetch',async(input:string|UR
  const url=String(input)
  if(url===`${issuer}/.well-known/jwks.json`)return Response.json({keys:[{...jwk,kid:'slack-test',alg:'RS256',use:'sig'}]})
  if(url==='https://slack.com/api/users.info')return Response.json({ok:true,user:{id:'U0123456789',team_id:'T0123456789',real_name:'Member'}})
- if(url==='https://db.example.test/rest/v1/rpc/link_lunch_slack_account')return Response.json(null)
+ // PostgREST answers void RPCs with 204 No Content.
+ if(url==='https://db.example.test/rest/v1/rpc/link_lunch_slack_account')return new Response(null,{status:204})
  throw Error(`unexpected ${url}`)
 })}
 test('Slack route rejects missing and expired credentials before Slack calls',async()=>{
