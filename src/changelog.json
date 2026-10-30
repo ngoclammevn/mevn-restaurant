@@ -1,5 +1,25 @@
 [
   {
+    "date": "2026-10-30",
+    "changes": [
+      "Lưu số điện thoại nhận cơm một lần, kiểm tra định dạng và cho đổi số ngay trong menu",
+      "Ghi nhớ khả năng nhận cơm theo từng ngày; người được đặt hộ tự đăng ký thông tin của mình",
+      "Bốc thăm người nhận ưu tiên người ít nhận gần đây, chọn người dự phòng và xác nhận đã nhận cơm",
+      "Cho phép chủ menu tự thu xếp nhận hàng khi chưa có người đăng ký, vẫn chốt được đơn",
+      "Bot Slack gom menu vào một luồng mỗi ngày, chia sẻ ảnh và link khi chủ menu bấm đăng kênh chung",
+      "Thông báo khi chốt, mở lại, đổi người nhận và nhận cơm; nhắc đúng người đã liên kết Slack",
+      "Đặt giờ nhắc trên Slack, xem trạng thái gửi và xử lý trường hợp chưa rõ bot đã gửi hay chưa",
+      "Thêm bữa được mời và lý do mời; các đơn này không cần chuyển khoản và không tính vào nợ",
+      "Giữ giá tại mỗi lần chốt, xem lại các phiên trước và không tự đoán giá lịch sử còn thiếu",
+      "Tải Excel ba sheet gửi quán, theo người và chưa thu; giữ lựa chọn tải CSV theo menu hoặc khoảng ngày",
+      "Lưu trữ menu có đơn thay vì xóa, giữ lịch sử và khoản chưa thu; ngừng nhận hoặc sửa món trên menu đã lưu trữ",
+      "Thêm tám avatar mascot có chuyển động, cho tự chọn hoặc tải ảnh riêng; giữ lựa chọn khi đăng nhập lại",
+      "Đồng bộ avatar trong menu, quản lý, thống kê và danh sách người đang hoạt động",
+      "Thêm hiệu ứng tải ASCII nhẹ, tôn trọng tùy chọn giảm chuyển động và hiển thị dữ liệu ngay khi sẵn sàng",
+      "Giữ đầy đủ thống kê và khoản chưa thu trên main; xử lý thông báo lỗi tách khỏi đơn đã lưu thành công"
+    ]
+  },
+  {
     "date": "2026-10-29",
     "changes": [
       "Giữ đầy đủ thống kê và các khoản chưa thu từ những ngày trước khi nâng cấp giao diện"

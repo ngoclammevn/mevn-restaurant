@@ -231,7 +231,7 @@ watch([startDate, endDate, onlyMyMenus], () => {
                 <div class="stack-sm">
                   <!-- Person header -->
                   <div class="row-wrap">
-                    <Avatar :src="person.avatar_url" :name="person.full_name || ''" />
+                    <Avatar :profile="person.avatar || {id:person.user_id,avatar_url:person.avatar_url}" :name="person.full_name || ''" />
                     <div>
                       <div class="person-name">
                         {{ person.full_name || '(chưa đặt tên)' }}
@@ -464,7 +464,7 @@ watch([startDate, endDate, onlyMyMenus], () => {
                     :key="m.user_id"
                     class="member-stat-row"
                   >
-                    <Avatar :src="m.avatar_url" :name="m.full_name" :size="34" />
+                    <Avatar :profile="m.avatar || {id:m.user_id,avatar_url:m.avatar_url}" :name="m.full_name" :size="34" />
                     <div class="member-stat-info">
                       <div class="member-stat-name">{{ m.full_name }}</div>
                       <div class="meta member-stat-sub">

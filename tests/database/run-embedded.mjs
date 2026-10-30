@@ -71,7 +71,10 @@ try {
   if (!compatibility.rows[0]?.is_closed || compatibility.rows[1]?.is_closed) throw new Error('Deadline compatibility must close expired menus and preserve future menus')
   await db.exec('update public.menus set is_closed=true')
   await run('../../supabase/migrations/20261003080019_lunch_catalog_reviews.sql')
+  await run('legacy-domain-before.sql')
+  for (const migration of ['20261029144827_lunch_personal_avatars.sql','20261029145057_lunch_pickup_contacts.sql','20261029145105_lunch_sponsorship_and_finance.sql','20261029145108_lunch_close_and_pickup.sql','20261029145252_lunch_slack_events.sql']) await run('../../supabase/migrations/'+migration)
   await run('checks.sql')
+  for (const fixture of ['pickup.sql','finance.sql','close-pickup.sql','avatar.sql','slack-events.sql','review-fixes.sql']) await run(fixture)
   console.log(`PostgreSQL checks: ${passed} assertions, ${rejected} rejected writes, all passed`)
 } catch (error) {
   console.error(`SQL check failed: ${error.message}`)

@@ -21,4 +21,11 @@ done
 psqlCheck -q -f "$projectRoot/tests/database/legacy.sql"
 psqlCheck -q -f "$projectRoot/supabase/migrations/20261003070000_close_ordering_compat.sql"
 psqlCheck -q -f "$projectRoot/supabase/migrations/20261003080019_lunch_catalog_reviews.sql" >"$testRoot/catalog.log" 2>&1 || { cat "$testRoot/catalog.log"; exit 1; }
+psqlCheck -q -f "$projectRoot/tests/database/legacy-domain-before.sql"
+for migration in 20261029144827_lunch_personal_avatars.sql 20261029145057_lunch_pickup_contacts.sql 20261029145105_lunch_sponsorship_and_finance.sql 20261029145108_lunch_close_and_pickup.sql 20261029145252_lunch_slack_events.sql; do
+  psqlCheck -q -f "$projectRoot/supabase/migrations/$migration"
+done
 psqlCheck -q -f "$projectRoot/tests/database/checks.sql"
+for fixture in pickup.sql finance.sql close-pickup.sql avatar.sql slack-events.sql review-fixes.sql; do
+  psqlCheck -q -f "$projectRoot/tests/database/$fixture"
+done

@@ -24,3 +24,5 @@ export { default as PaymentQRModal } from './PaymentQRModal.vue'
 
 export { default as AppDialog } from './AppDialog.vue'
 export { default as FormErrorSummary } from './FormErrorSummary.vue'
+
+export { default as AsciiSkeleton } from './AsciiSkeleton.vue'

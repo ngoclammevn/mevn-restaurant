@@ -1,19 +1,25 @@
 import { ref, shallowRef, provide, inject, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUser, useSession } from '@clerk/vue'
+import { useProfile } from './useProfile'
 import { useSupabaseClient } from '../lib/supabase'
 import { serializePresenceContext, dedupeViewers } from '../lib/presence'
 const KEY = Symbol('app-presence')
 const noopContext = { viewers: ref([]), connected: ref(false), setMenuDraft() {}, clearMenuDraft() {}, notifyOrderChanged() {}, onOrderChanged() { return () => {} } }
 export function useAppPresence() { return inject(KEY, noopContext) }
 export function provideAppPresence() {
+  const {currentProfile}=useProfile()
   const route = useRoute(), { user } = useUser(), { session } = useSession(), sb = useSupabaseClient()
   const viewers = shallowRef([]), connected = ref(false), draft = shallowRef({ menu: null, names: [] })
   const callbacks = new Set(), pendingEvents = new Set(), received = new Map()
   let channel = null, epoch = 0, trackTimer, eventTimer, alive = true, trackQueue = Promise.resolve()
   const deviceId = crypto.randomUUID()
   function payload() {
-    return { userId: user.value?.id, name: user.value?.fullName || user.value?.firstName || 'Thành viên', updatedAt: Date.now(),
+    const profile=currentProfile.value?.id===user.value?.id?currentProfile.value:null
+    const avatar={id:user.value?.id,full_name:profile?.full_name || user.value?.fullName,
+      avatar_url:profile?.avatar_url || user.value?.imageUrl,provider_has_image:profile?.provider_has_image ?? user.value?.hasImage,
+      avatar_mode:profile?.avatar_mode || 'auto',mascot_id:profile?.mascot_id || null,uploaded_avatar_path:profile?.uploaded_avatar_path || null}
+    return { avatar,userId: user.value?.id, name: user.value?.fullName || user.value?.firstName || 'Thành viên', updatedAt: Date.now(),
       ...serializePresenceContext({ path: route.path, menu: draft.value.menu, picks: draft.value.names }) }
   }
   function track(immediate = false) {
@@ -84,6 +90,7 @@ export function provideAppPresence() {
     }, 250)
   }
   function onOrderChanged(callback) { callbacks.add(callback); return () => callbacks.delete(callback) }
+  watch(currentProfile,()=>track(true))
   watch(() => route.path, () => { clearMenuDraft() }, { flush: 'sync' })
   watch([() => user.value?.id, () => session.value?.id], connect, { immediate: true })
   onUnmounted(() => { alive = false; cleanup(); callbacks.clear() })

@@ -18,7 +18,13 @@ export function normalizePresenceEntry(entry) {
   if (!entry || typeof entry !== 'object' || typeof entry.userId !== 'string' || !entry.userId.trim() || entry.userId.length > 160) return null
   const context = serializePresenceContext({ path: entry.page === 'today' ? '/' : entry.page === 'menu' && entry.menuId ? '/menu/' + encodeURIComponent(entry.menuId) : '',
     menu: { id: entry.menuId, restaurantName: entry.restaurantName }, picks: entry.picks })
-  return { id: entry.userId, name: text(entry.name, 120) || 'Thành viên', ...context,
+  const avatar=entry.avatar && typeof entry.avatar==='object' && entry.avatar.id===entry.userId ? {
+    id:entry.userId,full_name:text(entry.avatar.full_name,120),avatar_url:text(entry.avatar.avatar_url,2048),
+    provider_has_image:typeof entry.avatar.provider_has_image==='boolean'?entry.avatar.provider_has_image:null,
+    avatar_mode:['auto','mascot','upload'].includes(entry.avatar.avatar_mode)?entry.avatar.avatar_mode:'auto',
+    mascot_id:text(entry.avatar.mascot_id,32),uploaded_avatar_path:text(entry.avatar.uploaded_avatar_path,240)
+  }:null
+  return { ...(avatar?{avatar}:{}),id: entry.userId, name: text(entry.name, 120) || 'Thành viên', ...context,
     updatedAt: Number.isFinite(entry.updatedAt) ? Math.min(entry.updatedAt, Date.now()) : 0 }
 }
 export function dedupeViewers(state) {

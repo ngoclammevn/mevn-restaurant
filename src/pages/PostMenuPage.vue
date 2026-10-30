@@ -9,11 +9,17 @@ import { menuDishes, parseMenuNote, serializeMenu } from '../lib/menu'
 import { compressImage, extractStructuredMenu } from '../lib/gemini'
 import RestaurantPicker from '../components/RestaurantPicker.vue'
 import PostMenuPreviewDialog from '../components/PostMenuPreviewDialog.vue'
+import SponsorshipField from '../components/SponsorshipField.vue'
+import MenuReminderField from '../components/MenuReminderField.vue'
+import SlackDeliveryStatus from '../components/SlackDeliveryStatus.vue'
+import { useSlackNotifications } from '../composables/useSlackNotifications'
+import { useSupabaseClient } from '../lib/supabase'
 import { AppButton, PageHeader, FileUpload, SignInModal, FormErrorSummary } from '../components/ui'
 const { user } = useUser()
 const route = useRoute()
 const { createMenu, getMenu } = useMenus()
 const { listDishes } = useCatalog()
+const slack=useSlackNotifications(),sb=useSupabaseClient(),paymentMode=ref('self'),sponsorReason=ref(''),reminderAt=ref(null),notificationWarning=ref('')
 const catalog = ref([])
 let catalogGeneration = 0
 const menuDate = ref(todayInVN()), restaurantId = ref(''), note = ref(''), dishes = ref([]), imageFile = ref(null), imagePreview = ref(''), imageData = ref(''), useOcr = ref(true)
@@ -23,7 +29,7 @@ const postMode = ref('structured'), postSource = ref('manual'), keptDishes = ref
 const draftKey = computed(() => user.value?.id ? `lunch-post-v2:${user.value.id}` : null)
 let ready = false, generation = 0, imageGeneration = 0, reuseController
 
-function reset() { menuDate.value = todayInVN(); restaurantId.value = ''; note.value = ''; dishes.value = []; keptDishes.value = []; postMode.value = 'structured'; postSource.value = 'manual'; imageFile.value = null; imageData.value = ''; useOcr.value = true }
+function reset() { paymentMode.value='self';sponsorReason.value='';reminderAt.value=null; menuDate.value = todayInVN(); restaurantId.value = ''; note.value = ''; dishes.value = []; keptDishes.value = []; postMode.value = 'structured'; postSource.value = 'manual'; imageFile.value = null; imageData.value = ''; useOcr.value = true }
 watch(() => user.value?.id, async (accountId, previousAccountId) => {
   const guestDraft = accountId && !previousAccountId && (note.value.trim() || imageFile.value || dishes.value?.length) ? {date:menuDate.value,restaurant:restaurantId.value,note:note.value,dishes:dishes.value,ocr:useOcr.value,image:imageData.value,imageFile:imageFile.value} : null
   const current = ++generation; imageGeneration++; reuseController?.abort(); ready = false; reset(); posting.value = false; status.value = ''; reuseId.value = ''; createdId.value = ''; showPreview.value = false; formErrors.value = []; error.value = ''
@@ -31,6 +37,7 @@ watch(() => user.value?.id, async (accountId, previousAccountId) => {
   try {
     const saved = guestDraft || JSON.parse(sessionStorage.getItem(draftKey.value) || 'null')
     if (saved) {
+      paymentMode.value=saved.paymentMode || 'self';sponsorReason.value=saved.sponsorReason || '';reminderAt.value=saved.reminderAt || null
       menuDate.value = saved.date || todayInVN(); restaurantId.value = saved.restaurant || ''; note.value = saved.note || ''; dishes.value = saved.dishes ?? null; useOcr.value = saved.ocr ?? true
       if (saved.imageFile) imageFile.value = saved.imageFile
       else if (saved.image) {
@@ -46,9 +53,9 @@ watch(() => user.value?.id, async (accountId, previousAccountId) => {
   ready = true
   if (route.query.reuse) await reuse(String(route.query.reuse))
 }, { immediate: true })
-watch([menuDate, restaurantId, note, dishes, useOcr, imageData], () => {
+watch([menuDate, restaurantId, note, dishes, useOcr, imageData,paymentMode,sponsorReason,reminderAt], () => {
   if (!ready || !draftKey.value) return
-  try { sessionStorage.setItem(draftKey.value, JSON.stringify({date:menuDate.value, restaurant:restaurantId.value, note:note.value, dishes:dishes.value, ocr:useOcr.value, image:imageData.value, imageName:imageFile.value?.name})) }
+  try { sessionStorage.setItem(draftKey.value, JSON.stringify({date:menuDate.value,paymentMode:paymentMode.value,sponsorReason:sponsorReason.value,reminderAt:reminderAt.value, restaurant:restaurantId.value, note:note.value, dishes:dishes.value, ocr:useOcr.value, image:imageData.value, imageName:imageFile.value?.name})) }
   catch { /* Keep the live form when session storage is full. */ }
 }, { deep: true })
 watch(restaurantId, async (id, old) => {
@@ -94,7 +101,7 @@ async function reuse(id) {
     }
     if (current !== generation) return
     await nextTick(); ready = true; reuseId.value = id
-    try { sessionStorage.setItem(draftKey.value, JSON.stringify({date:menuDate.value, restaurant:restaurantId.value, note:note.value, dishes:dishes.value, ocr:true})) } catch {}
+    try { sessionStorage.setItem(draftKey.value, JSON.stringify({date:menuDate.value,paymentMode:paymentMode.value,sponsorReason:sponsorReason.value,reminderAt:reminderAt.value, restaurant:restaurantId.value, note:note.value, dishes:dishes.value, ocr:true})) } catch {}
   }
   if (current === generation) posting.value = false
 }
@@ -137,14 +144,28 @@ async function readImage() {
 }
 async function publishMenu() {
   if (!showPreview.value || posting.value || !user.value) return
-  const account = user.value.id, current = generation
+  const account = user.value.id, current = generation, requestedReminder=reminderAt.value
   posting.value = true; error.value = ''; status.value = imageFile.value ? 'Đang tải ảnh và đăng menu…' : 'Đang đăng menu…'
   try {
-    const result = await createMenu({ title:title.value, menu_date:menuDate.value, restaurant_id:restaurantId.value || null, note:dishes.value !== null ? serializeMenu(dishes.value, note.value.trim()) : note.value.trim() || null, imageFile:imageFile.value })
+    const result = await createMenu({ title:title.value, menu_date:menuDate.value, restaurant_id:restaurantId.value || null, note:dishes.value !== null ? serializeMenu(dishes.value, note.value.trim()) : note.value.trim() || null, imageFile:imageFile.value,payment_mode:paymentMode.value,sponsor_reason:sponsorReason.value.trim() || null })
     if (current !== generation || user.value?.id !== account) return
     if (result.error || !result.data?.id) throw result.error || new Error('missing_menu')
-    createdId.value = result.data.id; showPreview.value = false; ready = false
+    createdId.value = result.data.id; showPreview.value = false; ready = false;notificationWarning.value=''
+    // The menu is committed already: ancillary delivery failures must never invite a duplicate post.
     try { sessionStorage.removeItem(draftKey.value) } catch {}
+    try {
+      await slack.publishMenu(result.data.id)
+      if(current!==generation || user.value?.id!==account)return
+      if(requestedReminder){
+        const reminderResult=await sb.rpc('set_lunch_reminder',{p_menu_id:result.data.id,p_at:requestedReminder})
+        if(current!==generation || user.value?.id!==account)return
+        if(reminderResult.error)throw reminderResult.error
+        await slack.syncReminder(result.data.id)
+      }
+    } catch {
+      if(current===generation && user.value?.id===account)notificationWarning.value='Menu đã đăng. Chưa hoàn tất thông báo hoặc lịch nhắc; bạn có thể thử lại trong Quản lý.'
+    }
+    if(current!==generation || user.value?.id!==account)return
     reset(); await nextTick(); ready = true
   } catch { if (current === generation && user.value?.id === account) error.value = 'Chưa đăng được menu hoặc tải ảnh. Bản nháp được giữ để bạn thử lại.' }
   finally { if (current === generation && user.value?.id === account) { posting.value = false; status.value = '' } }
@@ -158,7 +179,7 @@ async function copyLink() {
 <template>
   <div class="post-page">
     <PageHeader eyebrow="Dành cho người đăng" title="Đăng menu" />
-    <section v-if="createdId" class="card post-success" role="status"><div class="post-success-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg></div><span class="eyebrow">Đã đăng thành công</span><h2>Đã đăng menu</h2><p class="meta">Bạn thu tiền cho menu này.</p><p v-if="error" class="alert" role="alert">{{ error }}</p><div class="post-actions"><AppButton :to="`/menu/${createdId}`">Xem menu</AppButton><AppButton variant="ghost" :to="{path:'/manage',query:{menu_id:createdId}}">Xem quản lý menu</AppButton><AppButton variant="ghost" @click="copyLink">{{ copied ? 'Đã chép link' : 'Sao chép link' }}</AppButton><AppButton variant="ghost" @click="createdId = ''; copied = false">Đăng menu khác</AppButton></div></section>
+    <section v-if="createdId" class="card post-success" role="status"><div class="post-success-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg></div><span class="eyebrow">Đã đăng thành công</span><h2>Đã đăng menu</h2><p class="meta">Bạn quản lý đơn cho menu này.</p><p v-if="notificationWarning" class="alert" role="status">{{ notificationWarning }}</p><SlackDeliveryStatus v-if="slack.states.value[createdId]" :state="slack.states.value[createdId]" @retry="slack.publishMenu(createdId)" /><p v-if="error" class="alert" role="alert">{{ error }}</p><div class="post-actions"><AppButton :to="`/menu/${createdId}`">Xem menu</AppButton><AppButton variant="ghost" :to="{path:'/manage',query:{menu_id:createdId}}">Xem quản lý menu</AppButton><AppButton variant="ghost" @click="copyLink">{{ copied ? 'Đã chép link' : 'Sao chép link' }}</AppButton><AppButton variant="ghost" @click="createdId = ''; copied = false">Đăng menu khác</AppButton></div></section>
     <form v-else :aria-busy="posting" @submit.prevent="reviewMenu" novalidate>
       <FormErrorSummary ref="errorSummary" :errors="formErrors" />
       <div class="post-grid">
@@ -172,8 +193,8 @@ async function copyLink() {
         </div>
         <aside><section class="card post-card post-summary"><h2><span class="post-step">3</span>Trước khi đăng</h2><h3>{{ restaurantName || 'Chưa chọn quán' }}</h3><p class="meta">{{ formatVNDate(menuDate) }}</p><div class="post-summary-line"><span>Nội dung</span><strong>{{ dishes!==null ? (dishes.length+' món') : postMode==='plain' ? 'Menu viết tay' : 'Ảnh thực đơn' }}</strong></div><div class="post-summary-line"><span>Người thu tiền</span><strong>{{ user?.fullName || user?.firstName || 'Bạn' }}</strong></div><p class="post-note">{{ dishes!==null ? 'Người đặt chọn món trong danh sách.' : postMode==='plain' ? 'Người đặt nhập tên món. Không tự tính tiền.' : 'Kiểm tra món đọc từ ảnh trước khi đăng.' }}</p><p class="meta">Thông tin chuyển khoản lấy từ Hồ sơ.</p><p v-if="status" class="progress-note" role="status">{{ status }}</p><p v-if="error" class="alert" role="alert">{{ error }}</p><AppButton class="post-wide" type="submit" :loading="posting">{{ imageFile && useOcr && dishes===null ? 'Đọc ảnh và kiểm tra món' : 'Xem lại menu' }}</AppButton><p class="post-help post-fixed-hint">Nháp được giữ khi đổi trang.</p></section></aside>
       </div>
-    </form>
-    <PostMenuPreviewDialog :open="showPreview" :restaurant-name="restaurantName" :collector-name="user?.fullName || user?.firstName || 'Bạn'" :menu-date="menuDate" :dishes="dishes" :note="note" :image-preview="imagePreview" :posting="posting" :errors="error" @close="closePreview" @publish="publishMenu" /><SignInModal v-if="showSignIn" @close="showSignIn=false" />
+    <SponsorshipField v-model="paymentMode" v-model:reason="sponsorReason" :disabled="posting" /><MenuReminderField v-model="reminderAt" :menu-date="menuDate" :disabled="posting" /></form>
+    <PostMenuPreviewDialog :open="showPreview" :restaurant-name="restaurantName" :collector-name="user?.fullName || user?.firstName || 'Bạn'" :menu-date="menuDate" :dishes="dishes" :note="note" :image-preview="imagePreview" :posting="posting" :errors="error" @close="closePreview" @publish="publishMenu" /><div v-if="createdId" class="card stack-sm"><h2>Trạng thái thông báo menu vừa đăng</h2><SlackDeliveryStatus :state="slack.states.value[createdId] || {status:'pending'}" @retry="slack.states.value[createdId]?.eventId?slack.retryEvent(slack.states.value[createdId].eventId,createdId):slack.publishMenu(createdId)" @resolve="slack.resolveEvent(slack.states.value[createdId]?.eventId,$event,createdId)" /><p v-if="notificationWarning" class="meta">{{ notificationWarning }}</p></div><SignInModal v-if="showSignIn" @close="showSignIn=false" />
   </div>
 </template>
 <style scoped>

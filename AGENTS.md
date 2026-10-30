@@ -49,6 +49,23 @@ người thu tiền thấy **ai chưa trả**. Nhóm **< 25 người, tin tưở
 2. **Không backend nghiệp vụ riêng.** Ngoại lệ đã duyệt là AI Worker ở trên. Không thêm Express/Clerk webhook hoặc dùng service_role.
 3. **Deploy dễ trên Vercel** — chỉ là static build.
 
+## Ngoại lệ được chủ dự án duyệt ngày 29/10/2026
+
+- Đợt nâng cấp dùng **một Cloudflare Worker chung AI + Slack**, không Express,
+  không Worker thứ hai và không webhook Clerk. Worker dùng JWT Clerk hiện tại +
+  Supabase publishable key, vẫn chịu RLS. Secret bot Slack và receipt signing key
+  chỉ ở Worker Secrets; tuyệt đối không Supabase service_role/Clerk secret.
+- Năm migration `20261029*` bổ sung liên hệ nhận cơm riêng tư, consent theo ngày,
+  phân công, sponsorship, snapshot giá chốt, avatar và registry Slack đã được duyệt.
+  Không còn giới hạn schema ở ba bảng nền khi thực hiện đúng đặc tả này.
+- Phone lưu một lần theo tài khoản, cho đổi trong menu; consent riêng từng ngày,
+  không đồng ý thay người được đặt hộ. Self-tick thanh toán giữ nguyên; bữa được
+  mời không phải khoản nợ. Menu có đơn được lưu trữ thay vì xóa.
+- Chi tiết hợp đồng mới và vận hành:
+  `docs/superpowers/specs/2026-10-29-slack-delivery-and-sponsor-proposal.md`,
+  `docs/operations/2026-10-29-main-rollout.md`. Chỉ áp migration thiếu sau khi đối
+  chiếu history, backup DB + Storage và restore thử; không reset production.
+
 ## Bảo mật — ĐỌC KỸ (yêu cầu cao nhất của chủ dự án)
 
 - **Rào bảo mật = RLS policy trong Postgres**, KHÔNG phải việc giấu key.

@@ -4,7 +4,7 @@ import { useUser } from '@clerk/vue'
 import AppButton from './AppButton.vue'
 import AppDialog from './AppDialog.vue'
 import { LIST_BANKS } from '../../lib/banks'
-import { menuDishes } from '../../lib/menu'
+import { orderPriceItems } from '../../lib/settlement-items'
 import { managedOrderAmount } from '../../lib/manage-summary'
 const props = defineProps({
   order: { type: Object, required: true }, poster: { type: Object, required: true },
@@ -28,18 +28,7 @@ const fullBankName = computed(() => {
   const bank = LIST_BANKS.find(entry => entry.code === payInfo.value.bankId)
   return bank ? `${bank.name} (${bank.code})` : payInfo.value.bankId
 })
-const breakdown = computed(() => {
-  const dishes = menuDishes(props.menu)
-  const price = dish => typeof dish?.price === 'number' && Number.isFinite(dish.price) && dish.price >= 0 ? dish.price : null
-  const exactLine = name => { const matches = dishes.filter(dish => dish.name === name); return { name, price: matches.length === 1 ? price(matches[0]) : null } }
-  const lines = value => String(value || '').split('\n').map(name => name.trim()).filter(Boolean).map(exactLine)
-  const items = props.order.order_items?.length ? props.order.order_items.flatMap(item => {
-    if (!item.menu_item_id) return lines(item.name_snapshot || props.order.item_text)
-    const dish = dishes.find(entry => entry.id === item.menu_item_id)
-    return [{ name: dish?.name || item.name_snapshot || 'Món đã đặt', price: price(dish) }]
-  }) : lines(props.order.item_text)
-  return { items, total: managedOrderAmount(props.menu, props.order) }
-})
+const breakdown = computed(()=>({items:orderPriceItems(props.menu || {},props.order).map(item=>({name:item.name,price:item.unitPrice})),total:managedOrderAmount(props.menu || {},props.order)}))
 const amountText = computed(() => amount.value == null ? '' : new Intl.NumberFormat('vi-VN').format(amount.value))
 const money = value => value == null ? 'Chưa có giá' : `${new Intl.NumberFormat('vi-VN').format(value)} đ`
 function inputAmount(event) {
@@ -72,7 +61,7 @@ watch([activeTab, amount, payInfo], () => { qrError.value = false; downloadError
 watch(() => user.value?.id, () => { generation++; emit('close') })
 onUnmounted(() => { generation++; clearTimeout(copyTimer) })
 function close() { if (!props.loading) emit('close') }
-function confirmPaid() { if (own.value && !props.loading && !props.order.is_paid) emit('paid') }
+function confirmPaid() { if (own.value && props.menu?.payment_mode!=='sponsored' && !props.loading && !props.order.is_paid) emit('paid') }
 function retryQR() { qrError.value = false; qrKey.value++ }
 async function copyText(text, field) {
   const current = generation
@@ -104,7 +93,7 @@ async function downloadQr() {
 }
 </script>
 <template>
-  <AppDialog open :title="`Chuyển khoản cho ${poster?.full_name || 'người đăng menu'}`" @close="close">
+  <AppDialog :open="menu?.payment_mode!=='sponsored'" :title="`Chuyển khoản cho ${poster?.full_name || 'người đăng menu'}`" @close="close">
     <div class="stack payment-dialog">
       <div class="payment-context"><span class="eyebrow">Đơn của bạn · {{ menuDate.split('-').reverse().join('/') }}</span><p class="meta">{{ order.item_text }}{{ menu?.restaurant?.name ? ` · ${menu.restaurant.name}` : '' }}</p></div>
       <details><summary>Món đã đặt</summary><div v-for="(item,index) in breakdown.items" :key="index" class="row-wrap payment-line"><span>{{ item.name }}</span><span>{{ money(item.price) }}</span></div><div v-if="breakdown.total != null" class="row-wrap payment-line payment-total"><strong>Tổng từ menu</strong><strong>{{ money(breakdown.total) }}</strong></div></details>

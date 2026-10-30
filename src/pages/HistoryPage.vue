@@ -1,4 +1,6 @@
 <script setup>
+import { isOutstanding } from '../../shared/lunch-finance.js'
+import AsciiSkeleton from '../components/ui/AsciiSkeleton.vue'
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useOrders } from '../composables/useOrders'
@@ -23,7 +25,7 @@ const grouped = computed(() => {
   return result
 })
 const selectedOrders = computed(() => grouped.value[selected.value] ?? [])
-const unpaid = computed(() => orders.value.filter(o => !o.is_paid).length)
+const unpaid = computed(() => orders.value.filter(o => isOutstanding(o.menu,o)).length)
 const monthTitle = computed(() => new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month.value}-01T12:00:00Z`)))
 let generation = 0, unpaidGeneration = 0
 watch([month, () => user.value?.id], () => load(), { immediate: true })
@@ -47,7 +49,7 @@ async function loadUnpaid(clear = true) {
   try {
     const result = await readAll({ unpaidOnly: true }, current, value => value === unpaidGeneration)
     if (current !== unpaidGeneration) return
-    unpaidOrders.value = result ?? []
+    unpaidOrders.value = (result ?? []).filter(order=>isOutstanding(order.menu,order))
   } catch { if (current === unpaidGeneration) unpaidError.value = 'Chưa tải được các đơn chưa trả.' }
   finally { if (current === unpaidGeneration) unpaidLoading.value = false }
 }
@@ -55,8 +57,8 @@ function orderChanged(order) {
   for (const entry of [...orders.value, ...unpaidOrders.value]) {
     if (entry.id === order.id) { entry.is_paid = order.is_paid; entry.order_items = order.order_items }
   }
-  unpaidOrders.value = unpaidOrders.value.filter(entry => !entry.is_paid)
-  if (!order.is_paid && !unpaidOrders.value.some(entry => entry.id === order.id)) unpaidOrders.value.push(order)
+  unpaidOrders.value = unpaidOrders.value.filter(entry => isOutstanding(entry.menu,entry))
+  if (isOutstanding(order.menu,order) && !unpaidOrders.value.some(entry => entry.id === order.id)) unpaidOrders.value.push(order)
 }
 async function load(clear = true) {
   const current = ++generation; if (clear) orders.value = []; error.value = ''
@@ -81,12 +83,12 @@ function goToday() { month.value = today.slice(0, 7); selected.value = today }
     <section class="card history-calendar" :aria-busy="loading">
       <div class="history-month"><AppButton variant="ghost" aria-label="Tháng trước" @click="move(-1)">←</AppButton><h2>{{ monthTitle }}</h2><AppButton variant="ghost" aria-label="Tháng sau" @click="move(1)">→</AppButton><AppButton variant="ghost" class="history-today" @click="goToday">Hôm nay</AppButton></div>
       <div class="calendar-grid"><span v-for="label in ['T2','T3','T4','T5','T6','T7','CN']" :key="label" class="calendar-weekday">{{ label }}</span>
-        <button v-for="date in days" :key="date" type="button" class="calendar-cell" :class="{ outside: !date.startsWith(month), active: selected === date, today: date === today, meal: grouped[date]?.length }" :aria-label="`${formatVNDate(date)}, ${(grouped[date] ?? []).length} đơn`" :aria-pressed="selected === date" @click="selected = date"><b>{{ Number(date.slice(-2)) }}</b><span v-if="grouped[date]?.length" class="calendar-dishes">{{ grouped[date].map(order => order.item_text).join(', ') }}</span><span v-if="grouped[date]?.length" class="calendar-count">{{ grouped[date].length }} đơn</span><i v-if="grouped[date]?.length" class="meal-dot" aria-hidden="true" /><i v-if="grouped[date]?.some(o => !o.is_paid)" class="unpaid-dot" aria-label="Có đơn chưa trả" /></button>
+        <button v-for="date in days" :key="date" type="button" class="calendar-cell" :class="{ outside: !date.startsWith(month), active: selected === date, today: date === today, meal: grouped[date]?.length }" :aria-label="`${formatVNDate(date)}, ${(grouped[date] ?? []).length} đơn`" :aria-pressed="selected === date" @click="selected = date"><b>{{ Number(date.slice(-2)) }}</b><span v-if="grouped[date]?.length" class="calendar-dishes">{{ grouped[date].map(order => order.item_text).join(', ') }}</span><span v-if="grouped[date]?.length" class="calendar-count">{{ grouped[date].length }} đơn</span><i v-if="grouped[date]?.length" class="meal-dot" aria-hidden="true" /><i v-if="grouped[date]?.some(o => isOutstanding(o.menu,o))" class="unpaid-dot" aria-label="Có đơn chưa trả" /></button>
       </div>
       <p class="meta calendar-legend">Có bữa trưa: ngày có món · Chọn ngày để xem chi tiết</p>
     </section>
     <div class="history-detail-grid">
-      <section class="card stack history-day"><span class="eyebrow">Ngày {{ formatVNDate(selected) }}</span><Spinner v-if="loading && !orders.length" label="Đang tải đơn…" /><p v-else-if="loading" class="meta" role="status">Đang cập nhật…</p><div class="stack"><OrderCard v-for="order in selectedOrders" :key="order.id" :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn" description="Ngày này chưa có bữa trưa. Đơn đặt hộ bạn cũng xuất hiện ở đây." /></div></section>
+      <section class="card stack history-day"><span class="eyebrow">Ngày {{ formatVNDate(selected) }}</span><AsciiSkeleton v-if="loading && !orders.length" kind="calendar" label="Đang tải lịch cơm…" /><p v-else-if="loading" class="meta" role="status">Đang cập nhật…</p><div class="stack"><OrderCard v-for="order in selectedOrders" :key="order.id" :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn" description="Ngày này chưa có bữa trưa. Đơn đặt hộ bạn cũng xuất hiện ở đây." /></div></section>
       <section class="card stack history-unpaid"><div><h2>Đơn chưa thanh toán</h2><p class="meta">Các đơn chưa trả được giữ riêng khỏi lịch.</p></div><Spinner v-if="unpaidLoading" label="Đang tải đơn chưa trả…" /><p v-if="unpaidError" class="alert" role="alert">{{ unpaidError }} <button type="button" @click="loadUnpaid">Thử lại</button></p><div v-for="order in unpaidOrders" :key="order.id" class="stack-sm history-unpaid-entry"><p class="meta">{{ formatVNDate(order.menu.menu_date) }}</p><OrderCard :order="order" :menu="order.menu" @changed="orderChanged(order)" /></div><p v-if="!unpaidLoading && !unpaidError && !unpaidOrders.length" class="meta">Bạn đã thanh toán tất cả đơn cơm.</p></section>
     </div>
   </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />

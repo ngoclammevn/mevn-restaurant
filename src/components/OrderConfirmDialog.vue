@@ -7,12 +7,12 @@ const emit = defineEmits(['close', 'confirm'])
   <AppDialog :open="open" :title="editing ? 'Xem lại thay đổi' : 'Xem lại đơn'" @close="!busy && emit('close')">
     <div class="stack confirm-order">
       <p class="meta">{{ menu?.restaurant?.name || menu?.title }} · Đặt cho {{ recipientName }}</p><slot name="recipient" />
-      <ul v-if="dishes.length" class="confirm-dishes"><li v-for="dish in dishes" :key="dish.id || dish.name"><strong>{{ dish.name }}</strong><span class="meta">{{ dish.price == null || dish.price === '' ? 'Chưa có giá' : `${Number(dish.price).toLocaleString('vi-VN')}đ` }}</span></li></ul>
+      <slot name="pickup" /><ul v-if="dishes.length" class="confirm-dishes"><li v-for="dish in dishes" :key="dish.id || dish.name"><strong>{{ dish.name }}</strong><span class="meta">{{ dish.price == null || dish.price === '' ? 'Chưa có giá' : `${Number(dish.price).toLocaleString('vi-VN')}đ` }}</span></li></ul>
       <p v-else class="order-lines">{{ itemText }}</p>
       <div v-if="note" class="stack-sm"><strong>Ghi chú</strong><p class="order-lines">{{ note }}</p></div>
-      <div class="confirm-total"><strong>Tổng tiền</strong><strong>{{ total == null ? 'Chưa xác định' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div>
-      <p v-if="total == null" class="meta">Xác nhận số tiền với người đăng menu.</p>
-      <p class="meta">Người nhận đơn tự đánh dấu đã trả sau khi chuyển khoản.</p>
+      <div class="confirm-total"><strong>Tổng tiền</strong><strong>{{ menu?.payment_mode==='sponsored'?'Được mời · 0đ':total == null ? 'Chưa xác định' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div>
+      <p v-if="total == null && menu?.payment_mode!=='sponsored'" class="meta">Xác nhận số tiền với người đăng menu.</p>
+      <p class="meta">{{ menu?.payment_mode==='sponsored' ? 'Người đăng mời bữa này; bạn không cần chuyển khoản.' : 'Người nhận đơn tự đánh dấu đã trả sau khi chuyển khoản.' }}</p>
       <p v-if="error" class="alert" role="alert">{{ error }}</p>
     </div>
     <template #footer><AppButton variant="ghost" :disabled="busy" @click="emit('close')">Quay lại</AppButton><AppButton :loading="busy" @click="emit('confirm')">{{ editing ? 'Lưu thay đổi' : 'Đặt món' }}</AppButton></template>

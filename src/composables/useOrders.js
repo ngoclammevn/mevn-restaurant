@@ -1,12 +1,11 @@
+import { PROFILE_AVATAR_FIELDS } from '../lib/avatar'
+import { MENU_CLOSURE_SELECT } from '../lib/menu-select'
 import { useUser } from '@clerk/vue'
 import { useSupabaseClient } from '../lib/supabase'
 import { normalizeMenu } from '../lib/menu'
 
 const ORDER_SELECT = '*,order_items:order_items!order_items_order_id_menu_id_fkey(*,review:dish_reviews!dish_reviews_order_item_id_fkey(*))'
-const HISTORY_SELECT = `${ORDER_SELECT},user:profiles!orders_user_id_fkey(id,full_name,avatar_url),
-  menu:menus!orders_menu_id_fkey!inner(*,restaurant:restaurants!menus_restaurant_id_fkey(id,name,branch),
-  poster:profiles!menus_poster_id_fkey(id,full_name,avatar_url,payment_info),
-  menu_items:menu_items!menu_items_menu_id_fkey(*,dish:restaurant_dishes!menu_items_restaurant_dish_id_fkey(id,restaurant_id,name,variant)))`
+const HISTORY_SELECT = ORDER_SELECT+',user:profiles!orders_user_id_fkey('+PROFILE_AVATAR_FIELDS+'),menu:menus!orders_menu_id_fkey!inner(*,restaurant:restaurants!menus_restaurant_id_fkey(id,name,branch),poster:profiles!menus_poster_id_fkey('+PROFILE_AVATAR_FIELDS+',payment_info),menu_items:menu_items!menu_items_menu_id_fkey(*,dish:restaurant_dishes!menu_items_restaurant_dish_id_fkey(id,restaurant_id,name,variant)),'+MENU_CLOSURE_SELECT+')'
 const signedOut = () => ({ data: null, error: new Error('Vui lòng đăng nhập.') })
 
 function orderResult(result) {
@@ -36,7 +35,7 @@ export function useOrders() {
 
   async function listProfiles() {
     if (!user.value?.id) return signedOut()
-    return sb.from('profiles').select('id, full_name, avatar_url').order('full_name')
+    return sb.from('profiles').select(PROFILE_AVATAR_FIELDS).order('full_name')
   }
 
   // Only the order owner can update is_paid (enforced by RLS orders_update).
@@ -80,7 +79,7 @@ export function useOrders() {
       .order('id', { ascending: false })
     if (from) query = query.gte('menu.menu_date', from)
     if (to) query = query.lte('menu.menu_date', to)
-    if (unpaidOnly) query = query.eq('is_paid', false)
+    if (unpaidOnly) query = query.eq('is_paid', false).eq('menu.payment_mode','self')
     if (paginated) query = query.range(start, start + pageSize - 1)
     const result = await query
     if (user.value?.id !== uid) return signedOut()

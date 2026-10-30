@@ -2,9 +2,14 @@
 import { ref, watch, onUnmounted } from 'vue'
 import { useUser, UserButton } from '@clerk/vue'
 import { useProfile } from '../composables/useProfile'
+import AvatarPicker from '../components/AvatarPicker.vue'
+import SlackAccountField from '../components/SlackAccountField.vue'
+import { useSlackNotifications } from '../composables/useSlackNotifications'
+import { useSupabaseClient } from '../lib/supabase'
 import { LIST_BANKS } from '../lib/banks'
 import { AppButton, Avatar, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
-const { user, isSignedIn } = useUser(), { getProfile, updateProfile } = useProfile()
+const { user, isSignedIn } = useUser(), { currentProfile, getProfile, updateProfile } = useProfile()
+const slack=useSlackNotifications(),sb=useSupabaseClient(),slackId=ref(''),slackName=ref(''),slackBusy=ref(false),slackError=ref('')
 const profileLoaded = ref(false)
 const loading = ref(false), saving = ref(false), errorMsg = ref(''), saved = ref(false), showSignIn = ref(false)
 const fullName = ref(''), paymentInfo = ref(''), structured = ref(true), method = ref('bank')
@@ -16,6 +21,7 @@ onUnmounted(() => { generation++ })
 async function load() {
   const current = ++generation, uid = user.value?.id
   fullName.value = ''; paymentInfo.value = ''; bankCode.value = ''; accountNumber.value = ''; accountName.value = ''; momoPhone.value = ''; momoPsp.value = ''
+  slackId.value='';slackName.value='';slackError.value='';slackBusy.value=false
   errorMsg.value = ''; saved.value = false; saving.value = false; profileLoaded.value = false
   if (!uid) { loading.value = false; return }
   loading.value = true
@@ -29,6 +35,8 @@ async function load() {
     bankCode.value = field('NH'); accountNumber.value = field('STK'); accountName.value = field('CTK'); momoPhone.value = field('Momo'); momoPsp.value = field('MomoPSP')
     structured.value = !text.trim() || !!(bankCode.value || accountNumber.value || momoPhone.value)
     profileLoaded.value = true
+    const link=await sb.from('slack_profile_links').select('slack_user_id').eq('user_id',uid).maybeSingle()
+    if(current===generation && uid===user.value?.id)slackId.value=link.data?.slack_user_id || ''
   } catch { if (current === generation) errorMsg.value = 'Chưa tải được hồ sơ. Thử lại.' }
   finally { if (current === generation) loading.value = false }
 }
@@ -45,13 +53,26 @@ async function save() {
   } catch { if (current === generation) errorMsg.value = 'Chưa lưu được hồ sơ. Kiểm tra kết nối rồi thử lại.' }
   finally { if (current === generation) saving.value = false }
 }
+async function saveSlack(memberId){
+  if(slackBusy.value)return
+  const uid=user.value?.id,current=generation
+  slackBusy.value=true;slackError.value=''
+  try{
+    const result=await slack.linkSlackAccount(memberId)
+    if(current!==generation || uid!==user.value?.id)return
+    if(result.status!=='linked')throw new Error('not_linked')
+    slackName.value=result.name;slackId.value=result.memberId
+  }catch{if(current===generation)slackError.value='Chưa liên kết được. Kiểm tra Member ID và cấu hình Slack.'}
+  finally{if(current===generation)slackBusy.value=false}
+}
 </script>
 <template><div class="stack profile-page">
   <PageHeader eyebrow="Hồ sơ" title="Thông tin của bạn" sub="Tên và thông tin chuyển khoản xuất hiện trên menu bạn đăng." />
   <EmptyState v-if="!isSignedIn" title="Đăng nhập để xem hồ sơ"><AppButton @click="showSignIn = true">Đăng nhập</AppButton></EmptyState>
   <template v-else><Spinner v-if="loading" label="Đang tải hồ sơ…" /><div v-else class="profile-grid">
     <form class="card profile-card" @submit.prevent="save">
-      <div class="profile-identity"><Avatar :src="user?.imageUrl" :name="fullName || user?.fullName" :size="46" /><div><strong>{{ fullName || user?.fullName || 'Hồ sơ của tôi' }}</strong><p class="meta">{{ user?.primaryEmailAddress?.emailAddress }} · Đăng nhập Google</p></div><div class="profile-account"><span class="meta">Tài khoản</span><UserButton /></div></div>
+      <div class="profile-identity"><Avatar :profile="currentProfile" :name="fullName || user?.fullName" :size="46" /><div><strong>{{ fullName || user?.fullName || 'Hồ sơ của tôi' }}</strong><p class="meta">{{ user?.primaryEmailAddress?.emailAddress }} · Đăng nhập Google</p></div><div class="profile-account"><span class="meta">Tài khoản</span><UserButton /></div></div>
+      <AvatarPicker :profile="currentProfile" :disabled="saving || !profileLoaded" /><section class="profile-divide"><h2>Liên kết Slack</h2><SlackAccountField v-model="slackId" :busy="slackBusy" :error="slackError" :verified-name="slackName" @save="saveSlack" /></section>
       <fieldset :disabled="saving || !profileLoaded" class="profile-fields">
         <div class="profile-divide"><label class="field">Tên hiển thị<input v-model="fullName" class="input" autocomplete="name" /></label></div>
         <h2>Thông tin nhận chuyển khoản</h2>

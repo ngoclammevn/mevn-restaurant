@@ -1,24 +1,15 @@
 <script setup>
-import { computed } from 'vue'
-
-const props = defineProps({
-  src: { type: String, default: '' },
-  name: { type: String, default: '' },
-  size: { type: [Number, String], default: null },
-})
-
-const initials = computed(() => {
-  const n = (props.name || '').trim()
-  if (!n) return '🙂'
-  return n.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
-})
-
-const style = computed(() =>
-  props.size ? { width: `${props.size}px`, height: `${props.size}px` } : {},
-)
+import { computed, ref, watch } from 'vue'
+import { resolveAvatar } from '../../lib/avatar'
+import MascotAvatar from './MascotAvatar.vue'
+const props = defineProps({ profile:{type:Object,default:null}, src:{type:String,default:''}, name:{type:String,default:''}, size:{type:[Number,String],default:40} })
+const failed=ref(false)
+const identity=computed(()=>props.profile || {id:props.name,full_name:props.name,avatar_url:props.src})
+const resolved=computed(()=>resolveAvatar(identity.value,{imageFailed:failed.value}))
+const label=computed(()=>props.name || identity.value.full_name || 'Thành viên')
+watch(()=>[props.profile?.id,props.profile?.avatar_mode,props.profile?.uploaded_avatar_path,props.profile?.avatar_url,props.src],()=>{failed.value=false})
 </script>
-
 <template>
-  <img v-if="src" :src="src" :alt="name" class="avatar" :style="style" />
-  <span v-else class="avatar" :style="style" :title="name">{{ initials }}</span>
+  <img v-if="resolved.kind==='image'" :src="resolved.src" :alt="label" class="avatar" :style="{width:`${size}px`,height:`${size}px`}" @error="failed=true" />
+  <MascotAvatar v-else :mascot-id="resolved.mascotId" :size="size" :label="label" />
 </template>

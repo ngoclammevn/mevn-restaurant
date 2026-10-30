@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { summarizeManagedMenu } from '../../lib/manage-summary'
 
 const props = defineProps({
+  menu: { type: Object, default: null },
+  readOnly: Boolean,
   orders:   { type: Array,  required: true },
   menuNote: { type: String, default: '' },
   isClosed: { type: Boolean, default: false },
@@ -11,7 +13,7 @@ const props = defineProps({
 
 const emit = defineEmits(['copied', 'reopen'])
 
-const summary = computed(() => summarizeManagedMenu({ note:props.menuNote, orders:props.orders }).orderedDishes.map(row => ({
+const summary = computed(() => summarizeManagedMenu(props.menu || { note:props.menuNote, orders:props.orders, is_closed:props.isClosed }).orderedDishes.map(row => ({
   displayName:row.name, count:row.servings, total:row.unknownPriceCount ? null : row.knownTotal,
   peopleLabel:row.people.length > 3 ? `${row.people.slice(0,3).map(p=>p.name).join(', ')} +${row.people.length-3} khác` : row.people.map(p=>p.name).join(', '),
 })))
@@ -45,7 +47,7 @@ async function copyList() {
   if (copying.value) return
   copying.value = true; copyError.value = ''
   try {
-    if (props.beforeCopy && !(await props.beforeCopy())) return
+    if (!props.readOnly && props.beforeCopy && !(await props.beforeCopy())) return
     await navigator.clipboard.writeText(copyText.value)
     copied.value = true
     setTimeout(() => { copied.value = false }, 1500)
@@ -66,7 +68,7 @@ async function copyList() {
       <span class="eyebrow">Danh sách cần mua</span>
       <span class="osp-header-right">
         <button
-          v-if="isClosed"
+          v-if="isClosed && !readOnly"
           type="button"
           class="osp-reopen"
           title="Mở lại nhận đơn"
@@ -77,9 +79,9 @@ async function copyList() {
           class="osp-copy"
           :disabled="copying"
           :class="{ 'osp-copy--done': copied }"
-          :title="copied ? 'Đã copy' : isClosed ? 'Copy danh sách' : 'Copy danh sách (sẽ chốt đơn)'"
+          :title="copied ? 'Đã copy' : (isClosed || readOnly) ? 'Copy danh sách' : 'Copy danh sách (sẽ chốt đơn)'"
           @click="copyList"
-        >{{ copied ? 'Đã sao chép' : isClosed ? 'Sao chép danh sách' : 'Sao chép & chốt đơn' }}</button>
+        >{{ copied ? 'Đã sao chép' : (isClosed || readOnly) ? 'Sao chép danh sách' : 'Sao chép & chốt đơn' }}</button>
         <span class="badge badge--paid osp-badge">{{ totalParts }} phần</span>
       </span>
     </div>

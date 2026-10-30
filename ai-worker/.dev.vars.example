@@ -3,3 +3,13 @@ CLERK_ISSUER=""
 ALLOWED_ORIGINS=""
 SUPABASE_URL=""
 SUPABASE_PUBLISHABLE_KEY=""
+
+# Slack config is independent of AI. Use test workspace/channels for previews.
+SLACK_WORKSPACE_ID=""
+SLACK_ORDER_CHANNEL_ID=""
+SLACK_GENERAL_CHANNEL_ID=""
+APP_PUBLIC_BASE_URL=""
+SLACK_NAMESPACE=""
+# Secrets: supply only through ignored local vars or Cloudflare secrets.
+SLACK_BOT_TOKEN=""
+SLACK_RECEIPT_SIGNING_KEY=""

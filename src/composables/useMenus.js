@@ -1,13 +1,11 @@
+import { PROFILE_AVATAR_FIELDS } from '../lib/avatar'
+import { MENU_CLOSURE_SELECT } from '../lib/menu-select'
 import { useUser } from '@clerk/vue'
 import { useSupabaseClient } from '../lib/supabase'
 import { todayInVN } from '../lib/date'
 import { normalizeMenu } from '../lib/menu'
 
-const MENU_SELECT = `*,
-  restaurant:restaurants!menus_restaurant_id_fkey(id,name,branch),
-  poster:profiles!menus_poster_id_fkey(id,full_name,avatar_url,payment_info),
-  menu_items:menu_items!menu_items_menu_id_fkey(*,dish:restaurant_dishes!menu_items_restaurant_dish_id_fkey(id,restaurant_id,name,variant)),
-  orders:orders!orders_menu_id_fkey(*,user:profiles!orders_user_id_fkey(id,full_name,avatar_url),order_items:order_items!order_items_order_id_menu_id_fkey(*,review:dish_reviews!dish_reviews_order_item_id_fkey(*)))`
+const MENU_SELECT = '*,restaurant:restaurants!menus_restaurant_id_fkey(id,name,branch),poster:profiles!menus_poster_id_fkey('+PROFILE_AVATAR_FIELDS+',payment_info),'+MENU_CLOSURE_SELECT+',menu_items:menu_items!menu_items_menu_id_fkey(*,dish:restaurant_dishes!menu_items_restaurant_dish_id_fkey(id,restaurant_id,name,variant)),orders:orders!orders_menu_id_fkey(*,user:profiles!orders_user_id_fkey('+PROFILE_AVATAR_FIELDS+'),order_items:order_items!order_items_order_id_menu_id_fkey(*,review:dish_reviews!dish_reviews_order_item_id_fkey(*)))'
 
 function menuResult(result) {
   if (result.error) return result
@@ -28,7 +26,7 @@ export function useMenus() {
   const { user } = useUser()
   const sb = useSupabaseClient()
 
-  async function createMenu({ title, menu_date = todayInVN(), note = null, imageFile = null, restaurant_id = null }) {
+  async function createMenu({ title, menu_date = todayInVN(), note = null, imageFile = null, restaurant_id = null, payment_mode = 'self', sponsor_reason = null }) {
     const uid = user.value?.id
     if (!uid) return signedOut()
 
@@ -47,9 +45,9 @@ export function useMenus() {
     try {
       if (user.value?.id !== uid) throw new Error('Tài khoản đã thay đổi. Vui lòng đăng lại menu.')
       // The RPC synchronizes the menu, canonical dishes and menu items atomically.
-      result = await sb.rpc('save_lunch_menu', {
+      result = await sb.rpc('save_lunch_menu_v2', {
         p_title: title, p_menu_date: menu_date, p_note: note,
-        p_restaurant_id: restaurant_id || null, p_image_url: image_url,
+        p_restaurant_id: restaurant_id || null, p_image_url: image_url, p_payment_mode: payment_mode, p_sponsor_reason: sponsor_reason,
       })
     } catch (error) { result = { data: null, error } }
     if (result.error && uploadedPath) {
@@ -62,6 +60,7 @@ export function useMenus() {
     return menuResult(await sb.from('menus')
       .select(MENU_SELECT)
       .eq('menu_date', date)
+      .is('archived_at', null)
       .order('created_at', { ascending: true }))
   }
 
@@ -84,10 +83,11 @@ export function useMenus() {
       .order('created_at', { ascending: false }))
   }
 
-  async function listPostedMenus({ from, to, status = 'all', offset = 0, limit = 50 } = {}) {
+  async function listPostedMenus({ from, to, status = 'all', offset = 0, limit = 50, includeArchived = false } = {}) {
     const uid = user.value?.id
     if (!uid) return signedOut()
     let query = sb.from('menus').select(MENU_SELECT, { count: 'exact' }).eq('poster_id', uid)
+    if (!includeArchived) query = query.is('archived_at', null)
     if (from) query = query.gte('menu_date', from)
     if (to) query = query.lte('menu_date', to)
     if (status !== 'all') query = query.eq('is_closed', status === 'closed')
@@ -98,9 +98,7 @@ export function useMenus() {
   async function listPostedUnpaidOrders({ from, to, offset = 0, limit = 100 } = {}) {
     const uid = user.value?.id
     if (!uid) return signedOut()
-    let query = sb.from('orders').select(`*,user:profiles!orders_user_id_fkey(id,full_name,avatar_url),
-      menu:menus!orders_menu_id_fkey!inner(id,poster_id,menu_date,title,note,restaurant_id,restaurant:restaurants!menus_restaurant_id_fkey(id,name,branch),menu_items:menu_items!menu_items_menu_id_fkey(id,name,price)),
-      order_items:order_items!order_items_order_id_menu_id_fkey(*)`, { count: 'exact' }).eq('menu.poster_id', uid).eq('is_paid', false)
+    let query = sb.from('orders').select('*,user:profiles!orders_user_id_fkey('+PROFILE_AVATAR_FIELDS+'),menu:menus!orders_menu_id_fkey!inner(*,restaurant:restaurants!menus_restaurant_id_fkey(id,name,branch),menu_items:menu_items!menu_items_menu_id_fkey(id,name,price),'+MENU_CLOSURE_SELECT+'),order_items:order_items!order_items_order_id_menu_id_fkey(*)', {count:'exact'}).eq('menu.poster_id',uid).eq('menu.payment_mode','self').eq('is_paid',false)
     if (from) query = query.gte('menu.menu_date', from)
     if (to) query = query.lte('menu.menu_date', to)
     const result = await query.order('id', { ascending: true }).range(offset, offset + Math.min(limit, 100) - 1)
@@ -112,39 +110,54 @@ export function useMenus() {
     const uid = user.value?.id
     if (!uid) return signedOut()
     // An omitted property retains its value, including the date on an older menu.
-    const previous = await sb.from('menus').select('title,menu_date,note,restaurant_id,image_url')
+    const previous = await sb.from('menus').select('title,menu_date,note,restaurant_id,image_url,payment_mode,sponsor_reason')
       .eq('id', changes.id).eq('poster_id', uid).single()
     if (previous.error) return previous
     if (user.value?.id !== uid) return signedOut()
     const value = key => Object.hasOwn(changes, key) ? changes[key] : previous.data[key]
-    return savedMenuResult(await sb.rpc('save_lunch_menu', {
+    return savedMenuResult(await sb.rpc('save_lunch_menu_v2', {
       p_id: changes.id, p_title: value('title'), p_menu_date: value('menu_date'),
       p_note: value('note'), p_restaurant_id: value('restaurant_id') || null,
-      p_image_url: value('image_url'),
+      p_image_url: value('image_url'), p_payment_mode: value('payment_mode'), p_sponsor_reason: value('sponsor_reason'),
     }))
   }
 
   // Chốt/mở lại nhận đơn. RLS menus_update giới hạn chỉ poster gọi được.
-  async function setMenuClosed(id, is_closed) {
+  async function setMenuClosed(id, is_closed, selection = {}) {
     const uid = user.value?.id
     if (!uid) return signedOut()
-    const result = await sb.from('menus')
-      .update({ is_closed })
-      .eq('id', id).eq('poster_id', uid)
-      .select('id')
-      .single()
+    const previous = await getMenu(id)
+    if (previous.error) return previous
+    if (user.value?.id !== uid || previous.data.poster_id !== uid) return signedOut()
+    if (!!previous.data.is_closed === !!is_closed) return previous
+    const revision = selection.expectedRevision ?? previous.data.current_closure?.revision ?? 0
+    const result = is_closed
+      ? await sb.rpc('close_lunch_menu', {p_menu_id:id,p_expected_revision:revision,p_primary_user_id:selection.primaryUserId || null,p_backup_user_id:selection.backupUserId || null,p_allow_unassigned:selection.allowUnassigned===true})
+      : await sb.rpc('reopen_lunch_menu', {p_menu_id:id,p_expected_revision:revision})
     if (result.error) return result
     if (user.value?.id !== uid) return signedOut()
-    // Read after the closing transaction commits, including an order whose shared
-    // lock made closing wait. The mutation's embedded SELECT can have an older snapshot.
-    const refreshed = await getMenu(id)
-    return user.value?.id === uid ? refreshed : signedOut()
+    const committed = { committed: true, closureResult: is_closed ? result.data : {menu_id:id,revision} }
+    try {
+      const refreshed = await getMenu(id)
+      if (user.value?.id !== uid) return signedOut()
+      if (refreshed.error || !refreshed.data) return { ...committed, data:null, error:null, refreshError:refreshed.error || new Error('Chưa tải được menu đã lưu.') }
+      return { ...refreshed, ...committed }
+    } catch (refreshError) {
+      return user.value?.id === uid ? { ...committed, data:null, error:null, refreshError } : signedOut()
+    }
   }
 
   async function deleteMenu(menuId, imageUrl = null) {
     const uid = user.value?.id
     if (!uid) return signedOut()
 
+    const existing = await getMenu(menuId)
+    if (existing.error) return existing
+    if (user.value?.id !== uid || existing.data?.poster_id !== uid) return signedOut()
+    if (existing.data.orders?.length) {
+      const archived = await sb.rpc('archive_lunch_menu', {p_menu_id:menuId})
+      return {...archived,archived:true}
+    }
     const { data, error: dbError } = await sb.from('menus')
       .delete()
       .eq('id', menuId)

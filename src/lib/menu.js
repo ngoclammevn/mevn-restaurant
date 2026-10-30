@@ -1,3 +1,4 @@
+import { orderSettlement } from '../../shared/lunch-finance.js'
 export function parseMenuNote(note) {
   try {
     const value = JSON.parse(note)
@@ -35,7 +36,7 @@ export function exportMenuCsv(menu) {
   }
   const rows = [['Ngày', 'Quán', 'Người đặt', 'Món', 'Ghi chú', 'Thanh toán']]
   for (const order of menu.orders ?? []) {
-    rows.push([menu.menu_date, menu.restaurant?.name ?? '', order.user?.full_name ?? '', order.item_text, order.note ?? '', order.is_paid ? 'Đã trả' : 'Chưa trả'])
+    rows.push([menu.menu_date, menu.restaurant?.name ?? '', order.user?.full_name ?? '', order.item_text, order.note ?? '', orderSettlement(menu,order).paymentState==='sponsored'?'Được mời':order.is_paid?'Đã trả':'Chưa trả'])
   }
   return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n')
 }

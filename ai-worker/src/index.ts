@@ -1,3 +1,5 @@
+import { routeSlack, slackActions } from './slack/router.ts'
+import type { SlackEnv } from './slack/config.ts'
 import { FEEDBACK_VERSION } from '../../shared/feedback.js'
 import { authenticate } from './auth.ts'
 import { parseRequest } from './body.ts'
@@ -11,7 +13,9 @@ const worker = {
     try {
       const url = new URL(request.url)
       if (url.pathname === '/health' && request.method === 'GET') return jsonResponse({ version: FEEDBACK_VERSION })
-      if (url.pathname !== '/v1/feedback-suggestions' || url.search) return jsonResponse({ error: 'not_found' }, 404)
+      const slackAction = url.pathname.startsWith('/v1/slack/') ? url.pathname.slice('/v1/slack/'.length) : ''
+      const isSlack = slackActions.has(slackAction)
+      if ((!isSlack && url.pathname !== '/v1/feedback-suggestions') || url.search) return jsonResponse({ error: 'not_found' }, 404)
       const config = readConfig(env)
       const origin = request.headers.get('origin')
       if (!origin || !config.origins.includes(origin)) throw new HttpError(403, 'forbidden')
@@ -26,6 +30,7 @@ const worker = {
       }
       if (request.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405, allowedOrigin)
       const { token, subject } = await authenticate(request, config)
+      if (isSlack) return await routeSlack(request, env as Env & SlackEnv, config, { token, subject }, origin, slackAction)
       const userKey = await hashText(subject)
       // Location-scoped limits bound all authenticated requests, including cache hits.
       const userLimit = await env.USER_RATE_LIMITER.limit({ key: userKey })

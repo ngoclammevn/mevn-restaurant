@@ -15,6 +15,10 @@ import { managedOrderAmount } from '../lib/manage-summary'
 import { autolink } from '../lib/autolink'
 import { AppButton, PageHeader, Spinner, EmptyState, MenuBoard, OrderSummaryPanel, PaidStamp, SignInModal, AppDialog } from '../components/ui'
 import OrderCard from '../components/OrderCard.vue'
+import MenuCoordination from '../components/MenuCoordination.vue'
+import PickupPreferenceForm from '../components/PickupPreferenceForm.vue'
+import AsciiSkeleton from '../components/ui/AsciiSkeleton.vue'
+import Avatar from '../components/ui/Avatar.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
 const route = useRoute(), router = useRouter()
 const { user } = useUser()
@@ -25,11 +29,13 @@ const { listRestaurantReviews, listDishReviews } = useReviews()
 const presence = useAppPresence()
 const menu = ref(null), profiles = ref([]), ratings = ref([]), loading = ref(true), error = ref(''), actionError = ref(''), showSignIn = ref(false), copied = ref(false), busy = ref(false)
 const selected = ref(Object.create(null)), itemText = ref(''), note = ref(''), recipient = ref(''), editing = ref(null)
+const coordination=ref(null),pickupForm=ref(null),pickupWarning=ref('')
 const zoomImage = ref(false)
 const showConfirm = ref(false), feedbackDish = ref(null), feedbackReviews = ref([]), feedbackLoading = ref(false), feedbackError = ref(''), recentReviews = ref([]), feedbackBatchError = ref('')
 const orderForm = ref(null), formVisible = ref(false), savedMessage = ref('')
 const myOrders = computed(() => (menu.value?.orders ?? []).filter(order => order.user_id === user.value?.id))
 const ownMenu = computed(() => menu.value?.poster_id === user.value?.id)
+const orderingLocked = computed(() => !!(menu.value?.is_closed || menu.value?.archived_at))
 const structured = computed(() => !!parseMenuNote(menu.value?.note))
 const dishes = computed(() => menuDishes(menu.value))
 const boardNote = computed(() => serializeMenu(dishes.value, parseMenuNote(menu.value?.note)?.notes || ''))
@@ -49,7 +55,7 @@ const feedback = computed(() => {
 const boardViewers = computed(() => presence.viewers.value.filter(v => v.menuId === menu.value?.id))
 const recipientName = computed(() => editing.value || !recipient.value ? (user.value?.fullName || 'Tôi') : profiles.value.find(p => p.id === recipient.value)?.full_name || 'Người nhận')
 const selectedDishes = computed(() => Object.values(selected.value))
-const total = computed(() => selectedDishes.value.length && selectedDishes.value.every(d => d.price != null && d.price !== '' && Number.isFinite(Number(d.price))) ? selectedDishes.value.reduce((sum, d) => sum + Number(d.price), 0) : null)
+const total = computed(() => menu.value?.payment_mode==='sponsored' ? 0 : selectedDishes.value.length && selectedDishes.value.every(d => d.price != null && d.price !== '' && Number.isFinite(Number(d.price))) ? selectedDishes.value.reduce((sum, d) => sum + Number(d.price), 0) : null)
 const canSave = computed(() => structured.value ? selectedDishes.value.length > 0 : itemText.value.trim().length > 0)
 const draftKey = computed(() => user.value?.id && menu.value ? `lunch-order-v2:${user.value.id}:${menu.value.id}` : null)
 let generation = 0, feedbackGeneration = 0, refreshGeneration = 0, restoring = false, refreshTimer
@@ -65,7 +71,7 @@ async function load(guestDraft = null) {
     const profileResult = await listProfiles()
     if (current !== generation) return
     profiles.value = profileResult.data ?? []
-    if (draftKey.value && !menu.value.is_closed) {
+    if (draftKey.value && !orderingLocked.value) {
       try {
         const saved = guestDraft?.menuId === menu.value.id ? guestDraft : JSON.parse(sessionStorage.getItem(draftKey.value) || 'null')
         if (saved) { note.value = saved.note || ''; recipient.value = profiles.value.some(p => p.id === saved.recipient) ? saved.recipient : ''; itemText.value = saved.itemText || ''; for (const name of saved.names ?? []) { const dish = dishes.value.find(d => d.name === name && d.available !== false); if (dish) selected.value[name] = dish } }
@@ -148,7 +154,7 @@ function openFeedback(dish) { feedbackDish.value = dish; loadFeedback() }
 function closeFeedback() { feedbackGeneration++; feedbackDish.value = null; feedbackReviews.value = []; feedbackLoading.value = false }
 function requestConfirmation() {
   if (!user.value) { showSignIn.value = true; return }
-  if (menu.value?.is_closed || busy.value || !canSave.value) return
+  if (orderingLocked.value || busy.value || !canSave.value) return
   const originalNames = editing.value ? (myOrders.value.find(o => o.id === editing.value)?.item_text || '').split('\n').map(n => n.trim()) : []
   if (selectedDishes.value.some(d => d.available === false && !originalNames.includes(d.name))) { actionError.value = 'Có món vừa hết. Bỏ món đó trước khi đặt.'; return }
   actionError.value = ''; showConfirm.value = true
@@ -161,13 +167,13 @@ function reviewSelection() {
   form.querySelector('h2')?.focus({ preventScroll: true })
 }
 function toggleDish(dish) {
-  if (menu.value?.is_closed || busy.value) return
+  if (orderingLocked.value || busy.value) return
   if (selected.value[dish.name]) delete selected.value[dish.name]
   else if (dish.available !== false) selected.value[dish.name] = dish
 }
 function startEdit(id) {
   const order = menu.value?.orders?.find(o => o.id === id && o.user_id === user.value?.id)
-  if (!order || menu.value.is_closed) return
+  if (!order || orderingLocked.value) return
   resetForm(); editing.value = order.id; itemText.value = order.item_text; note.value = order.note ?? ''
   for (const name of order.item_text.split('\n').map(s => s.trim())) { const dish = dishes.value.find(d => d.name === name); if (dish) selected.value[name] = dish }
   nextTick(() => document.getElementById('order-form')?.scrollIntoView({behavior:'smooth', block:'center'}))
@@ -176,9 +182,10 @@ function cancelEdit() { resetForm(); router.replace({ path:route.path, query:{} 
 async function submit() {
   if (!user.value) { showSignIn.value = true; return }
   if (!menu.value || busy.value || !canSave.value) return
-  if (menu.value.is_closed) { actionError.value = 'Menu đã chốt. Liên hệ người đăng nếu cần đổi món.'; return }
+  if (orderingLocked.value) { actionError.value = 'Menu đã chốt hoặc lưu trữ. Liên hệ người đăng nếu cần đổi món.'; return }
   const originalNames = editing.value ? (myOrders.value.find(o => o.id === editing.value)?.item_text || '').split('\n').map(n => n.trim()) : []
   if (selectedDishes.value.some(d => d.available === false && !originalNames.includes(d.name))) { actionError.value = 'Có món vừa hết. Quay lại để bỏ món đó.'; return }
+  if (pickupForm.value && !pickupForm.value.validate()) return
   const account = user.value.id, menuId = menu.value.id, current = generation
   busy.value = true; actionError.value = ''
   try {
@@ -188,68 +195,46 @@ async function submit() {
     if (current !== generation || user.value?.id !== account || menu.value?.id !== menuId) return
     if (result.error) {
       const refreshed = await getMenu(menuId)
-      if (current === generation && user.value?.id === account && menu.value?.id === menuId && refreshed.data) menu.value.is_closed = refreshed.data.is_closed
+      if (current === generation && user.value?.id === account && menu.value?.id === menuId && refreshed.data) menu.value = normalizeMenu(refreshed.data)
       throw result.error
     }
+    const pickupSaved=await pickupForm.value?.save()
+    if(current!==generation || user.value?.id!==account || menu.value?.id!==menuId)return
+    pickupWarning.value=pickupSaved===false?'Đơn đã lưu. Chưa lưu được thông tin nhận cơm; mở mục Nhận cơm bên dưới để thử lại.':''
     try { sessionStorage.removeItem(draftKey.value) } catch {}
     const wasEditing = !!editing.value
     showConfirm.value = false; presence.notifyOrderChanged(menuId); resetForm(); await router.replace({path:route.path, query:{}}); if (current !== generation || user.value?.id !== account) return; await load()
     if (user.value?.id !== account || menu.value?.id !== menuId) return
-    savedMessage.value = wasEditing ? 'Đã lưu thay đổi trong đơn.' : 'Đã đặt món. Bạn tự đánh dấu đã trả sau khi chuyển khoản.'
+    savedMessage.value = wasEditing ? 'Đã lưu thay đổi trong đơn.' : menu.value?.payment_mode==='sponsored'?'Đã đặt món. Bữa này được mời, bạn không cần trả tiền.':'Đã đặt món. Bạn tự đánh dấu đã trả sau khi chuyển khoản.'
   } catch { if (user.value?.id === account && menu.value?.id === menuId) actionError.value = menu.value?.is_closed ? 'Đơn đã chốt. Liên hệ người đăng menu nếu cần thay đổi món.' : 'Chưa lưu được đơn. Các món đã chọn vẫn được giữ, hãy thử lại.' }
   finally { if (current === generation) busy.value = false }
 }
-async function closeOrdering() {
-  if (!ownMenu.value || busy.value) return false
-  if (!menu.value.is_closed && !confirm('Chốt đơn? Mọi người sẽ không thêm hoặc sửa món cho đến khi bạn mở lại.')) return false
-  const account = user.value.id, menuId = menu.value.id, current = generation
-  busy.value = true; actionError.value = ''
-  try {
-    const result = await setMenuClosed(menuId, true)
-    if (result.error || !result.data) throw result.error || new Error('missing_menu')
-    if (user.value?.id !== account || menu.value?.id !== menuId) return false
-    menu.value = normalizeMenu(result.data)
-    presence.notifyOrderChanged(menuId)
-    await nextTick()
-    return true
-  } catch { if (current === generation) actionError.value = 'Chưa chốt được đơn. Thử lại.'; return false }
-  finally { if (current === generation) busy.value = false }
-}
-async function reopenOrdering() {
-  if (!ownMenu.value || busy.value || !confirm('Mở lại menu để mọi người thêm và sửa món?')) return
-  const account = user.value.id, menuId = menu.value.id, current = generation
-  busy.value = true; actionError.value = ''
-  try {
-    const result = await setMenuClosed(menuId, false)
-    if (current !== generation || user.value?.id !== account || menu.value?.id !== menuId) return
-    if (result.error) throw result.error
-    menu.value.is_closed = false; presence.notifyOrderChanged(menuId)
-  } catch { if (current === generation) actionError.value = 'Chưa mở lại được menu. Thử lại.' }
-  finally { if (current === generation) busy.value = false }
-}
+async function closeOrdering(){return await coordination.value?.closeMenu() || false}
+async function reopenOrdering(){await coordination.value?.reopenMenu()}
+function coordinated(value){menu.value=normalizeMenu(value);presence.notifyOrderChanged(value.id)}
 async function copyLink() {
   try { await navigator.clipboard.writeText(`${location.origin}/share/${menu.value.id}`); copied.value = true }
   catch { actionError.value = 'Trình duyệt chưa cho phép sao chép đường dẫn.' }
 }
 </script>
-<template><div class="menu-page" :class="{ 'menu-page--selection': selectedDishes.length && !menu?.is_closed }">
+<template><div class="menu-page" :class="{ 'menu-page--selection': selectedDishes.length && !orderingLocked }">
   <router-link to="/" class="back-link"><AppIcon name="arrow" />Menu hôm nay</router-link>
-  <Spinner v-if="loading" />
+  <AsciiSkeleton v-if="loading" kind="menu-card" :height="380" label="Đang tải menu…" />
   <EmptyState v-else-if="error" title="Chưa xem được menu" :description="error"><AppButton variant="ghost" @click="load()">Thử lại</AppButton></EmptyState>
   <template v-else-if="menu">
-    <PageHeader :eyebrow="menu.menu_date === todayInVN() ? `Menu hôm nay · ${formatVNDate(menu.menu_date)}` : `Menu ngày ${formatVNDate(menu.menu_date)}`" :title="menu.restaurant?.name || menu.title" :sub="`${menu.poster?.full_name || 'Thành viên'} đăng · ${new Set((menu.orders || []).map(o => o.user_id)).size} người đã đặt · ${menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn'}`" />
+    <PageHeader :eyebrow="menu.menu_date === todayInVN() ? `Menu hôm nay · ${formatVNDate(menu.menu_date)}` : `Menu ngày ${formatVNDate(menu.menu_date)}`" :title="menu.restaurant?.name || menu.title" :sub="`${menu.poster?.full_name || 'Thành viên'} đăng · ${new Set((menu.orders || []).map(o => o.user_id)).size} người đã đặt · ${menu.archived_at ? 'Đã lưu trữ' : menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn'}`" />
     <div class="menu-heading-tools"><AppButton variant="ghost" size="sm" @click="copyLink">{{ copied ? 'Đã chép link' : 'Chia sẻ menu' }}</AppButton><AppButton v-if="ownMenu" variant="ghost" size="sm" :to="{path:'/manage',query:{menu_id:menu.id}}">Quản lý menu</AppButton></div>
-    <p v-if="savedMessage" class="success-message" role="status">{{ savedMessage }}</p>
+    <p v-if="savedMessage" class="success-message" role="status">{{ savedMessage }}</p><p v-if="pickupWarning" class="alert" role="status">{{ pickupWarning }}</p>
     <section v-if="myOrders.length" class="card menu-personal" aria-labelledby="my-menu-orders"><span id="my-menu-orders" class="eyebrow">Bữa trưa của bạn</span><OrderCard v-for="order in myOrders" :key="order.id" :order="order" :menu="menu" compact @changed="orderChanged" /></section>
-    <p v-if="menu.is_closed" class="menu-closed-note">Menu đã chốt. Bạn vẫn có thể chuyển khoản và đánh giá đơn của mình.</p>
+    <p v-if="menu.archived_at" class="menu-closed-note">Menu đã lưu trữ. Các đơn và khoản chưa thu vẫn được giữ; bạn có thể thanh toán và xem lại lịch sử.</p><p v-else-if="menu.is_closed" class="menu-closed-note">{{ menu.payment_mode==='sponsored'?'Menu đã chốt. Bữa này được mời; bạn vẫn có thể đánh giá món.':'Menu đã chốt. Bạn vẫn có thể chuyển khoản và đánh giá đơn của mình.' }}</p>
     <div class="menu-order-layout">
       <div class="menu-board-column">
-        <MenuBoard v-if="structured" heading="Chọn món của bạn" :note="boardNote" :picks="selected" :disabled="menu.is_closed || busy" :viewers="boardViewers" :feedback="feedback" :restaurant-id="menu.restaurant_id" show-feedback :feedback-state="!menu.restaurant_id ? 'Chưa ghi nhận quán' : !user ? 'Đăng nhập để xem đánh giá' : ratings.length ? '' : feedbackBatchError" @toggle-dish="toggleDish" @feedback="openFeedback" />
+        <MenuBoard v-if="structured" heading="Chọn món của bạn" :note="boardNote" :picks="selected" :disabled="orderingLocked || busy" :viewers="boardViewers" :feedback="feedback" :restaurant-id="menu.restaurant_id" show-feedback :feedback-state="!menu.restaurant_id ? 'Chưa ghi nhận quán' : !user ? 'Đăng nhập để xem đánh giá' : ratings.length ? '' : feedbackBatchError" @toggle-dish="toggleDish" @feedback="openFeedback" />
         <section v-else class="card menu-plain"><h2>Chọn món của bạn</h2><p v-if="menu.note" class="order-lines" v-html="autolink(menu.note)" /><button v-if="menu.image_url" type="button" class="menu-image-button" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></button></section>
         <AppButton v-if="feedbackBatchError" variant="ghost" @click="loadFeedbackBatch">Tải lại đánh giá</AppButton>
         <details v-if="menu.image_url && structured" class="menu-image-details"><summary>Ảnh thực đơn gốc</summary><button type="button" class="menu-image-button" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></button></details>
       </div>
-      <form v-if="!menu.is_closed" id="order-form" ref="orderForm" class="menu-cart-summary" :class="{'menu-cart-summary--structured':structured}" @submit.prevent="requestConfirmation">
+      <form v-if="!orderingLocked" id="order-form" ref="orderForm" class="menu-cart-summary" :class="{'menu-cart-summary--structured':structured}" @submit.prevent="requestConfirmation">
         <h2 tabindex="-1">{{ editing ? 'Sửa món trong đơn' : 'Bữa trưa của bạn' }}</h2>
         <label v-if="!structured" class="field">Món muốn đặt<textarea v-model="itemText" class="textarea" required :disabled="busy" rows="3" /></label>
         <label class="field">Ghi chú cho bữa trưa<textarea v-model="note" class="textarea" :disabled="busy" maxlength="1000" rows="3" placeholder="Ví dụ: ít cơm, để riêng nước sốt…" /></label>
@@ -257,16 +242,16 @@ async function copyLink() {
         <div v-if="!structured" class="cart-total"><span>Tổng cộng</span><strong>{{ total === null ? 'Chưa xác định' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div><p v-if="selectedDishes.length && total === null" class="meta">Có món chưa có giá. Xác nhận tiền với người đăng menu.</p>
         <p v-if="actionError" class="alert" role="alert">{{ actionError }}</p>
         <AppButton v-if="!structured" block type="submit" :disabled="!canSave" :loading="busy">{{ !user ? 'Đăng nhập để đặt món' : editing ? 'Xem lại thay đổi' : 'Tiếp tục đặt món' }} <span aria-hidden="true">→</span></AppButton><AppButton v-if="editing" block variant="ghost" :disabled="busy" @click="cancelEdit">Hủy sửa</AppButton>
-        <p v-if="menu.poster?.payment_info" class="meta">Thanh toán cho {{ menu.poster?.full_name || 'người đăng menu' }} sau khi đặt món.</p>
+        <p v-if="menu.poster?.payment_info && menu.payment_mode!=='sponsored'" class="meta">Thanh toán cho {{ menu.poster?.full_name || 'người đăng menu' }} sau khi đặt món.</p>
       </form>
     </div>
-    <p v-if="actionError && menu.is_closed" class="alert" role="alert">{{ actionError }}</p>
-    <section class="card menu-community"><div class="menu-community-heading"><h2>Mọi người đã đặt</h2><span class="badge">{{ new Set((menu.orders || []).map(o => o.user_id)).size }} người</span></div><p class="meta">Chỉ đơn đã gửi mới được tổng hợp ở đây.</p><article v-for="order in menu.orders || []" :key="order.id" class="menu-community-person"><span class="menu-person-avatar" aria-hidden="true">{{ (order.user?.full_name || 'Thành viên')[0] }}</span><div><strong>{{ order.user?.full_name || 'Thành viên' }}</strong><p>{{ order.item_text.split('\n').join(' · ') }}<span v-if="managedOrderAmount(menu, order) !== null"> · {{ Number(managedOrderAmount(menu, order)).toLocaleString('vi-VN') }}đ</span></p><p v-if="order.note" class="meta">{{ order.note }}</p></div><PaidStamp :paid="order.is_paid" /></article><p v-if="!menu.orders?.length" class="meta">Chưa có đơn. Bạn có thể chọn món trước.</p></section>
-    <details v-if="ownMenu" class="menu-poster-tools"><summary>Danh sách gửi quán</summary><OrderSummaryPanel :orders="menu.orders ?? []" :menu-note="menu.note || ''" :is-closed="!!menu.is_closed" :before-copy="closeOrdering" @reopen="reopenOrdering" /></details>
-    <details v-if="menu.poster?.payment_info" class="menu-payment-info"><summary>Thông tin chuyển khoản</summary><p class="meta order-lines">{{ menu.poster.payment_info }}</p></details>
-    <aside v-if="structured" class="selection-bar" aria-label="Món đang chọn"><div class="selection-bar__content"><div><p>{{ selectedDishes.length }} món đã chọn</p><strong>{{ !selectedDishes.length ? '0đ' : total === null ? 'Chưa có đủ giá' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div><AppButton variant="ghost" :disabled="menu.is_closed || !canSave" :loading="busy" @click="requestConfirmation">{{ menu.is_closed ? 'Menu đã chốt' : editing ? 'Xem lại thay đổi' : 'Tiếp tục đặt món' }} <span aria-hidden="true">→</span></AppButton></div></aside>
+    <p v-if="actionError && orderingLocked" class="alert" role="alert">{{ actionError }}</p>
+    <MenuCoordination ref="coordination" :menu="menu" :disabled="busy" @updated="coordinated" @busy="busy=$event" /><section class="card menu-community"><div class="menu-community-heading"><h2>Mọi người đã đặt</h2><span class="badge">{{ new Set((menu.orders || []).map(o => o.user_id)).size }} người</span></div><p class="meta">Chỉ đơn đã gửi mới được tổng hợp ở đây.</p><article v-for="order in menu.orders || []" :key="order.id" class="menu-community-person"><Avatar :profile="order.user" :name="order.user?.full_name" :size="34" /><div><strong>{{ order.user?.full_name || 'Thành viên' }}</strong><p>{{ order.item_text.split('\n').join(' · ') }}<span v-if="managedOrderAmount(menu, order) !== null"> · {{ Number(managedOrderAmount(menu, order)).toLocaleString('vi-VN') }}đ</span></p><p v-if="order.note" class="meta">{{ order.note }}</p></div><span v-if="menu.payment_mode==='sponsored'" class="badge">Được mời</span><PaidStamp v-else :paid="order.is_paid" /></article><p v-if="!menu.orders?.length" class="meta">Chưa có đơn. Bạn có thể chọn món trước.</p></section>
+    <details v-if="ownMenu" class="menu-poster-tools"><summary>Danh sách gửi quán</summary><OrderSummaryPanel :menu="menu" :read-only="!!menu.archived_at" :orders="menu.orders ?? []" :menu-note="menu.note || ''" :is-closed="!!menu.is_closed" :before-copy="closeOrdering" @reopen="reopenOrdering" /></details>
+    <details v-if="menu.poster?.payment_info && menu.payment_mode!=='sponsored'" class="menu-payment-info"><summary>Thông tin chuyển khoản</summary><p class="meta order-lines">{{ menu.poster.payment_info }}</p></details>
+    <aside v-if="structured && !orderingLocked" class="selection-bar" aria-label="Món đang chọn"><div class="selection-bar__content"><div><p>{{ selectedDishes.length }} món đã chọn</p><strong>{{ !selectedDishes.length ? '0đ' : total === null ? 'Chưa có đủ giá' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div><AppButton variant="ghost" :disabled="menu.is_closed || !canSave" :loading="busy" @click="requestConfirmation">{{ menu.is_closed ? 'Menu đã chốt' : editing ? 'Xem lại thay đổi' : 'Tiếp tục đặt món' }} <span aria-hidden="true">→</span></AppButton></div></aside>
     <AppDialog :open="zoomImage" title="Ảnh thực đơn" @close="zoomImage = false"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></AppDialog>
-    <OrderConfirmDialog :open="showConfirm" :menu="menu" :dishes="structured ? selectedDishes : []" :item-text="itemText" :note="note" :recipient-name="recipientName" :total="total" :busy="busy" :error="actionError" :editing="!!editing" @close="!busy && (showConfirm = false)" @confirm="submit"><template #recipient><label v-if="!editing && user" class="field">Đặt cho<select v-model="recipient" class="input" :disabled="busy"><option value="">Cho tôi · {{ user.fullName || 'Tôi' }}</option><option v-for="profile in profiles.filter(p => p.id !== user.id)" :key="profile.id" :value="profile.id">{{ profile.full_name }}</option></select></label></template></OrderConfirmDialog>
+    <OrderConfirmDialog :open="showConfirm" :menu="menu" :dishes="structured ? selectedDishes : []" :item-text="itemText" :note="note" :recipient-name="recipientName" :total="total" :busy="busy" :error="actionError" :editing="!!editing" @close="!busy && (showConfirm = false)" @confirm="submit"><template #recipient><label v-if="!editing && user" class="field">Đặt cho<select v-model="recipient" class="input" :disabled="busy"><option value="">Cho tôi · {{ user.fullName || 'Tôi' }}</option><option v-for="profile in profiles.filter(p => p.id !== user.id)" :key="profile.id" :value="profile.id">{{ profile.full_name }}</option></select></label></template><template #pickup><PickupPreferenceForm v-if="user" ref="pickupForm" :date="menu.menu_date" :enabled="!recipient || recipient===user.id" :disabled="busy" /></template></OrderConfirmDialog>
     <DishFeedbackDialog :open="!!feedbackDish" :dish="feedbackDish" :restaurant="menu.restaurant" :stats="feedback[`${menu.restaurant_id}:${feedbackDish?.restaurant_dish_id}`]" :reviews="feedbackReviews" :loading="feedbackLoading" :error="feedbackError" @close="closeFeedback" @retry="loadFeedback" />
   </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
 </div></template>

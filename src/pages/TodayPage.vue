@@ -7,6 +7,8 @@ import { todayInVN } from '../lib/date'
 import { menuDishes } from '../lib/menu'
 import { AppButton, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
 import OrderCard from '../components/OrderCard.vue'
+import AsciiSkeleton from '../components/ui/AsciiSkeleton.vue'
+import Avatar from '../components/ui/Avatar.vue'
 const { user, isSignedIn } = useUser()
 const { listMenusByDate } = useMenus()
 const menus = ref([]), loading = ref(false), error = ref(''), showSignIn = ref(false)
@@ -50,16 +52,16 @@ function menuMetadata(menu) {
 }
 function activity(menu) {
   const viewer = presence.viewers.value.find(v => v.userId !== user.value?.id && v.menuId === menu.id && v.picks?.length)
-  if (viewer) return { name: viewer.name, text: 'đang chọn', dish: viewer.picks[0] }
+  if (viewer) return { profile:viewer.avatar, name: viewer.name, text: 'đang chọn', dish: viewer.picks[0] }
   const order = (menu.orders || []).find(o => o.user_id !== user.value?.id) || menu.orders?.[0]
-  if (order) return { name: order.user?.full_name || 'Thành viên', text: 'đã đặt', dish: order.item_text.split('\n')[0] }
+  if (order) return { profile:order.user, name: order.user?.full_name || 'Thành viên', text: 'đã đặt', dish: order.item_text.split('\n')[0] }
   return null
 }
 </script>
 <template><div class="today-page">
   <PageHeader :eyebrow="dateLabel" title="Trưa nay, ăn gì?" :sub="isSignedIn ? `${openMenus} menu đang nhận đặt món. Chọn bữa trưa của bạn.` : 'Đăng nhập để chọn bữa trưa của bạn.'" />
   <EmptyState v-if="!isSignedIn" title="Xem menu hôm nay" description="Đăng nhập để xem menu và đơn cơm của bạn."><AppButton @click="showSignIn = true">Đăng nhập</AppButton></EmptyState>
-  <Spinner v-else-if="loading && !menus.length" />
+  <div v-else-if="loading && !menus.length" class="today-menu-grid"><AsciiSkeleton v-for="index in 2" :key="index" kind="menu-card" label="Đang tải menu hôm nay…" /></div>
   <div v-else-if="error && !menus.length" class="stack-sm"><p class="alert">{{ error }}</p><AppButton variant="ghost" @click="load">Thử lại</AppButton></div>
   <template v-else>
     <p v-if="loading" class="meta" role="status">Đang cập nhật…</p><div v-if="error" class="row-wrap"><p class="alert" role="alert">{{ error }}</p><AppButton variant="ghost" @click="load">Thử lại</AppButton></div>
@@ -70,7 +72,7 @@ function activity(menu) {
     </section>
     <section id="today-menus"><div class="today-section-heading"><h2>Menu hôm nay</h2><span class="meta">{{ orderedPeople ? `Đã có ${orderedPeople} người đặt` : 'Chưa có ai đặt' }}</span></div>
       <EmptyState v-if="!menus.length" title="Chưa có menu hôm nay" description="Đăng menu đầu tiên để mọi người chọn bữa trưa."><AppButton to="/post">Đăng menu</AppButton></EmptyState>
-      <div v-else class="today-menu-grid"><article v-for="menu in menus" :key="menu.id" class="card today-menu-card"><div class="today-menu-status"><span class="badge">{{ menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn' }}</span><span v-if="hasOwnOrder(menu)" class="meta">Bạn đã đặt</span></div><h3>{{ menu.restaurant?.name || menu.title }}</h3><p class="today-menu-meta">{{ menuMetadata(menu) }}</p><p class="today-menu-preview">{{ preview(menu) }}</p><div class="today-menu-activity"><template v-for="entry in activity(menu) ? [activity(menu)] : []" :key="entry.name"><span class="today-avatar" aria-hidden="true">{{ entry.name?.[0] }}</span><p>{{ entry.name }} {{ entry.text }} <strong>{{ entry.dish }}</strong></p></template><p v-if="!activity(menu)" class="meta">Chưa có đơn · {{ menu.is_closed ? 'Menu đã chốt' : 'Bạn có thể chọn món trước' }}</p></div><AppButton block :variant="menu.id === firstOpenMenu && !hasOwnOrder(menu) ? 'primary' : 'ghost'" :to="`/menu/${menu.id}`">{{ hasOwnOrder(menu) ? 'Xem menu & đơn của bạn' : menu.is_closed ? 'Xem menu' : 'Xem menu & chọn món' }} <span aria-hidden="true">→</span></AppButton></article></div>
+      <div v-else class="today-menu-grid"><article v-for="menu in menus" :key="menu.id" class="card today-menu-card"><div class="today-menu-status"><span class="badge">{{ menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn' }}</span><span v-if="hasOwnOrder(menu)" class="meta">Bạn đã đặt</span></div><h3>{{ menu.restaurant?.name || menu.title }}</h3><p class="today-menu-meta">{{ menuMetadata(menu) }}</p><p class="today-menu-preview">{{ preview(menu) }}</p><div class="today-menu-activity"><template v-for="entry in activity(menu) ? [activity(menu)] : []" :key="entry.name"><Avatar :profile="entry.profile" :name="entry.name" :size="34" /><p>{{ entry.name }} {{ entry.text }} <strong>{{ entry.dish }}</strong></p></template><p v-if="!activity(menu)" class="meta">Chưa có đơn · {{ menu.is_closed ? 'Menu đã chốt' : 'Bạn có thể chọn món trước' }}</p></div><AppButton block :variant="menu.id === firstOpenMenu && !hasOwnOrder(menu) ? 'primary' : 'ghost'" :to="`/menu/${menu.id}`">{{ hasOwnOrder(menu) ? 'Xem menu & đơn của bạn' : menu.is_closed ? 'Xem menu' : 'Xem menu & chọn món' }} <span aria-hidden="true">→</span></AppButton></article></div>
     </section>
   </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
 </div></template>

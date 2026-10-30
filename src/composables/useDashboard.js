@@ -1,3 +1,6 @@
+import { orderSettlement, isOutstanding } from '../../shared/lunch-finance.js'
+import { orderPriceItems } from '../lib/settlement-items'
+import { MENU_CLOSURE_SELECT } from '../lib/menu-select'
 import { useUser } from '@clerk/vue'
 import { useSupabaseClient } from '../lib/supabase'
 
@@ -76,7 +79,7 @@ export function useDashboard() {
     if (!uid) return { data: [] }
 
     const { data, error } = await sb.from('menus')
-      .select('id,title,menu_date,note,created_at,orders(id,item_text,note,is_paid,user_id,created_at,user:profiles!orders_user_id_fkey(id,full_name,avatar_url))')
+      .select('id,title,menu_date,note,created_at,is_closed,payment_mode,'+MENU_CLOSURE_SELECT+',orders(id,item_text,note,is_paid,user_id,created_at,user:profiles!orders_user_id_fkey(id,full_name,avatar_url,provider_has_image,avatar_mode,mascot_id,uploaded_avatar_path))')
       .eq('poster_id', uid)
       .order('menu_date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -87,17 +90,17 @@ export function useDashboard() {
     for (const menu of data ?? []) {
       const dishMap = parseDishPriceMap(menu.note)
       for (const o of menu.orders ?? []) {
-        if (o.is_paid) continue
+        if (!isOutstanding(menu,o)) continue
         const entry = byPerson.get(o.user_id) ?? {
           user_id: o.user_id,
           full_name: o.user?.full_name || '',
-          avatar_url: o.user?.avatar_url || '',
+          avatar_url: o.user?.avatar_url || '', avatar: o.user,
           items: [],
           knownTotal: 0,
           hasPricedItem: false,
           hasUnpricedItem: false,
         }
-        const { price } = calcOrderPrice(o.item_text, dishMap, o.note)
+        const price = orderSettlement(menu,o).amountDue
         if (price != null) {
           entry.knownTotal += price
           entry.hasPricedItem = true
@@ -132,7 +135,7 @@ export function useDashboard() {
     if (onlyMyMenus && !uid) return { data: null }
 
     let query = sb.from('menus')
-      .select('id,title,menu_date,poster_id,note,is_closed,created_at,poster:profiles!menus_poster_id_fkey(id,full_name,avatar_url),orders(id,item_text,note,is_paid,paid_at,user_id,created_at,user:profiles!orders_user_id_fkey(id,full_name,avatar_url))')
+      .select('id,title,menu_date,poster_id,note,is_closed,created_at,poster:profiles!menus_poster_id_fkey(id,full_name,avatar_url,provider_has_image,avatar_mode,mascot_id,uploaded_avatar_path),payment_mode,'+MENU_CLOSURE_SELECT+',orders(id,item_text,note,is_paid,paid_at,user_id,created_at,user:profiles!orders_user_id_fkey(id,full_name,avatar_url,provider_has_image,avatar_mode,mascot_id,uploaded_avatar_path))')
       .order('menu_date', { ascending: false })
       .order('created_at', { ascending: false })
 
@@ -161,7 +164,7 @@ export function useDashboard() {
         if (uid && o.user_id === uid) {
           myPersonalOrdersCount++
           if (o.is_paid) myPersonalPaidOrdersCount++
-          const { price } = calcOrderPrice(o.item_text, dMap, o.note)
+          const price = orderSettlement(m,o).amountDue
           if (price != null) {
             myPersonalSpentAmount += price
             if (o.is_paid) myPersonalPaidAmount += price
@@ -197,14 +200,14 @@ export function useDashboard() {
 
       for (const o of orders) {
         totalOrders++
-        if (o.is_paid) {
+        if (menu.payment_mode!=='sponsored' && o.is_paid) {
           paidOrders++
           menuPaid++
-        } else {
+        } else if (isOutstanding(menu,o)) {
           unpaidOrders++
         }
 
-        const { price, lines } = calcOrderPrice(o.item_text, dishMap, o.note)
+        const price=orderSettlement(menu,o).amountDue, lines=orderPriceItems(menu,o).map(item=>({name:item.name,price:item.unitPrice}))
         if (price != null) {
           pricedOrdersCount++
           totalAmount += price
@@ -222,7 +225,7 @@ export function useDashboard() {
         const mEntry = memberMap.get(o.user_id) ?? {
           user_id: o.user_id,
           full_name: o.user?.full_name || '(chưa đặt tên)',
-          avatar_url: o.user?.avatar_url || '',
+          avatar_url: o.user?.avatar_url || '', avatar: o.user,
           totalOrders: 0,
           paidOrders: 0,
           unpaidOrders: 0,
@@ -232,9 +235,9 @@ export function useDashboard() {
           hasPrice: false,
         }
         mEntry.totalOrders++
-        if (o.is_paid) {
+        if (menu.payment_mode!=='sponsored' && o.is_paid) {
           mEntry.paidOrders++
-        } else {
+        } else if (isOutstanding(menu,o)) {
           mEntry.unpaidOrders++
         }
         if (price != null) {
@@ -273,7 +276,7 @@ export function useDashboard() {
         poster_name: menu.poster?.full_name || '',
         totalOrders: orders.length,
         paidOrders: menuPaid,
-        unpaidOrders: orders.length - menuPaid,
+        unpaidOrders: orders.filter(order=>isOutstanding(menu,order)).length,
         totalAmount: menuAmount,
         paidAmount: menuPaidAmount,
         hasPrice: menuHasPrice,
