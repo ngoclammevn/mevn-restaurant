@@ -33,8 +33,8 @@ export function useMenus() {
     let image_url = null
     let uploadedPath = null
     if (imageFile) {
-      const filename = imageFile.name.split(/[\\/]/).at(-1) || 'menu.jpg'
-      const path = `${uid}/${crypto.randomUUID()}-${filename}`
+      // Tên file có dấu hoặc emoji khiến Storage từ chối key, nên chỉ dùng UUID.
+      const path = `${uid}/${crypto.randomUUID()}`
       const up = await sb.storage.from('menus').upload(path, imageFile)
       if (up.error) return { data: null, error: up.error }
       uploadedPath = path
@@ -44,14 +44,14 @@ export function useMenus() {
     let result
     try {
       if (user.value?.id !== uid) throw new Error('Tài khoản đã thay đổi. Vui lòng đăng lại menu.')
-      // The RPC synchronizes the menu, canonical dishes and menu items atomically.
+      // RPC giữ menu và danh sách món đồng bộ khi một bước lưu thất bại.
       result = await sb.rpc('save_lunch_menu_v2', {
         p_title: title, p_menu_date: menu_date, p_note: note,
         p_restaurant_id: restaurant_id || null, p_image_url: image_url, p_payment_mode: payment_mode, p_sponsor_reason: sponsor_reason,
       })
     } catch (error) { result = { data: null, error } }
     if (result.error && uploadedPath) {
-      try { await sb.storage.from('menus').remove([uploadedPath]) } catch { /* Keep the original save error. */ }
+      try { await sb.storage.from('menus').remove([uploadedPath]) } catch { /* Giữ lỗi lưu menu, tránh che lỗi bằng kết quả dọn ảnh. */ }
     }
     return savedMenuResult(result)
   }

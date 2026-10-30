@@ -21,7 +21,8 @@
       "Hiển thị đúng kết quả khi liên kết Slack, hủy lời nhắc và gửi thông báo",
       "Lưu trữ menu trống từng chốt để giữ lịch sử và tránh lỗi khi xóa",
       "Viết gọn hướng dẫn lấy cơm, lịch nhắc Slack, xuất Excel và đổi ảnh đại diện",
-      "Thu gọn popup đăng nhập trên máy tính và chuyển form đăng nhập sang tiếng Việt"
+      "Thu gọn popup đăng nhập trên máy tính và chuyển form đăng nhập sang tiếng Việt",
+      "Sửa lỗi đăng ảnh có tên tiếng Việt, dấu tách hoặc emoji"
     ]
   },
   {

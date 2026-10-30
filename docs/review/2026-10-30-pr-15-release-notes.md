@@ -69,3 +69,8 @@ Giới hạn còn lại: chưa E2E trên Clerk/PostgREST/Storage/Slack thật ho
 - Các số liệu test ở trên thuộc lượt kiểm trước; xem Commit và Log mới khi quyết định release. Popup đăng nhập đã kiểm trên local với Clerk thật ở desktop/mobile; các luồng sau đăng nhập và dịch vụ thật vẫn nằm trong Test plan của PR.
 
 Chi tiết lượt rà câu chữ và popup: [báo cáo ngày 30/10](2026-10-30-language-audit.md).
+
+## Sửa lỗi tên ảnh trong cùng release
+
+- Lỗi `InvalidKey` xuất hiện khi Storage path chứa tên file tiếng Việt hoặc emoji. App nay dùng UUID làm tên object và giữ nguyên file/MIME; ảnh cũ và RLS theo thư mục người dùng giữ nguyên.
+- Thêm ba regression cases cho tên có dấu, dấu tách và emoji. Cả ba tái hiện lỗi trước khi sửa; sau sửa, 10 test upload/guard tài khoản và Build đều đạt.
