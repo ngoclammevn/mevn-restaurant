@@ -235,16 +235,9 @@ function addNewGroup() {
         <div v-for="(dishes, cat) in viewGroups" :key="cat" class="mb-group mb-group--view">
           <div v-if="categories.length > 1" class="mb-group-name">{{ cat }}</div>
           <article v-for="d in dishes" :key="d.id || d.name" class="mb-dish-card" :class="{ 'mb-dish-card--picked': picks[d.name], 'mb-dish-card--unavailable': d.available === false }">
-            <div class="mb-dish-content"><div class="mb-dish-heading"><h3>{{ d.name }}</h3><span v-if="d.available === false" class="badge">Hết món</span></div><p v-if="d.description" class="mb-dish-description">{{ d.description }}</p><strong class="mb-dish-price">{{ d.price == null || d.price === '' ? 'Chưa có giá' : fmt(d.price) }}</strong><span v-if="showCalories && d.calories" class="meta"> · {{ d.calories }} kcal</span>
-              <div v-if="dishSelectors[d.name]?.length" class="mb-live-picks"><span class="mb-viewer-avatar" aria-hidden="true">{{ dishSelectors[d.name][0].name?.[0] }}</span><span>{{ dishSelectors[d.name].slice(0, 3).map(v => v.name).join(', ') }}{{ dishSelectors[d.name].length > 3 ? ` và ${dishSelectors[d.name].length - 3} người` : '' }} đang chọn <strong>{{ d.name }}</strong></span></div>
-              <div v-if="showFeedback" class="mb-feedback">
-                <p v-if="feedbackState" class="meta">{{ feedbackState }}</p>
-                <template v-else-if="feedback[`${restaurantId}:${d.restaurant_dish_id}`]?.rating_count">
-                  <button type="button" class="mb-feedback-link" :aria-label="`Xem đánh giá ${d.name}`" @click="emit('feedback', d)"><strong>★ {{ Number(feedback[`${restaurantId}:${d.restaurant_dish_id}`].average_rating).toLocaleString('vi-VN', {maximumFractionDigits:1}) }} / 5</strong><span>{{ feedback[`${restaurantId}:${d.restaurant_dish_id}`].rating_count }} lượt</span><span aria-hidden="true">›</span></button>
-                  <p v-if="feedback[`${restaurantId}:${d.restaurant_dish_id}`]?.labels?.length" class="mb-feedback-labels" title="Phản hồi gần đây">{{ feedback[`${restaurantId}:${d.restaurant_dish_id}`].labels.join(' · ') }}</p>
-                </template>
-                <button v-else-if="d.restaurant_dish_id" type="button" class="mb-feedback-link" :aria-label="`Xem đánh giá ${d.name}`" @click="emit('feedback', d)">{{ feedback[`${restaurantId}:${d.restaurant_dish_id}`] ? 'Chưa có đánh giá' : 'Xem đánh giá món' }}</button><p v-else class="mb-feedback-empty">Chưa có đánh giá</p>
-              </div>
+            <div class="mb-dish-content"><div class="mb-dish-heading"><h3>{{ d.name }}</h3><span v-if="d.available === false" class="badge">Hết món</span></div><div class="mb-dish-meta"><strong class="mb-dish-price">{{ d.price == null || d.price === '' ? 'Chưa có giá' : fmt(d.price) }}</strong><span v-if="showCalories && d.calories" class="meta"> · {{ d.calories }} kcal</span>
+
+              <div v-if="showFeedback && feedback[`${restaurantId}:${d.restaurant_dish_id}`]?.rating_count > 0" class="mb-feedback"><button type="button" class="mb-feedback-link" :aria-label="`Xem đánh giá ${d.name}`" @click="emit('feedback', d)"><strong>★ {{ Number(feedback[`${restaurantId}:${d.restaurant_dish_id}`].average_rating).toLocaleString('vi-VN', {maximumFractionDigits:1}) }}</strong><span>· {{ feedback[`${restaurantId}:${d.restaurant_dish_id}`].rating_count }} lượt</span></button></div></div>
             </div>
             <button type="button" class="mb-select-button" :class="{ 'mb-select-button--picked': picks[d.name] }" :disabled="disabled || (d.available === false && !picks[d.name])" :aria-label="`${picks[d.name] ? 'Bỏ chọn' : 'Chọn'} ${d.name}`" :aria-pressed="!!picks[d.name]" @click="emit('toggle-dish', d)"><AppIcon :name="picks[d.name] ? 'check' : 'plus'" /></button>
           </article>
@@ -363,7 +356,7 @@ function addNewGroup() {
 .mb-group-name { margin:0 0 8px; font-size:14px; color:var(--ink-soft); font-weight:600; }
 .mb-group--view { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .mb-group--view>.mb-group-name { grid-column:1 / -1; margin:8px 0 0; font-size:15px; font-weight:700; color:var(--ink); }
-.mb-dish-card { display:flex; align-items:flex-start; gap:14px; border:1px solid var(--line); border-radius:20px; padding:20px; background:var(--card); margin:0; min-width:0; }
+.mb-dish-card { display:flex; align-items:center; gap:12px; border:1px solid var(--line); border-radius:16px; padding:12px 14px; background:var(--card); margin:0; min-width:0; }
 .mb-dish-card:hover { border-color:var(--line-strong); }
 .mb-dish-card--picked,.mb-dish-card--picked:hover { border-color:var(--primary); background:var(--primary-soft); }
 .mb-dish-content { flex:1; min-width:0; overflow-wrap:anywhere; }
@@ -382,10 +375,10 @@ button.mb-dish-row:hover:not(:disabled) { background:var(--bg-tint); }
 .mb-dish-price { flex-shrink:0; font-size:16px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .mb-pick-check { display:grid; place-items:center; flex-shrink:0; width:28px; height:28px; border:1px solid var(--line-strong); border-radius:6px; }
 .mb-pick-check :deep(svg) { width:16px; height:16px; }
-.mb-feedback { margin-top:6px; }
+.mb-dish-meta { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; }.mb-feedback { margin:0; }.mb-dish-meta .mb-feedback-link { min-height:44px; gap:5px; }
 .mb-feedback-labels { margin:0; font-size:14px; line-height:1.5; color:var(--ink-soft); }
 .mb-feedback-empty { margin:8px 0 0; font-size:14px; color:var(--ink-soft); }
-.mb-feedback-link { display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap; min-height:44px; border:0; background:transparent; padding:6px 0; font:inherit; font-size:14px; color:var(--ink-soft); text-align:left; cursor:pointer; }
+.mb-feedback-link { display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap; min-height:44px; border:0; background:transparent; padding:2px 0; font:inherit; font-size:14px; color:var(--ink-soft); text-align:left; cursor:pointer; }
 .mb-feedback-link strong { color:var(--ink); }.mb-feedback .meta{margin:0;}
 .mb-live-picks { display:flex; align-items:center; gap:10px; border-top:1px solid var(--line); margin-top:9px; padding-top:9px; font-size:14px; color:var(--ink-soft); }
 .mb-viewer-avatar { width:34px; height:34px; flex:0 0 34px; display:grid; place-items:center; border-radius:50%; background:var(--bg-tint); font-size:14px; font-weight:700; }
@@ -408,7 +401,7 @@ button.mb-dish-row:hover:not(:disabled) { background:var(--bg-tint); }
 .mb-add-row,.mb-edit-toolbar { margin-top:12px; }
 button:disabled { cursor:default; }
 button:focus-visible,input:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
-@media(max-width:640px) { .mb-group--view{grid-template-columns:1fr}.mb-dish-card{padding:16px;gap:12px}.mb-dish-description{font-size:14px}.mb-live-picks{font-size:14px} .mb-dish-row { gap:8px; padding:10px 8px; flex-wrap:wrap; }.mb-dish-name-cell { flex-basis:calc(100% - 144px); }.mb-feedback { padding:0; }.mb-delete-btn { padding:8px; }.mb-dish-row--edit .mb-dish-name-cell { flex-basis:calc(100% - 60px); } }
+@media(max-width:640px) { .mb-group--view{grid-template-columns:1fr}.mb-dish-card{padding:12px;gap:10px}.mb-dish-description{font-size:14px}.mb-live-picks{font-size:14px} .mb-dish-row { gap:8px; padding:10px 8px; flex-wrap:wrap; }.mb-dish-name-cell { flex-basis:calc(100% - 144px); }.mb-feedback { padding:0; }.mb-delete-btn { padding:8px; }.mb-dish-row--edit .mb-dish-name-cell { flex-basis:calc(100% - 60px); } }
 .mb-filters { gap:12px; margin-bottom:24px; }
 .mb-filters :deep(.lg-input__field) { border-radius:var(--radius-control); min-height:52px; }
 .mb-categories { overflow-x:auto; padding:5px 4px 10px; margin-inline:-4px; scrollbar-width:thin; }

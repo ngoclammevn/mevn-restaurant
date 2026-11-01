@@ -250,4 +250,5 @@ async function copyList() {
 .osp-total-price {
   font-size: var(--fs-base);
 }
+@media(max-width:600px) { .osp-people { flex-basis:100%; order:4; }.osp-dish { flex:1 1 120px; }.osp-price { margin-left:auto; } }
 </style>

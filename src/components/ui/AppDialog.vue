@@ -41,18 +41,18 @@ defineExpose({ focus: () => dialog.value?.querySelector('h2')?.focus() })
   </Teleport>
 </template>
 <style scoped>
-.app-dialog{border:1px solid var(--line);border-radius:28px;padding:0;width:min(720px,calc(100% - 32px));max-height:calc(100dvh - 32px);margin:auto;background:var(--card);color:var(--ink);overflow:auto;box-shadow:var(--shadow-lift)}
+.app-dialog{border:1px solid var(--line);border-radius:28px;padding:0;width:min(720px,calc(100% - 32px));max-height:calc(100dvh - 32px);margin:auto;background:var(--card);color:var(--ink);overflow:hidden;box-shadow:var(--shadow-lift)}
 .app-dialog::backdrop{background:rgb(15 23 20 / 36%)}
 .app-dialog__content{padding:24px}.app-dialog__header{display:flex;gap:16px;align-items:center;margin-bottom:20px}.app-dialog__header h2{font-size:1.35rem;line-height:1.4;flex:1;overflow-wrap:anywhere}.app-dialog__close{width:44px;height:44px;border:1px solid var(--line);border-radius:50%;background:var(--bg-tint);font-size:24px;cursor:pointer;flex:none}.app-dialog__footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding-top:18px;border-top:1px solid var(--line);margin-top:20px}
 @media(max-width:600px){.app-dialog{width:calc(100% - 20px);max-height:calc(100dvh - 20px)}.app-dialog__content{padding:20px 16px}.app-dialog__footer{position:relative}}
 .app-dialog__body{font-size:16px;line-height:1.6}.app-dialog__header h2{font-size:24px;letter-spacing:-.025em;margin:0}.app-dialog__close{color:var(--ink);touch-action:manipulation}.app-dialog__close:active{background:var(--line)}@media(prefers-contrast:more){.app-dialog{border-color:var(--ink)}}@media(max-width:600px){.app-dialog__content{padding:24px 20px}}
 .app-dialog--sheet{position:fixed;inset:0;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;border:0;border-radius:0;background:transparent;overflow:visible;box-shadow:none}.app-dialog--sheet::backdrop{background:transparent}.app-dialog--sheet .app-dialog__content{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
 @media(min-width:701px){.app-dialog{background:rgb(255 255 255 / 94%);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px)}.app-dialog::backdrop{backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}}
-.app-dialog__header h2:focus { outline:none; }
+.app-dialog__header h2:focus,.app-dialog__header h2:focus-visible { outline:none; box-shadow:none; border:0; }
 .app-dialog__title--hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px!important; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 .app-dialog__title--hidden + .app-dialog__close { margin-left:auto; }
 /* Header và footer ở trong khung; chỉ phần nội dung giữa cuộn khi form dài. */
-.app-dialog__content { display:flex; flex-direction:column; min-height:0; max-height:calc(100dvh - 32px); overflow:hidden; box-sizing:border-box; }
+.app-dialog__content { display:flex; flex-direction:column; min-height:0; max-height:calc(100dvh - 34px); overflow:hidden; box-sizing:border-box; }
 .app-dialog__header,.app-dialog__footer { flex:none; }
 .app-dialog__body { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 .app-dialog__footer { margin-top:16px; padding-top:16px; }

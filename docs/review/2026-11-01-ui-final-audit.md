@@ -64,3 +64,7 @@ Thay toàn bộ 8 input date ở Post, Manage, Dashboard và xuất Excel bằng
 - Sheet trước đây cuộn toàn khung, khiến tiêu đề và footer chạy khỏi vùng nhìn. Khung chung chuyển sang header/footer cố định bên trong, body là vùng cuộn duy nhất; chiều cao cập nhật theo visualViewport khi bàn phím thay đổi.
 - Tăng độ đặc nền sheet để form không lẫn chữ của trang phía sau.
 - Đánh giá dùng sao và chip cảm nhận phẳng, một đường viền/dấu chọn; chỉ Lưu giữ nút kính chính. Không đổi giới hạn cảm nhận hoặc logic lưu.
+
+## Trang chọn món và chuyển khoản
+
+Bỏ mô tả AI, dòng đang chọn và rating trống; hàng món gọn hai cột desktop. Có đơn thì ưu tiên thẻ đơn, Sửa món mở lại chooser; giữ Đặt thêm đơn. Bỏ online toàn app và câu hỏi lấy cơm lặp trên trang, giữ consent ở xác nhận. QR modal bỏ danh sách món, dùng ngày menu làm nội dung chuyển tiền; số tiền chưa rõ vẫn yêu cầu nhập, không coi là0. Desktop modal chỉ body cuộn, title không outline/box-shadow. Khôi phục sprite trái tim khi bấm mascot, giữ click của phần tử cha và reduced motion. Kiểm browser các luồng structured/plain create/edit, payment known/unknown/sponsored;5 tests avatar/motion PASS.

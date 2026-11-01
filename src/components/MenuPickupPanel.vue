@@ -4,7 +4,7 @@ import { useUser } from '@clerk/vue'
 import { usePickup } from '../composables/usePickup'
 import PickupPreferenceForm from './PickupPreferenceForm.vue'
 import { AppButton, Avatar } from './ui'
-const props=defineProps({menu:{type:Object,required:true}})
+const props=defineProps({menu:{type:Object,required:true},hidePreference:Boolean})
 const emit=defineEmits(['changed'])
 const {user}=useUser(),api=usePickup()
 const pickup=ref(null),loading=ref(false),busy=ref(false),error=ref(''),showPreferences=ref(false),form=ref(null)
@@ -45,7 +45,7 @@ async function savePreferences(){if(await form.value?.save()){showPreferences.va
     <p v-else-if="!loading" class="meta">{{ menu.is_closed ? 'Chưa chọn người lấy cơm.' : 'Chốt đơn rồi chọn người lấy cơm nhé.' }}</p>
     <p v-if="pickup?.backup" class="meta">Dự phòng: {{ pickup.backup.full_name }}</p>
     <div class="row-wrap"><AppButton v-if="canReceive" :loading="busy" @click="change('received')">Đã lấy cơm</AppButton><AppButton v-if="poster && pickup?.backup_user_id && pickup.status==='assigned'" variant="ghost" :disabled="busy" @click="change('backup')">Gọi người dự phòng</AppButton></div>
-    <PickupPreferenceForm ref="form" :date="menu.menu_date" :disabled="busy"><template #actions="{saving}"><AppButton variant="ghost" :loading="saving" @click="savePreferences">Lưu thông tin</AppButton></template></PickupPreferenceForm>
+    <PickupPreferenceForm v-if="!hidePreference" ref="form" :date="menu.menu_date" :disabled="busy"><template #actions="{saving}"><AppButton variant="ghost" :loading="saving" @click="savePreferences">Lưu thông tin</AppButton></template></PickupPreferenceForm>
     <p v-if="error" class="alert" role="alert">{{ error }} <button type="button" @click="load">Thử lại</button></p>
   </section>
 </template>

@@ -33,6 +33,7 @@ const selected = ref(Object.create(null)), itemText = ref(''), note = ref(''), r
 const coordination=ref(null),pickupForm=ref(null),pickupWarning=ref('')
 const zoomImage = ref(false)
 const showConfirm = ref(false), feedbackDish = ref(null), feedbackReviews = ref([]), feedbackLoading = ref(false), feedbackError = ref(''), recentReviews = ref([]), feedbackBatchError = ref('')
+const additionalOrder = ref(false)
 const orderForm = ref(null), formVisible = ref(false), savedMessage = ref('')
 const myOrders = computed(() => (menu.value?.orders ?? []).filter(order => order.user_id === user.value?.id))
 const ownMenu = computed(() => menu.value?.poster_id === user.value?.id)
@@ -60,7 +61,7 @@ const total = computed(() => menu.value?.payment_mode==='sponsored' ? 0 : select
 const canSave = computed(() => structured.value ? selectedDishes.value.length > 0 : itemText.value.trim().length > 0)
 const draftKey = computed(() => user.value?.id && menu.value ? `lunch-order-v2:${user.value.id}:${menu.value.id}` : null)
 let generation = 0, feedbackGeneration = 0, refreshGeneration = 0, restoring = false, refreshTimer
-function resetForm() { selected.value = Object.create(null); itemText.value = ''; note.value = ''; recipient.value = ''; editing.value = null; actionError.value = '' }
+function resetForm() { additionalOrder.value = false; selected.value = Object.create(null); itemText.value = ''; note.value = ''; recipient.value = ''; editing.value = null; actionError.value = '' }
 async function load(guestDraft = null) {
   const current = ++generation; clearTimeout(refreshTimer); feedbackGeneration++; refreshGeneration++; restoring = true; resetForm(); showConfirm.value = false; feedbackDish.value = null; busy.value = false; copied.value = false; zoomImage.value = false; showSignIn.value = false; presence.clearMenuDraft(); menu.value = null; profiles.value = []; ratings.value = []; recentReviews.value = []; feedbackBatchError.value = ''; error.value = ''; loading.value = true
   try {
@@ -201,7 +202,7 @@ async function submit() {
     }
     const pickupSaved=await pickupForm.value?.save()
     if(current!==generation || user.value?.id!==account || menu.value?.id!==menuId)return
-    pickupWarning.value=pickupSaved===false?'Đơn đã lưu. Chưa lưu được thông tin lấy cơm; mở mục Lấy cơm bên dưới để thử lại.':''
+    pickupWarning.value=pickupSaved===false?'Đơn đã lưu. Thông tin lấy cơm chưa lưu; mở Sửa món để thử lại.':''
     try { sessionStorage.removeItem(draftKey.value) } catch {}
     const wasEditing = !!editing.value
     showConfirm.value = false; presence.notifyOrderChanged(menuId); resetForm(); await router.replace({path:route.path, query:{}}); if (current !== generation || user.value?.id !== account) return; await load()
@@ -228,7 +229,8 @@ async function copyLink() {
     <p v-if="savedMessage" class="success-message" role="status">{{ savedMessage }}</p><p v-if="pickupWarning" class="alert" role="status">{{ pickupWarning }}</p>
     <section v-if="myOrders.length" class="card menu-personal" aria-labelledby="my-menu-orders"><span id="my-menu-orders" class="eyebrow">Bữa trưa của bạn</span><OrderCard v-for="order in myOrders" :key="order.id" :order="order" :menu="menu" compact @changed="orderChanged" /></section>
     <p v-if="menu.archived_at" class="menu-closed-note">Menu đã lưu trữ. Bạn vẫn có thể thanh toán các đơn còn thiếu và xem lại lịch sử.</p><p v-else-if="menu.is_closed" class="menu-closed-note">{{ menu.payment_mode==='sponsored'?'Menu đã chốt. Bữa này được mời; bạn vẫn có thể đánh giá món.':'Menu đã chốt. Bạn vẫn có thể chuyển khoản và đánh giá đơn của mình.' }}</p>
-    <div class="menu-order-layout">
+    <AppButton v-if="myOrders.length && !editing && !additionalOrder && !orderingLocked" variant="ghost" class="menu-add-order" @click="additionalOrder=true">Đặt thêm đơn</AppButton>
+    <div v-if="!myOrders.length || editing || additionalOrder" class="menu-order-layout">
       <div class="menu-board-column">
         <MenuBoard v-if="structured" heading="Chọn món của bạn" :note="boardNote" :picks="selected" :disabled="orderingLocked || busy" :viewers="boardViewers" :feedback="feedback" :restaurant-id="menu.restaurant_id" show-feedback :feedback-state="!menu.restaurant_id ? 'Chưa ghi nhận quán' : !user ? 'Đăng nhập để xem đánh giá' : ratings.length ? '' : feedbackBatchError" @toggle-dish="toggleDish" @feedback="openFeedback" />
         <section v-else class="card menu-plain"><h2>Chọn món của bạn</h2><p v-if="menu.note" class="order-lines" v-html="autolink(menu.note)" /><button v-if="menu.image_url" type="button" class="menu-image-button" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></button></section>
@@ -251,10 +253,10 @@ async function copyLink() {
       </aside>
     </div>
     <p v-if="actionError && orderingLocked" class="alert" role="alert">{{ actionError }}</p>
-    <MenuCoordination ref="coordination" :menu="menu" :disabled="busy" @updated="coordinated" @busy="busy=$event" /><section class="card menu-community"><div class="menu-community-heading"><h2>Mọi người đã đặt</h2><span class="badge">{{ new Set((menu.orders || []).map(o => o.user_id)).size }} người</span></div><p class="meta">Danh sách này chỉ gồm các đơn đã gửi.</p><article v-for="order in menu.orders || []" :key="order.id" class="menu-community-person"><Avatar :profile="order.user" :name="order.user?.full_name" :size="34" /><div><strong>{{ order.user?.full_name || 'Thành viên' }}</strong><p>{{ order.item_text.split('\n').join(' · ') }}<span v-if="managedOrderAmount(menu, order) !== null"> · {{ Number(managedOrderAmount(menu, order)).toLocaleString('vi-VN') }}đ</span></p><p v-if="order.note" class="meta">{{ order.note }}</p></div><span v-if="menu.payment_mode==='sponsored'" class="badge">Được mời</span><PaidStamp v-else :paid="order.is_paid" /></article><p v-if="!menu.orders?.length" class="meta">Chưa có đơn. Bạn có thể chọn món trước.</p></section>
+    <MenuCoordination hide-pickup-preference ref="coordination" :menu="menu" :disabled="busy" @updated="coordinated" @busy="busy=$event" /><section class="card menu-community"><div class="menu-community-heading"><h2>Mọi người đã đặt</h2><span class="badge">{{ new Set((menu.orders || []).map(o => o.user_id)).size }} người</span></div><p class="meta">Danh sách này chỉ gồm các đơn đã gửi.</p><article v-for="order in menu.orders || []" :key="order.id" class="menu-community-person"><Avatar :profile="order.user" :name="order.user?.full_name" :size="34" /><div><strong>{{ order.user?.full_name || 'Thành viên' }}</strong><p>{{ order.item_text.split('\n').join(' · ') }}<span v-if="managedOrderAmount(menu, order) !== null"> · {{ Number(managedOrderAmount(menu, order)).toLocaleString('vi-VN') }}đ</span></p><p v-if="order.note" class="meta">{{ order.note }}</p></div><span v-if="menu.payment_mode==='sponsored'" class="badge">Được mời</span><PaidStamp v-else :paid="order.is_paid" /></article><p v-if="!menu.orders?.length" class="meta">Chưa có đơn. Bạn có thể chọn món trước.</p></section>
     <section v-if="ownMenu" class="card menu-poster-tools"><h2 class="section-title">Danh sách gửi quán</h2><OrderSummaryPanel :menu="menu" :read-only="!!menu.archived_at" :orders="menu.orders ?? []" :menu-note="menu.note || ''" :is-closed="!!menu.is_closed" :before-copy="closeOrdering" @reopen="reopenOrdering" /></section>
-    <section v-if="menu.poster?.payment_info && menu.payment_mode!=='sponsored'" class="card menu-payment-info"><h2 class="section-title">Thông tin chuyển khoản</h2><p class="meta order-lines">{{ menu.poster.payment_info }}</p></section>
-    <aside v-if="structured && !orderingLocked && selectedDishes.length" class="selection-bar" aria-label="Món đang chọn"><div class="selection-bar__content"><div><p>{{ selectedDishes.length }} món đã chọn</p><strong>{{ !selectedDishes.length ? '0đ' : total === null ? 'Chưa có đủ giá' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div><AppButton variant="ghost" :disabled="menu.is_closed || !canSave" :loading="busy" @click="requestConfirmation">{{ menu.is_closed ? 'Menu đã chốt' : editing ? 'Xem lại thay đổi' : 'Tiếp tục đặt món' }} <span aria-hidden="true">→</span></AppButton></div></aside>
+
+    <aside v-if="structured && !orderingLocked && selectedDishes.length && (!myOrders.length || editing || additionalOrder)" class="selection-bar" aria-label="Món đang chọn"><div class="selection-bar__content"><div><p>{{ selectedDishes.length }} món đã chọn</p><strong>{{ !selectedDishes.length ? '0đ' : total === null ? 'Chưa có đủ giá' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div><AppButton variant="ghost" :disabled="menu.is_closed || !canSave" :loading="busy" @click="requestConfirmation">{{ menu.is_closed ? 'Menu đã chốt' : editing ? 'Xem lại thay đổi' : 'Tiếp tục đặt món' }} <span aria-hidden="true">→</span></AppButton></div></aside>
     <AppDialog :open="zoomImage" title="Ảnh thực đơn" @close="zoomImage = false"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></AppDialog>
     <OrderConfirmDialog :open="showConfirm" :menu="menu" :dishes="structured ? selectedDishes : []" :item-text="itemText" :note="note" :recipient-name="recipientName" :total="total" :busy="busy" :error="actionError" :editing="!!editing" @close="!busy && (showConfirm = false)" @confirm="submit"><template #recipient><div v-if="!editing && user" class="field"><GlassSelect label="Đặt cho" v-model="recipient" :disabled="busy" :options="[{value:'',label:'Cho tôi · '+(user.fullName || 'Tôi')},...profiles.filter(p=>p.id!==user.id).map(p=>({value:p.id,label:p.full_name}))]" /></div></template><template #pickup><PickupPreferenceForm v-if="user" ref="pickupForm" :date="menu.menu_date" :enabled="!recipient || recipient===user.id" :disabled="busy" /></template></OrderConfirmDialog>
     <DishFeedbackDialog :open="!!feedbackDish" :dish="feedbackDish" :restaurant="menu.restaurant" :stats="feedback[`${menu.restaurant_id}:${feedbackDish?.restaurant_dish_id}`]" :reviews="feedbackReviews" :loading="feedbackLoading" :error="feedbackError" @close="closeFeedback" @retry="loadFeedback" />
@@ -264,10 +266,12 @@ async function copyLink() {
 
 .menu-page { min-width:0; }
 .menu-page>.back-link { margin-bottom:12px; font-size:14px; }
-.menu-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:28px; }
+.menu-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:16px; }
 .menu-heading :deep(.page-header) { min-width:0; }
 .menu-heading-tools { display:flex; gap:8px; flex-wrap:wrap; flex:none; }
-.menu-personal { border-left:3px solid var(--primary); margin:24px 0; }
+.menu-personal { margin:16px 0; padding:16px 20px; }
+.menu-add-order { margin:0 0 12px; }
+.menu-heading :deep(.page-title) { font-size:26px; }.menu-heading :deep(.page-sub) { font-size:14px; }
 .menu-personal>.eyebrow { display:block; margin-bottom:8px; }
 /* 1272px = 908px danh sách + 24px gap + 340px đơn. */
 .menu-order-layout { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:24px; align-items:start; margin:24px 0 32px; }

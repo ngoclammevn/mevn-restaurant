@@ -2,11 +2,11 @@
   {
     "date": "2026-11-01",
     "changes": [
-      "Đồng bộ nút, ô nhập, lịch chọn ngày và popup theo phong cách Apple, thêm hiệu ứng Liquid Glass",
-      "Làm gọn danh sách menu, gom lệnh phụ vào nút thêm và giữ thao tác chính dễ tìm",
-      "Sửa thanh điều hướng co giãn, chữ chồng khi kéo và vùng online che nội dung",
-      "Làm gọn phần đánh giá; giữ tiêu đề và nút xác nhận trong popup khi nội dung dài",
-      "Sửa popup đăng nhập trên điện thoại: vừa màn hình, bỏ tiêu đề lặp và tăng vùng bấm"
+      "Làm gọn trang chọn món, bỏ mô tả tự động và các thông tin lặp; giữ thao tác sửa đơn và chuyển khoản dễ tìm",
+      "Đồng bộ lịch, nút và popup; sửa cuộn lồng nhau, tiêu đề có viền và bố cục trên điện thoại",
+      "Tinh gọn đánh giá và danh sách menu; gom lệnh phụ, bỏ trạng thái đang online",
+      "Popup chuyển khoản tập trung vào QR và số tiền, tự điền ngày của bữa ăn",
+      "Khôi phục phản ứng trái tim khi chạm mascot"
     ]
   },
   {

@@ -8,9 +8,10 @@ const assets=computed(()=>mascotAssets(props.mascotId))
 let dispose=()=>{}, active=false, animation, timer
 function stop() { clearTimeout(timer); timer=undefined; animation?.cancel(); animation=undefined; reaction.value=null }
 function boop() {
-  if (!props.interactive || !active) return
+  if (document.visibilityState === 'hidden') return
   stop(); reaction.value='heart'
-  animation=squash.value?.animate?.([
+  // Avatar trong link/nút vẫn phản hồi khi chạm, nhưng không chặn thao tác của phần tử cha.
+  if (active && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) animation=squash.value?.animate?.([
     {transform:'scale(1,1)'},{transform:'scale(1.1,.86)',offset:.18},
     {transform:'scale(.95,1.08)',offset:.45},{transform:'scale(1.03,.97)',offset:.72},{transform:'scale(1,1)'},
   ],{duration:420,easing:'linear'})
