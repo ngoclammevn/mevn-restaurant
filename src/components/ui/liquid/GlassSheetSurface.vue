@@ -46,7 +46,7 @@ onMounted(() => {
   window.addEventListener('pointercancel', finishDrag, true)
   root = createRoot(host.value)
   root.render(createElement(GlassSheet, {
-    open: true, container: host.value, intensity: 2, tint: 'rgba(255,255,255,.78)',
+    open: true, container: host.value, intensity: 2, tint: 'rgba(255,255,255,.96)',
     'aria-label': props.title, onClose: () => emit('close'),
   }, createElement('div', { ref: receiveTarget, className: 'glass-sheet-vue-content' })))
 })
@@ -66,12 +66,13 @@ onUnmounted(() => {
 <style>
 .glass-sheet-surface { position:absolute; inset:0; --lg-font:var(--font); --lg-ink:var(--ink); }
 .glass-sheet-surface .lg-sheet-layer { z-index:1; }
-.glass-sheet-surface .lg-sheet.lg-glass { width:calc(100% - 16px); max-width:720px; max-height:calc(100dvh - 24px); margin-bottom:max(8px,env(safe-area-inset-bottom)); border-radius:30px; color:var(--ink); }
-.glass-sheet-surface .lg-sheet__content { padding:0; }
+.glass-sheet-surface .lg-sheet.lg-glass { width:calc(100% - 16px); max-width:720px; max-height:calc(100% - 16px); display:flex; flex-direction:column; overflow:hidden; margin-bottom:max(8px,env(safe-area-inset-bottom)); border-radius:30px; color:var(--ink); background:#fff; }
+.glass-sheet-surface .lg-sheet__content { padding:0; display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; }
+.glass-sheet-surface .lg-sheet__grabber-zone { flex:none; }
 .glass-sheet-surface .lg-sheet__scrim { background:rgb(0 0 0 / 25%); }
 .glass-sheet-surface .lg-sheet:not([data-controlled-drag]) { transition:translate 160ms ease-out; }
 .glass-sheet-surface .lg-sheet__grabber-zone { touch-action:none; cursor:grab; }
 @media(prefers-reduced-motion:reduce) { .glass-sheet-surface .lg-sheet { transition:none; } }
-.glass-sheet-vue-content { min-width:0; }
+.glass-sheet-vue-content { display:flex; flex-direction:column; flex:1 1 auto; min-width:0; min-height:0; overflow:hidden; }
 @media(prefers-reduced-transparency:reduce) { .glass-sheet-surface .lg-sheet { background:#fff!important; backdrop-filter:none!important; } }
 </style>

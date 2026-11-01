@@ -44,11 +44,12 @@ function ControlledInput({ value, ...rest }) {
   })
 }
 function render() {
-  root?.render(createElement(ControlledInput, { ...attrs,
+  const { readonly, maxlength, minlength, autocomplete, inputmode, class: className, ...inputAttrs } = attrs
+  root?.render(createElement(ControlledInput, { ...inputAttrs,
     readOnly: attrs.readonly != null && attrs.readonly !== false || attrs.readOnly,
     maxLength: attrs.maxlength ?? attrs.maxLength, minLength: attrs.minlength ?? attrs.minLength,
     autoComplete: attrs.autocomplete ?? attrs.autoComplete, inputMode: attrs.inputmode ?? attrs.inputMode,
-    className: attrs.class, label: props.label, value: String(props.modelValue ?? ''), intensity: 2, tint: '#176b44',
+    className, label: props.label, value: String(props.modelValue ?? ''), intensity: 2, tint: '#176b44',
     onBlur: event => emit('blur', event.nativeEvent), onFocus: event => emit('focus', event.nativeEvent),
   }))
 }

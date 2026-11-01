@@ -51,3 +51,16 @@ Browser dùng dữ liệu giả ở cổng4178, không gọi DB hoặc Slack. Ar
 ## Lượt rà soát lịch chọn ngày
 
 Thay toàn bộ 8 input date ở Post, Manage, Dashboard và xuất Excel bằng AppDatePicker. DateField cũ chuyển thành wrapper, không giữ hai cách dựng lịch. Changelog ngày 30/10–01/11 đã gộp ý trùng thành các nhóm ngắn. Quét lại 32 tổ hợp layout: PASS.
+
+## Rà soát độ gọn và đăng nhập mobile
+
+- Danh sách menu đã đăng chuyển thành hàng gọn: thông tin, trạng thái, Quản lý và menu lệnh phụ. Chốt đơn nằm trong workspace, không lặp ở danh sách lịch sử hoặc toolbar.
+- Lệnh phụ dùng GlassMenu thật cho Dùng lại, Xuất Excel/CSV, Chép link và Lưu trữ/Xóa. Giữ xác nhận thao tác xóa/lưu trữ.
+- Sửa rule width popup đăng nhập vốn thu hẹp cả sheet mobile. Chỉ desktop giữ450px; mobile phủ đủ màn hình. Clerk giữ một heading hiển thị và vùng bấm48px, không ẩn legal hay nhãn Development mode của môi trường test.
+- Kiểm form Clerk thật ở320/390px bằng Chromium/WebKit và desktop1440px; không tràn ngang, không lỗi runtime. Không thực hiện đăng nhập Google/email trong lượt kiểm này.
+
+## Popup dài và mật độ control
+
+- Sheet trước đây cuộn toàn khung, khiến tiêu đề và footer chạy khỏi vùng nhìn. Khung chung chuyển sang header/footer cố định bên trong, body là vùng cuộn duy nhất; chiều cao cập nhật theo visualViewport khi bàn phím thay đổi.
+- Tăng độ đặc nền sheet để form không lẫn chữ của trang phía sau.
+- Đánh giá dùng sao và chip cảm nhận phẳng, một đường viền/dấu chọn; chỉ Lưu giữ nút kính chính. Không đổi giới hạn cảm nhận hoặc logic lưu.

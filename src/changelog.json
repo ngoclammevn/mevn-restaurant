@@ -3,9 +3,10 @@
     "date": "2026-11-01",
     "changes": [
       "Đồng bộ nút, ô nhập, lịch chọn ngày và popup theo phong cách Apple, thêm hiệu ứng Liquid Glass",
-      "Làm gọn trang chọn món, đăng menu và quản lý; chữ rõ và thao tác thuận tiện trên điện thoại",
+      "Làm gọn danh sách menu, gom lệnh phụ vào nút thêm và giữ thao tác chính dễ tìm",
       "Sửa thanh điều hướng co giãn, chữ chồng khi kéo và vùng online che nội dung",
-      "Hiện rõ ngày đã trả hoặc còn nợ; giữ bản nháp khi hủy đóng popup"
+      "Làm gọn phần đánh giá; giữ tiêu đề và nút xác nhận trong popup khi nội dung dài",
+      "Sửa popup đăng nhập trên điện thoại: vừa màn hình, bỏ tiêu đề lặp và tăng vùng bấm"
     ]
   },
   {
