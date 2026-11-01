@@ -74,5 +74,6 @@ Bỏ mô tả AI, dòng đang chọn và rating trống; hàng món gọn hai c�
 - Build Production bằng Node 22.23.4: đạt. Còn cảnh báo chunk ExcelJS lớn và chỉ thị `use client` của thư viện UI.
 - Chromium local fixture: 13 giao diện theo mùa × 320/390/768/1440px, không tràn ngang, icon treo rời dây, che tiêu đề hoặc lỗi runtime.
 - Icon, đèn và dây dùng chung tọa độ đường cong; bỏ offset âm riêng cho icon giữa trên mobile.
+- Theme chỉ hiện sau lần chạm mascot thứ 7; lần thứ 3 chỉ gợi ý. Chromium/WebKit ở 390/1440px đã kiểm trạng thái ban đầu, mở khóa và giữ trạng thái sau tải lại. Local preview cho phép xem trực tiếp các mùa.
 - Changelog 01/07–01/11 rút gọn còn 1–3 mục mỗi ngày.
 - Kết quả fixture không thay thế kiểm tra iPhone thật hoặc các luồng ghi dữ liệu sau đăng nhập. Lượt này không gọi Database/Slack Production.

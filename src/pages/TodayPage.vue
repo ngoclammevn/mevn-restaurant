@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useAppPresence } from '../composables/useAppPresence'
 import { useMenus } from '../composables/useMenus'
 import { todayInVN } from '../lib/date'
 import { menuDishes } from '../lib/menu'
-import { getMascotEggEvent, getMascotSeasonTheme } from '../lib/mascot-events'
+import { getMascotEggEvent, getMascotSeasonTheme, hasUnlockedMascotEgg, MASCOT_EGG_UNLOCKED_EVENT } from '../lib/mascot-events'
 import { useMascotEggUnlockPulse } from '../composables/useMascotEggUnlockPulse'
 import { AppButton, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
 import OrderCard from '../components/OrderCard.vue'
@@ -55,7 +55,19 @@ const seasonalDate = computed(() => {
   return previewDate ? new Date(`${previewDate}T12:00:00+07:00`) : new Date()
 })
 const seasonalEvent = computed(() => getMascotEggEvent(seasonalDate.value))
-const seasonalTheme = computed(() => getMascotSeasonTheme(seasonalDate.value))
+const seasonalUnlocked = ref(false)
+const showSeasonalTheme = computed(() => seasonalUnlocked.value || (isSeasonPreviewEnabled && seasonalPreview.value !== 'current'))
+const seasonalTheme = computed(() => showSeasonalTheme.value ? getMascotSeasonTheme(seasonalDate.value) : { eventId:'lunch', accent:'#397653', surface:'#eff6f0' })
+function syncSeasonalUnlock() { seasonalUnlocked.value = hasUnlockedMascotEgg(seasonalEvent.value.eventKey) }
+watch(() => seasonalEvent.value.eventKey, syncSeasonalUnlock, { immediate:true })
+onMounted(() => {
+  window.addEventListener(MASCOT_EGG_UNLOCKED_EVENT, syncSeasonalUnlock)
+  window.addEventListener('storage', syncSeasonalUnlock)
+})
+onUnmounted(() => {
+  window.removeEventListener(MASCOT_EGG_UNLOCKED_EVENT, syncSeasonalUnlock)
+  window.removeEventListener('storage', syncSeasonalUnlock)
+})
 const seasonalStyle = computed(() => ({ '--season-accent': seasonalTheme.value.accent, '--season-surface': seasonalTheme.value.surface }))
 const seasonalDecorations = computed(() => {
   const slots = [
@@ -152,7 +164,7 @@ function activity(menu) {
   <template v-else>
     <p v-if="loading" class="meta" role="status">Đang cập nhật…</p><div v-if="error" class="row-wrap"><p class="alert" role="alert">{{ error }}</p><AppButton variant="ghost" @click="load">Thử lại</AppButton></div>
     <section class="card today-personal" :class="{ 'today-personal--seasonal-unlock': seasonalUnlockPulse, 'today-personal--seasonal-frame': seasonalFrameDecorations.length }" aria-labelledby="personal-lunch-title">
-      <div class="today-personal-decoration" aria-hidden="true"><span v-for="decoration in seasonalDecorations" :key="decoration.id" :style="{ left:decoration.left, top:decoration.top, transform:`translate(-50%, -50%) rotate(${decoration.rotation}) scale(${decoration.scale})` }">{{ decoration.icon }}</span></div>
+      <div v-if="showSeasonalTheme" class="today-personal-decoration" aria-hidden="true"><span v-for="decoration in seasonalDecorations" :key="decoration.id" :style="{ left:decoration.left, top:decoration.top, transform:`translate(-50%, -50%) rotate(${decoration.rotation}) scale(${decoration.scale})` }">{{ decoration.icon }}</span></div>
       <div v-if="seasonalFrameDecorations.length" class="today-seasonal-frame" :class="`today-seasonal-frame--${seasonalTheme.eventId}`" aria-hidden="true">
         <span class="today-seasonal-frame__garland">
           <svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="M0 1 Q50 31 100 1" /></svg>
