@@ -1,11 +1,8 @@
 <script setup>
 import { ref, computed, nextTick, watch } from 'vue'
-import { useMediaQuery } from '@vueuse/core'
 import AppIcon from './AppIcon.vue'
 import GlassInput from './liquid/GlassInput.vue'
-import GlassSegmented from './liquid/GlassSegmented.vue'
 import AppButton from './AppButton.vue'
-const compactFilters = useMediaQuery('(max-width:900px)')
 
 const props = defineProps({
   mode:           { type: String,  default: 'view' },
@@ -227,7 +224,7 @@ function addNewGroup() {
     <template v-if="mode === 'view'">
       <div v-if="(parsedView.dishes ?? []).length > 5" class="mb-filters stack-sm">
         <div class="field"><GlassInput v-model="search" label="Tìm món trong thực đơn" type="search" placeholder="Tên món…" /></div>
-        <div v-if="categories.length > 1" class="mb-categories"><GlassSegmented v-if="!compactFilters" label="Lọc theo nhóm món" :options="[`Tất cả · ${parsedView.dishes.length}`, ...categories]" :model-value="activeCategory ? categories.indexOf(activeCategory)+1 : 0" @update:model-value="activeCategory=$event===0 ? '' : categories[$event-1] || ''" /><div v-else class="mb-category-chips" role="group" aria-label="Lọc theo nhóm món"><AppButton v-for="(category,index) in ['',...categories]" :key="category" variant="ghost" :aria-pressed="activeCategory===category" @click="activeCategory=category">{{ index===0 ? `Tất cả · ${parsedView.dishes.length}` : category }}</AppButton></div></div>
+        <div v-if="categories.length > 1" class="mb-categories"><div class="mb-category-chips" role="group" aria-label="Lọc theo nhóm món"><AppButton v-for="(category,index) in ['',...categories]" :key="category" variant="ghost" :aria-pressed="activeCategory===category" @click="activeCategory=category">{{ index===0 ? `Tất cả · ${parsedView.dishes.length}` : category }}</AppButton></div></div>
         <p class="meta" role="status">{{ filteredDishes.length }} món{{ search || activeCategory ? ' phù hợp' : ' trong thực đơn' }} · Bấm + để chọn món.</p>
       </div>
       <div v-if="!Object.keys(viewGroups).length" class="mb-empty">{{ search || activeCategory ? 'Không tìm thấy món phù hợp.' : 'Chưa có món ăn nào.' }}<button v-if="search || activeCategory" type="button" class="btn btn--ghost" @click="search = ''; activeCategory = ''">Xóa bộ lọc</button></div>
@@ -404,12 +401,9 @@ button:focus-visible,input:focus-visible { outline:3px solid var(--primary); out
 @media(max-width:640px) { .mb-group--view{grid-template-columns:1fr}.mb-dish-card{padding:12px;gap:10px}.mb-dish-description{font-size:14px}.mb-live-picks{font-size:14px} .mb-dish-row { gap:8px; padding:10px 8px; flex-wrap:wrap; }.mb-dish-name-cell { flex-basis:calc(100% - 144px); }.mb-feedback { padding:0; }.mb-delete-btn { padding:8px; }.mb-dish-row--edit .mb-dish-name-cell { flex-basis:calc(100% - 60px); } }
 .mb-filters { gap:12px; margin-bottom:24px; }
 .mb-filters :deep(.lg-input__field) { border-radius:var(--radius-control); min-height:52px; }
-.mb-categories { overflow-x:auto; padding:5px 4px 10px; margin-inline:-4px; scrollbar-width:thin; }
-.mb-categories :deep(.glass-segmented-host) { width:max-content; min-width:100%; }
-.mb-categories :deep(.lg-segmented) { width:100%; }
-.mb-categories :deep(.lg-track__item) { min-width:max-content; flex:1 0 auto; padding-inline:18px; white-space:nowrap; }
-@media(max-width:640px) { .mb-categories :deep(.lg-track__item) { padding-inline:16px; } }
-.mb-category-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.mb-categories { min-width:0; padding:4px 0; }
+.mb-category-chips { display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; }
+.mb-category-chips > :deep(*) { max-width:100%; }
 .mb-category-chips :deep(.btn) { height:auto; min-height:48px; }
 .mb-category-chips :deep(.lg-button__label) { white-space:normal; overflow-wrap:anywhere; line-height:1.4; }
 .mb-category-chips :deep([aria-pressed=true]) { background:var(--primary-soft); color:var(--primary-ink); border-color:var(--primary); }

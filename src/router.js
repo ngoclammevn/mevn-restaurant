@@ -13,7 +13,7 @@ const routes = [
   { path: '/dashboard', component: () => import('./pages/DashboardPage.vue') },
   { path: '/history', component: () => import('./pages/HistoryPage.vue') },
   { path: '/profile', component: () => import('./pages/ProfilePage.vue') },
-  { path: '/taste', component: () => import('./pages/TastePage.vue') },
+  { path: '/taste', redirect: '/profile' },
   { path: '/:pathMatch(.*)*', component: () => import('./pages/NotFoundPage.vue') },
 ]
 

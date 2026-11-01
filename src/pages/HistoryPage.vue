@@ -82,7 +82,7 @@ function move(offset) { month.value = shiftMonth(month.value, offset); selected.
 function goToday() { month.value = today.slice(0, 7); selected.value = today }
 </script>
 <template><div class="stack history-page">
-  <div class="history-heading"><PageHeader eyebrow="Lịch cơm" title="Đơn của tôi" sub="Chọn ngày để xem bữa trưa, quán và đánh giá." /><AppButton variant="ghost" to="/taste">Khẩu vị của tôi</AppButton></div>
+  <div class="history-heading"><PageHeader eyebrow="Lịch cơm" title="Đơn của tôi" sub="Chọn ngày để xem bữa trưa, quán và đánh giá." /></div>
   <EmptyState v-if="!isSignedIn" title="Đăng nhập để xem lịch cơm"><AppButton @click="showSignIn = true">Đăng nhập</AppButton></EmptyState>
   <template v-else>
     <p v-if="error" class="alert" role="alert">{{ error }} <button type="button" @click="load">Thử lại</button></p>
