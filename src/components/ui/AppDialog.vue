@@ -54,7 +54,9 @@ defineExpose({ focus: () => dialog.value?.querySelector('h2')?.focus() })
 /* Header và footer ở trong khung; chỉ phần nội dung giữa cuộn khi form dài. */
 .app-dialog__content { display:flex; flex-direction:column; min-height:0; max-height:calc(100dvh - 34px); overflow:hidden; box-sizing:border-box; }
 .app-dialog__header,.app-dialog__footer { flex:none; }
-.app-dialog__body { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.app-dialog__body { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; scrollbar-width:none; -ms-overflow-style:none; }
+.app-dialog__body::-webkit-scrollbar { display:none; width:0; height:0; }
+.app-dialog--sheet .app-dialog__body { padding:8px 0 12px; }
 .app-dialog__footer { margin-top:16px; padding-top:16px; }
 .app-dialog--sheet { top:var(--dialog-viewport-top,0px); bottom:auto; height:var(--dialog-viewport-height,100dvh); }
 .app-dialog--sheet .app-dialog__content { max-height:none; flex:1 1 auto; width:100%; padding-top:12px; padding-bottom:max(16px,env(safe-area-inset-bottom)); }

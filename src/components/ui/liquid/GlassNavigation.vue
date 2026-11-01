@@ -93,8 +93,4 @@ onBeforeUnmount(() => { observer?.disconnect(); root?.unmount(); root = undefine
 .glass-navigation--unselected .lg-track__select { visibility: hidden; }
 @media (prefers-reduced-transparency: reduce) { .glass-navigation { --lg-navigation-fill: #fff; } }
 @media (prefers-contrast: more) { .glass-navigation { --lg-navigation-fill: #fff; } .glass-navigation .lg-nav { outline: 1px solid #465149; } }
-/* Lớp chữ sao chép của lens lệch với glyph gốc khi kéo ở màn hình nhỏ. */
-.glass-navigation .lg-track__lens > .lg-mirror { display:none; }
-.glass-navigation .lg-track[data-lifted] .lg-track__lens.lg-glass { z-index:1; }
-.glass-navigation .lg-track[data-lifted]:not([data-lg-copy]) > .lg-track__item :is(.lg-nav__label,.lg-nav__icon) { -webkit-mask:none; mask:none; }
 </style>

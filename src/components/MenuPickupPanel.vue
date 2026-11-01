@@ -11,6 +11,8 @@ const pickup=ref(null),loading=ref(false),busy=ref(false),error=ref(''),showPref
 const poster=computed(()=>props.menu.poster_id===user.value?.id)
 const canReceive=computed(()=>pickup.value?.status==='assigned' && (poster.value || pickup.value.primary_user_id===user.value?.id))
 const contact=computed(()=>pickup.value?.contacts?.find(row=>row.user_id===pickup.value.primary_user_id)?.phone_e164)
+const selectedByMe=computed(()=>pickup.value?.primary_user_id===user.value?.id)
+const copied=ref(false)
 let generation=0
 async function load(){
   const current=++generation,uid=user.value?.id
@@ -37,11 +39,26 @@ async function change(kind){
   finally{busy.value=false}
 }
 async function savePreferences(){if(await form.value?.save()){showPreferences.value=false;await load()}}
+async function copyPickupForRestaurant(){
+  if(!poster.value || !contact.value || !pickup.value?.primary)return
+  const name=pickup.value.primary.full_name || 'Người lấy cơm'
+  try{
+    await navigator.clipboard.writeText('Người lấy cơm: '+name+'\nSố điện thoại: '+contact.value)
+    copied.value=true
+    error.value=''
+    setTimeout(()=>{copied.value=false},1800)
+  }catch{error.value='Chưa sao chép được. Bạn có thể chọn và chép số điện thoại.'}
+}
 </script>
 <template>
   <section v-if="user" class="card pickup-panel">
     <h2>Lấy cơm</h2><p v-if="loading" class="meta" role="status">Đang tải…</p>
-    <div v-if="pickup && pickup.status!=='unassigned'" class="pickup-person"><Avatar :profile="pickup.primary" :size="40" /><div><strong>{{ pickup.primary?.full_name || 'Người lấy cơm' }}</strong><p class="meta">{{ pickup.status==='received'?'Đã lấy cơm':'Người lấy cơm' }}</p><a v-if="contact && pickup.status==='assigned'" :href="'tel:'+contact">{{ contact }}</a></div></div>
+    <div v-if="pickup && pickup.status!=='unassigned'" class="pickup-assignment">
+      <div class="pickup-assignment-heading"><strong>{{ selectedByMe ? 'Bạn được chọn lấy cơm' : 'Người được chọn lấy cơm' }}</strong><AppButton v-if="poster && contact && pickup.status==='assigned'" variant="ghost" @click="copyPickupForRestaurant">{{ copied ? 'Đã chép thông tin' : 'Chép thông tin gửi quán' }}</AppButton></div>
+      <div class="pickup-person"><Avatar :profile="pickup.primary" :size="40" /><div><strong>{{ pickup.primary?.full_name || 'Người lấy cơm' }}</strong><p class="meta">{{ pickup.status==='received'?'Đã lấy cơm':'Được chọn cho bữa này' }}</p><a v-if="contact && (poster || selectedByMe)" :href="'tel:'+contact">{{ contact }}</a></div></div>
+      <p v-if="poster && contact" class="meta pickup-send-note">Gửi tên và số này cho quán để shipper liên hệ đúng người.</p>
+      <p v-if="copied" class="pickup-copied" role="status">Đã chép tên và số điện thoại.</p>
+    </div>
     <p v-else-if="!loading" class="meta">{{ menu.is_closed ? 'Chưa chọn người lấy cơm.' : 'Chốt đơn rồi chọn người lấy cơm nhé.' }}</p>
     <p v-if="pickup?.backup" class="meta">Dự phòng: {{ pickup.backup.full_name }}</p>
     <div class="row-wrap"><AppButton v-if="canReceive" :loading="busy" @click="change('received')">Đã lấy cơm</AppButton><AppButton v-if="poster && pickup?.backup_user_id && pickup.status==='assigned'" variant="ghost" :disabled="busy" @click="change('backup')">Gọi người dự phòng</AppButton></div>
@@ -50,6 +67,6 @@ async function savePreferences(){if(await form.value?.save()){showPreferences.va
   </section>
 </template>
 <style scoped>
-.pickup-panel{margin:20px 0;display:grid;gap:14px}.pickup-panel h2{font-size:20px;margin:0}.pickup-person{display:flex;align-items:center;gap:12px}.pickup-person p{margin:4px 0}.pickup-panel .meta{font-size:14px}
+.pickup-panel{margin:20px 0;display:grid;gap:14px}.pickup-panel h2{font-size:20px;margin:0}.pickup-assignment{display:grid;gap:12px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--bg-tint)}.pickup-assignment-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.pickup-assignment-heading>strong{font-size:16px}.pickup-assignment-heading :deep(.btn){min-height:44px}.pickup-send-note{margin:0}.pickup-copied{margin:0;color:var(--primary-ink);font-size:14px;font-weight:650}.pickup-person{display:flex;align-items:center;gap:12px}.pickup-person p{margin:4px 0}.pickup-panel .meta{font-size:14px}
 .pickup-panel{border-radius:24px;padding:24px;gap:18px}.pickup-panel h2{font-size:22px;letter-spacing:-.02em}.pickup-panel .meta{font-size:14px;line-height:1.6}.pickup-person strong{font-size:17px}.pickup-person a{display:inline-flex;align-items:center;min-height:44px;font-size:16px}
 </style>

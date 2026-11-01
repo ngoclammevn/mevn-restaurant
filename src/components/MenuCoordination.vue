@@ -5,7 +5,6 @@ import { useMenus } from '../composables/useMenus'
 import { useSupabaseClient } from '../lib/supabase'
 import { useSlackNotifications } from '../composables/useSlackNotifications'
 import CloseMenuDialog from './CloseMenuDialog.vue'
-import MenuClosureHistory from './MenuClosureHistory.vue'
 import MenuPickupPanel from './MenuPickupPanel.vue'
 import MenuReminderField from './MenuReminderField.vue'
 import SlackDeliveryStatus from './SlackDeliveryStatus.vue'
@@ -103,11 +102,10 @@ defineExpose({closeMenu,reopenMenu})
     <p v-if="menu.payment_mode==='sponsored'" class="sponsored-notice"><strong>{{ menu.poster?.full_name || 'Người đăng' }} mời bữa này</strong><span v-if="menu.sponsor_reason"> · {{ menu.sponsor_reason }}</span>. Bạn không cần chuyển khoản.</p>
     <div v-if="owner && !menu.archived_at" class="card coordination-actions">
       <h2>Menu của bạn</h2><div class="row-wrap"><AppButton :loading="busy" :disabled="disabled" @click="menu.is_closed?reopenMenu():closeMenu()">{{ menu.is_closed?'Mở lại nhận đơn':'Chốt đơn' }}</AppButton><AppButton variant="ghost" :disabled="busy" @click="showShare=true">Đăng kênh chung</AppButton></div>
-      <p v-if="menu.current_closure" class="meta">Lần chốt {{ menu.current_closure.revision }} · Xem món và giá của lần này trong lịch sử.</p>
       <SlackDeliveryStatus v-if="notifications.states.value[menu.id]" :state="notifications.states.value[menu.id]" @retry="retry(notifications)" @resolve="resolve(notifications,$event)" />
       <section class="coordination-reminder"><h3>Nhắc đặt cơm</h3><MenuReminderField v-model="reminderAt" :menu-date="menu.menu_date" :disabled="busy || savingReminder || menu.is_closed" /><AppButton variant="ghost" :disabled="busy || menu.is_closed" :loading="savingReminder" @click="saveReminder">Lưu lịch nhắc</AppButton><SlackDeliveryStatus v-if="reminders.states.value[menu.id]" :state="reminders.states.value[menu.id]" @retry="retry(reminders,'reminder')" @resolve="resolve(reminders,$event)" /></section>
     </div>
-    <MenuPickupPanel v-if="!menu.archived_at" :menu="menu" :hide-preference="hidePickupPreference" @changed="pickupChanged" /><MenuClosureHistory v-if="menu.current_closure_id" :menu="menu" />
+    <MenuPickupPanel v-if="!menu.archived_at" :menu="menu" :hide-preference="hidePickupPreference" @changed="pickupChanged" />
     <p v-if="error && !showClose" class="alert" role="alert">{{ error }}</p>
     <CloseMenuDialog :open="showClose" :menu="menu" :busy="busy" :error="error" @close="cancelClose" @confirm="confirmClose" />
     <SlackPublishDialog v-if="showShare && owner" :menu="menu" :state="sharing.states.value[menu.id] || {status:'pending'}" @close="showShare=false" @publish="sharing.shareMenu(menu.id)" @retry="retry(sharing,'share')" @resolve="resolve(sharing,$event)" />

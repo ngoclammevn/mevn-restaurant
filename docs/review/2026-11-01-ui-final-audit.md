@@ -68,3 +68,11 @@ Thay toàn bộ 8 input date ở Post, Manage, Dashboard và xuất Excel bằng
 ## Trang chọn món và chuyển khoản
 
 Bỏ mô tả AI, dòng đang chọn và rating trống; hàng món gọn hai cột desktop. Có đơn thì ưu tiên thẻ đơn, Sửa món mở lại chooser; giữ Đặt thêm đơn. Bỏ online toàn app và câu hỏi lấy cơm lặp trên trang, giữ consent ở xác nhận. QR modal bỏ danh sách món, dùng ngày menu làm nội dung chuyển tiền; số tiền chưa rõ vẫn yêu cầu nhập, không coi là0. Desktop modal chỉ body cuộn, title không outline/box-shadow. Khôi phục sprite trái tim khi bấm mascot, giữ click của phần tử cha và reduced motion. Kiểm browser các luồng structured/plain create/edit, payment known/unknown/sponsored;5 tests avatar/motion PASS.
+
+## Rà soát bổ sung trước khi cập nhật PR
+
+- Build Production bằng Node 22.23.4: đạt. Còn cảnh báo chunk ExcelJS lớn và chỉ thị `use client` của thư viện UI.
+- Chromium local fixture: 13 giao diện theo mùa × 320/390/768/1440px, không tràn ngang, icon treo rời dây, che tiêu đề hoặc lỗi runtime.
+- Icon, đèn và dây dùng chung tọa độ đường cong; bỏ offset âm riêng cho icon giữa trên mobile.
+- Changelog 01/07–01/11 rút gọn còn 1–3 mục mỗi ngày.
+- Kết quả fixture không thay thế kiểm tra iPhone thật hoặc các luồng ghi dữ liệu sau đăng nhập. Lượt này không gọi Database/Slack Production.
