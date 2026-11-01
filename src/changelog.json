@@ -1,5 +1,11 @@
 [
   {
+    "date": "2026-11-02",
+    "changes": [
+      "Nội dung chuyển khoản tự điền tên người chuyển và ngày ăn."
+    ]
+  },
+  {
     "date": "2026-11-01",
     "changes": [
       "Rút gọn trang đặt món, đánh giá và popup; cải thiện hiển thị trên điện thoại.",

@@ -36,7 +36,11 @@ function setAmountText(text) {
   const digits = String(text ?? '').replace(/[^0-9]/g, '')
   amount.value = digits ? Math.min(Number(digits), 100000000) : null
 }
-const memo = computed(() => props.menuDate.split('-').reverse().join('/'))
+const memo = computed(() => {
+  const name = String(user.value?.fullName || [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' ')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, value => value === 'Đ' ? 'D' : 'd').replace(/\s+/g, ' ').trim()
+  const [, month, day] = props.menuDate.split('-')
+  return `${name} chuyen tien com ${day}/${month}`.trim()
+})
 const qrUrl = computed(() => {
   const bank = activeTab.value === 'momo' ? '971025' : payInfo.value.bankId
   const account = activeTab.value === 'momo' ? payInfo.value.momoPhone : payInfo.value.accountNumber
@@ -79,7 +83,7 @@ async function downloadQr() {
     const blob = await response.blob()
     if (current !== generation) return
     const objectUrl = URL.createObjectURL(blob), link = document.createElement('a')
-    link.href = objectUrl; link.download = `QR-${memo.value.replace(/\s+/g, '-') || 'thanh-toan'}.png`
+    link.href = objectUrl; link.download = `QR-${memo.value.replace(/[\\/:*?"<>|\s]+/g, '-') || 'thanh-toan'}.png`
     document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(objectUrl)
   } catch {
     if (current !== generation) return
