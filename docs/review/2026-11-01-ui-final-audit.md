@@ -37,7 +37,7 @@ Browser dùng dữ liệu giả ở cổng4178, không gọi DB hoặc Slack. Ar
 1. Chưa kiểm trên iPhone/Android thật, máy yếu hoặc phiên sử dụng dài. Không kết luận FPS, pin hay RAM từ kết quả headless.
 2. Thư viện dùng React trong app Vue. Mỗi adapter có lifecycle cleanup, nhưng nhiều nút kính vẫn tăng JS và công việc render. Chunk UI hiện khoảng155KB gzip cho cả nhóm UI; con số này không phải riêng thư viện kính.
 3. Safari/WebKit không có khả năng khúc xạ toàn cảnh giống Chrome/Edge. Chấp nhận fallback mờ/viền/chuyển động; navigation chủ động giữ chữ một lớp.
-4. Ô ngày đã đồng bộ style bên ngoài; popup lịch native vẫn theo browser/hệ điều hành. Release thư viện hiện không có DatePicker.
+4. Lịch chọn ngày dùng chung component Apple: thứ Hai đầu tuần, bàn phím, Hôm nay, bỏ lọc ngày và popover trong modal. Release thư viện không có DatePicker; phần lịch không gắn nhãn Liquid Glass. Kiểm năm nhuận và timezone Mỹ giữ nguyên giá trị ngày.
 5. README nhánh main có API khác release0.3.10. Giữ version pin và kiểm types/source của bản cài trước khi dùng tính năng mới; bản này không export setGlassQuality.
 6. Các kiểm tra UI dùng mock auth và API. Cần smoke test với tài khoản/dữ liệu test thật trước khi release; kết quả này không chứng minh toàn bộ luồng Production.
 
@@ -47,3 +47,7 @@ Browser dùng dữ liệu giả ở cổng4178, không gọi DB hoặc Slack. Ar
 - https://developer.apple.com/design/human-interface-guidelines/materials
 - https://developer.apple.com/design/human-interface-guidelines/tab-bars
 - Source/types của `@zakisheriff/liquid-glass@0.3.10` trong node_modules.
+
+## Lượt rà soát lịch chọn ngày
+
+Thay toàn bộ 8 input date ở Post, Manage, Dashboard và xuất Excel bằng AppDatePicker. DateField cũ chuyển thành wrapper, không giữ hai cách dựng lịch. Changelog ngày 30/10–01/11 đã gộp ý trùng thành các nhóm ngắn. Quét lại 32 tổ hợp layout: PASS.

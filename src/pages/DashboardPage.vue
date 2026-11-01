@@ -1,4 +1,5 @@
 <script setup>
+import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useDashboard } from '../composables/useDashboard'
@@ -307,22 +308,10 @@ watch([startDate, endDate, onlyMyMenus], () => {
             <!-- Date inputs -->
             <div class="date-filter-grid">
               <div class="field">
-                <label for="stats-start-date">Ngày bắt đầu</label>
-                <input
-                  id="stats-start-date"
-                  v-model="startDate"
-                  type="date"
-                  class="input"
-                />
+                <AppDatePicker id="stats-start-date" label="Ngày bắt đầu" v-model="startDate" clearable />
               </div>
               <div class="field">
-                <label for="stats-end-date">Ngày kết thúc</label>
-                <input
-                  id="stats-end-date"
-                  v-model="endDate"
-                  type="date"
-                  class="input"
-                />
+                <AppDatePicker id="stats-end-date" label="Ngày kết thúc" v-model="endDate" clearable />
               </div>
             </div>
 
