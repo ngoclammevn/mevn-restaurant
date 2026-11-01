@@ -1,11 +1,14 @@
 <script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import GlassSwitch from './ui/liquid/GlassSwitch.vue'
+import GlassInput from './ui/liquid/GlassInput.vue'
+import { ref, watch, onUnmounted, useId } from 'vue'
 import { useUser } from '@clerk/vue'
 import { usePickup } from '../composables/usePickup'
 import { normalizePickupPhone } from '../../shared/pickup.js'
 import { AppButton } from './ui'
 const props=defineProps({date:{type:String,required:true},enabled:{type:Boolean,default:true},disabled:Boolean})
 const emit=defineEmits(['saved'])
+const questionId='pickup-question-'+useId()
 const {user}=useUser(), api=usePickup()
 const loading=ref(false), saving=ref(false), available=ref(null), phone=ref(''), savedPhone=ref(''), editing=ref(true), editingPhone=ref(false), error=ref(''), ready=ref(false)
 let generation=0, loadedChoice=null
@@ -56,14 +59,14 @@ async function save(){
 defineExpose({validate,save,reload:load})
 </script>
 <template>
-  <section v-if="enabled" class="pickup-preferences" aria-labelledby="pickup-question" :aria-busy="loading || saving">
-    <h3 id="pickup-question">Hôm nay bạn lấy cơm được không?</h3>
+  <section v-if="enabled" class="pickup-preferences" :aria-labelledby="questionId" :aria-busy="loading || saving">
+    <h3 :id="questionId">Hôm nay bạn có thể lấy cơm không?</h3>
     <p v-if="loading" class="meta" role="status">Đang tải lựa chọn đã lưu…</p>
     <template v-else-if="ready">
-      <fieldset v-if="editing" :disabled="disabled || saving"><legend class="sr-only">Lấy cơm hôm nay</legend><label><input v-model="available" type="radio" :value="true" /> Mình lấy được</label><label><input v-model="available" type="radio" :value="false" /> Hôm nay không tiện</label></fieldset>
+      <fieldset v-if="editing" :disabled="disabled || saving"><legend class="sr-only">Lấy cơm hôm nay</legend><div class="pickup-switch-row"><span>{{ available===null ? 'Bật nếu hôm nay bạn lấy cơm được' : available ? 'Mình lấy được' : 'Hôm nay không tiện' }}</span><GlassSwitch :model-value="available===true" :disabled="disabled || saving" aria-label="Hôm nay mình lấy cơm được" @update:modelValue="available=$event" /></div><AppButton v-if="available===null" variant="ghost" :disabled="disabled || saving" @click="available=false">Hôm nay không tiện</AppButton><p class="meta">Lựa chọn chỉ lưu khi bạn xác nhận.</p></fieldset>
       <div v-else class="row-wrap"><span>{{ available ? 'Hôm nay mình lấy được' : 'Hôm nay không tiện' }}</span><AppButton variant="ghost" size="sm" :disabled="disabled || saving" @click="editing=true">Thay đổi</AppButton></div>
       <template v-if="available || savedPhone">
-        <label v-if="!savedPhone || editingPhone" class="field">Số điện thoại<input v-model.trim="phone" type="tel" inputmode="tel" autocomplete="tel" class="input" maxlength="24" :disabled="disabled || saving" placeholder="0901234567" /><span class="meta">Lưu cho lần sau. Chỉ bạn và người đăng xem được.</span></label>
+        <div v-if="!savedPhone || editingPhone" class="field"><GlassInput label="Số điện thoại" v-model="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" :disabled="disabled || saving" placeholder="0901234567" /><span class="meta">Lưu cho lần sau. Chỉ bạn và người đăng xem được.</span></div>
         <div v-else class="row-wrap"><span class="meta">Số đã lưu: {{ savedPhone }}</span><AppButton variant="ghost" size="sm" :disabled="disabled || saving" @click="editingPhone=true">Đổi số</AppButton></div>
       </template>
     </template>
@@ -73,5 +76,5 @@ defineExpose({validate,save,reload:load})
   <p v-else class="meta">Bạn ấy sẽ tự chọn lấy cơm và lưu số điện thoại nhé.</p>
 </template>
 <style scoped>
-.pickup-preferences{padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--bg-tint);display:grid;gap:12px}.pickup-preferences h3{font-size:15px;margin:0}.pickup-preferences fieldset{border:0;margin:0;padding:0;display:flex;gap:18px;flex-wrap:wrap}.pickup-preferences label{min-height:44px;display:flex;align-items:center;gap:8px;font-size:14px}.pickup-preferences .field{display:grid;align-items:start}.pickup-preferences .meta{font-size:12px;margin:0}.sr-only{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden}
+.pickup-preferences{padding:16px;border:1px solid var(--line);border-radius:24px;background:var(--bg-tint);display:grid;gap:12px}.pickup-preferences h3{font-size:17px;margin:0}.pickup-preferences fieldset{border:0;margin:0;padding:0;display:grid;gap:12px}.pickup-switch-row{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:16px}.pickup-switch-row :deep(.glass-switch-host){flex:none}.pickup-preferences label{min-height:48px;display:flex;align-items:center;gap:8px;font-size:16px}.pickup-preferences input[type=radio]{width:22px;height:22px;accent-color:var(--primary);flex:none}.pickup-preferences .input{font-size:16px;min-height:48px}.pickup-preferences :deep(.btn){min-height:48px;font-size:16px}.pickup-preferences .field{display:grid;align-items:start}.pickup-preferences .meta{font-size:14px;margin:0}.sr-only{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden}
 </style>

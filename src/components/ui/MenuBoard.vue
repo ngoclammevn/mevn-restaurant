@@ -1,6 +1,11 @@
 <script setup>
 import { ref, computed, nextTick, watch } from 'vue'
+import { useMediaQuery } from '@vueuse/core'
 import AppIcon from './AppIcon.vue'
+import GlassInput from './liquid/GlassInput.vue'
+import GlassSegmented from './liquid/GlassSegmented.vue'
+import AppButton from './AppButton.vue'
+const compactFilters = useMediaQuery('(max-width:900px)')
 
 const props = defineProps({
   mode:           { type: String,  default: 'view' },
@@ -221,13 +226,13 @@ function addNewGroup() {
     <!-- VIEW MODE -->
     <template v-if="mode === 'view'">
       <div v-if="(parsedView.dishes ?? []).length > 5" class="mb-filters stack-sm">
-        <label class="field"><span class="meta">Tìm món trong thực đơn</span><input v-model="search" type="search" class="input" placeholder="Tên món…" /></label>
-        <div v-if="categories.length > 1" class="mb-categories" aria-label="Lọc theo nhóm món"><button type="button" class="label-chip" :class="{ selected: !activeCategory }" :aria-pressed="!activeCategory" @click="activeCategory = ''">Tất cả · {{ parsedView.dishes.length }}</button><button v-for="category in categories" :key="category" type="button" class="label-chip" :class="{ selected: activeCategory === category }" :aria-pressed="activeCategory === category" @click="activeCategory = category">{{ category }}</button></div>
-        <p class="meta" role="status">{{ filteredDishes.length }} món{{ search || activeCategory ? ' phù hợp' : ' trong thực đơn' }} · Chạm vào món để chọn hoặc bỏ chọn.</p>
+        <div class="field"><GlassInput v-model="search" label="Tìm món trong thực đơn" type="search" placeholder="Tên món…" /></div>
+        <div v-if="categories.length > 1" class="mb-categories"><GlassSegmented v-if="!compactFilters" label="Lọc theo nhóm món" :options="[`Tất cả · ${parsedView.dishes.length}`, ...categories]" :model-value="activeCategory ? categories.indexOf(activeCategory)+1 : 0" @update:model-value="activeCategory=$event===0 ? '' : categories[$event-1] || ''" /><div v-else class="mb-category-chips" role="group" aria-label="Lọc theo nhóm món"><AppButton v-for="(category,index) in ['',...categories]" :key="category" variant="ghost" :aria-pressed="activeCategory===category" @click="activeCategory=category">{{ index===0 ? `Tất cả · ${parsedView.dishes.length}` : category }}</AppButton></div></div>
+        <p class="meta" role="status">{{ filteredDishes.length }} món{{ search || activeCategory ? ' phù hợp' : ' trong thực đơn' }} · Bấm + để chọn món.</p>
       </div>
       <div v-if="!Object.keys(viewGroups).length" class="mb-empty">{{ search || activeCategory ? 'Không tìm thấy món phù hợp.' : 'Chưa có món ăn nào.' }}<button v-if="search || activeCategory" type="button" class="btn btn--ghost" @click="search = ''; activeCategory = ''">Xóa bộ lọc</button></div>
       <div v-else class="mb-body">
-        <div v-for="(dishes, cat) in viewGroups" :key="cat" class="mb-group">
+        <div v-for="(dishes, cat) in viewGroups" :key="cat" class="mb-group mb-group--view">
           <div v-if="categories.length > 1" class="mb-group-name">{{ cat }}</div>
           <article v-for="d in dishes" :key="d.id || d.name" class="mb-dish-card" :class="{ 'mb-dish-card--picked': picks[d.name], 'mb-dish-card--unavailable': d.available === false }">
             <div class="mb-dish-content"><div class="mb-dish-heading"><h3>{{ d.name }}</h3><span v-if="d.available === false" class="badge">Hết món</span></div><p v-if="d.description" class="mb-dish-description">{{ d.description }}</p><strong class="mb-dish-price">{{ d.price == null || d.price === '' ? 'Chưa có giá' : fmt(d.price) }}</strong><span v-if="showCalories && d.calories" class="meta"> · {{ d.calories }} kcal</span>
@@ -355,13 +360,16 @@ function addNewGroup() {
 .mb-notes-wrap { margin-top:8px; }.mb-notes-wrap:empty{display:none;}
 .mb-notes-text { white-space:pre-line; color:var(--ink-soft); font-size:var(--fs-sm); }
 .mb-body { display:grid; gap:18px; }
-.mb-group-name { margin:0 0 8px; font-size:var(--fs-xs); color:var(--ink-soft); font-weight:600; }
-.mb-dish-card { display:flex; align-items:flex-start; gap:14px; border:1px solid var(--line); border-radius:14px; padding:18px; background:var(--card); margin:12px 0; }
-.mb-dish-card--picked { border-color:var(--primary); background:var(--primary-soft); }
+.mb-group-name { margin:0 0 8px; font-size:14px; color:var(--ink-soft); font-weight:600; }
+.mb-group--view { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.mb-group--view>.mb-group-name { grid-column:1 / -1; margin:8px 0 0; font-size:15px; font-weight:700; color:var(--ink); }
+.mb-dish-card { display:flex; align-items:flex-start; gap:14px; border:1px solid var(--line); border-radius:20px; padding:20px; background:var(--card); margin:0; min-width:0; }
+.mb-dish-card:hover { border-color:var(--line-strong); }
+.mb-dish-card--picked,.mb-dish-card--picked:hover { border-color:var(--primary); background:var(--primary-soft); }
 .mb-dish-content { flex:1; min-width:0; overflow-wrap:anywhere; }
 .mb-dish-heading { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }.mb-dish-heading h3{margin:0;font-size:17px;line-height:1.4;}
-.mb-dish-description { color:var(--ink-soft); font-size:14px; margin:8px 0; }
-.mb-select-button { width:44px; min-height:44px; flex:0 0 44px; display:grid; place-items:center; border:1px solid var(--line-strong); border-radius:12px; padding:8px; background:var(--card); color:var(--ink); cursor:pointer; }
+.mb-dish-description { color:var(--ink-soft); font-size:14px; margin:6px 0 10px; line-height:1.5; }
+.mb-select-button { width:44px; min-height:44px; flex:0 0 44px; display:grid; place-items:center; border:1px solid var(--line-strong); border-radius:var(--radius-control); padding:8px; background:var(--card); color:var(--ink); cursor:pointer; }
 .mb-select-button--picked { background:var(--primary); border-color:var(--primary); color:white; }.mb-select-button :deep(svg){width:20px;height:20px;}
 .mb-dish-row { display:flex; align-items:center; gap:12px; min-height:56px; width:100%; padding:12px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--ink); font:inherit; text-align:left; }
 button.mb-dish-row { cursor:pointer; }
@@ -371,20 +379,21 @@ button.mb-dish-row:hover:not(:disabled) { background:var(--bg-tint); }
 .mb-dish-row--unavailable { color:var(--ink-soft); }
 .mb-dish-name-cell { display:flex; align-items:center; flex-wrap:wrap; gap:8px; flex:1; min-width:0; overflow-wrap:anywhere; }
 .mb-dish-name { font-weight:600; }
-.mb-dish-price { flex-shrink:0; font-size:15px; color:var(--ink); }
+.mb-dish-price { flex-shrink:0; font-size:16px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .mb-pick-check { display:grid; place-items:center; flex-shrink:0; width:28px; height:28px; border:1px solid var(--line-strong); border-radius:6px; }
 .mb-pick-check :deep(svg) { width:16px; height:16px; }
-.mb-feedback { margin-top:12px; }
-.mb-feedback-labels { margin:0; font-size:12px; line-height:1.6; color:var(--ink-soft); }
-.mb-feedback-empty { margin:12px 0 0; font-size:12px; color:var(--ink-soft); }
-.mb-feedback-link { display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap; min-height:44px; border:0; background:transparent; padding:6px 0; font:inherit; font-size:13px; color:var(--ink-soft); text-align:left; cursor:pointer; }
+.mb-feedback { margin-top:6px; }
+.mb-feedback-labels { margin:0; font-size:14px; line-height:1.5; color:var(--ink-soft); }
+.mb-feedback-empty { margin:8px 0 0; font-size:14px; color:var(--ink-soft); }
+.mb-feedback-link { display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap; min-height:44px; border:0; background:transparent; padding:6px 0; font:inherit; font-size:14px; color:var(--ink-soft); text-align:left; cursor:pointer; }
 .mb-feedback-link strong { color:var(--ink); }.mb-feedback .meta{margin:0;}
-.mb-live-picks { display:flex; align-items:center; gap:10px; border-top:1px solid var(--line); margin-top:9px; padding-top:9px; font-size:13px; color:var(--ink-soft); }
-.mb-viewer-avatar { width:34px; height:34px; flex:0 0 34px; display:grid; place-items:center; border-radius:50%; background:var(--bg-tint); font-size:13px; font-weight:700; }
+.mb-live-picks { display:flex; align-items:center; gap:10px; border-top:1px solid var(--line); margin-top:9px; padding-top:9px; font-size:14px; color:var(--ink-soft); }
+.mb-viewer-avatar { width:34px; height:34px; flex:0 0 34px; display:grid; place-items:center; border-radius:50%; background:var(--bg-tint); font-size:14px; font-weight:700; }
 .mb-filters { margin-bottom:20px; }
-.mb-categories { display:flex; flex-wrap:wrap; gap:8px; }
-.mb-categories .label-chip { min-height:44px; }
-.mb-categories .selected { color:var(--ink); border-color:var(--ink); background:transparent; }
+.mb-categories { display:block; }
+
+
+
 .mb-empty { padding:24px 0; color:var(--ink-soft); }
 .mb-group-header { display:flex; gap:12px; align-items:center; justify-content:space-between; }
 .mb-group-dishes { display:grid; gap:8px; }
@@ -395,9 +404,20 @@ button.mb-dish-row:hover:not(:disabled) { background:var(--bg-tint); }
 .mb-editable,.mb-notes-display { border:0; padding:8px 0; background:transparent; font:inherit; color:inherit; min-height:44px; text-align:left; cursor:pointer; }
 .mb-placeholder { color:var(--ink-soft); font-size:var(--fs-sm); }
 .mb-dot-leader { display:none; }
-.mb-delete-btn,.mb-add-dish-btn,.mb-add-btn { min-height:44px; min-width:44px; border:1px solid var(--line-strong); background:transparent; color:var(--ink); border-radius:8px; padding:8px 12px; font:inherit; font-size:var(--fs-xs); cursor:pointer; }
+.mb-delete-btn,.mb-add-dish-btn,.mb-add-btn { min-height:44px; min-width:44px; border:1px solid var(--line-strong); background:transparent; color:var(--ink); border-radius:var(--radius-control); padding:8px 12px; font:inherit; font-size:var(--fs-xs); cursor:pointer; }
 .mb-add-row,.mb-edit-toolbar { margin-top:12px; }
 button:disabled { cursor:default; }
 button:focus-visible,input:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
-@media(max-width:640px) { .mb-dish-card{padding:15px;gap:12px}.mb-dish-description{font-size:13px}.mb-live-picks{font-size:12px} .mb-dish-row { gap:8px; padding:10px 8px; flex-wrap:wrap; }.mb-dish-name-cell { flex-basis:calc(100% - 144px); }.mb-feedback { padding:0; }.mb-delete-btn { padding:8px; }.mb-dish-row--edit .mb-dish-name-cell { flex-basis:calc(100% - 60px); } }
+@media(max-width:640px) { .mb-group--view{grid-template-columns:1fr}.mb-dish-card{padding:16px;gap:12px}.mb-dish-description{font-size:14px}.mb-live-picks{font-size:14px} .mb-dish-row { gap:8px; padding:10px 8px; flex-wrap:wrap; }.mb-dish-name-cell { flex-basis:calc(100% - 144px); }.mb-feedback { padding:0; }.mb-delete-btn { padding:8px; }.mb-dish-row--edit .mb-dish-name-cell { flex-basis:calc(100% - 60px); } }
+.mb-filters { gap:12px; margin-bottom:24px; }
+.mb-filters :deep(.lg-input__field) { border-radius:var(--radius-control); min-height:52px; }
+.mb-categories { overflow-x:auto; padding:5px 4px 10px; margin-inline:-4px; scrollbar-width:thin; }
+.mb-categories :deep(.glass-segmented-host) { width:max-content; min-width:100%; }
+.mb-categories :deep(.lg-segmented) { width:100%; }
+.mb-categories :deep(.lg-track__item) { min-width:max-content; flex:1 0 auto; padding-inline:18px; white-space:nowrap; }
+@media(max-width:640px) { .mb-categories :deep(.lg-track__item) { padding-inline:16px; } }
+.mb-category-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.mb-category-chips :deep(.btn) { height:auto; min-height:48px; }
+.mb-category-chips :deep(.lg-button__label) { white-space:normal; overflow-wrap:anywhere; line-height:1.4; }
+.mb-category-chips :deep([aria-pressed=true]) { background:var(--primary-soft); color:var(--primary-ink); border-color:var(--primary); }
 </style>

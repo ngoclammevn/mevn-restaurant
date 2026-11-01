@@ -3,6 +3,8 @@ import { ref, watch, computed } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useCatalog } from '../composables/useCatalog'
 import { AppButton } from './ui'
+import GlassInput from './ui/liquid/GlassInput.vue'
+import GlassSelect from './ui/liquid/GlassSelect.vue'
 const props = defineProps({ modelValue: { type: String, default: '' }, disabled: Boolean, compact: Boolean, lockReason: { type: String, default: '' } })
 const emit = defineEmits(['update:modelValue','selection'])
 const { user } = useUser()
@@ -34,16 +36,16 @@ async function add() {
 }
 </script>
 <template><div class="stack-sm restaurant-picker" :class="{compact}">
-  <div class="picker-fields"><label v-if="!disabled && !compact" class="field">Tìm quán<input v-model="query" class="input" type="search" placeholder="Tên quán hoặc chi nhánh…" /></label><label class="field">Menu này của quán nào?<select class="input" :value="modelValue" :disabled="disabled || busy" @change="emit('update:modelValue', $event.target.value)"><option value="">Chưa xác định quán</option><option v-for="r in filtered" :key="r.id" :value="r.id">{{ r.name }}{{ r.branch ? ` · ${r.branch}` : '' }}</option></select></label></div>
+  <div class="picker-fields"><div v-if="!disabled && !compact" class="field"><GlassInput label="Tìm quán" v-model="query" type="search" placeholder="Tên quán hoặc chi nhánh…" /></div><GlassSelect label="Menu này của quán nào?" :model-value="modelValue" :options="[{ value: '', label: 'Chưa xác định quán' }, ...filtered.map(r => ({ value: r.id, label: r.name + (r.branch ? ` · ${r.branch}` : '') }))]" :disabled="disabled || busy" @update:model-value="emit('update:modelValue', $event)" /></div>
   <p v-if="disabled && lockReason" class="meta">{{ lockReason }}</p>
   <p v-else-if="selection" class="meta">Đã chọn {{ selection.name }}{{ selection.branch ? ` · ${selection.branch}` : '' }}. Món và đánh giá sẽ thuộc quán này.</p>
   <p v-else class="meta">Chọn quán để ghi nhận đánh giá.</p>
   <div v-if="!disabled && !adding" class="row-wrap"><p v-if="query && !filtered.length" class="meta" role="status">Chưa tìm thấy quán phù hợp.</p><AppButton variant="ghost" @click="adding = true">+ Thêm quán mới</AppButton></div>
-  <div v-if="adding" class="stack-sm add-restaurant"><h3 class="section-title">Quán mới</h3><label class="field">Tên quán<input v-model="name" class="input" maxlength="240" :disabled="busy || disabled" placeholder="Ví dụ: Cơm Nhà" /></label><label class="field">Chi nhánh (tùy chọn)<input v-model="branch" class="input" maxlength="120" :disabled="busy || disabled" placeholder="Địa chỉ hoặc tên chi nhánh" /></label><div class="row-wrap"><AppButton :loading="busy" :disabled="!name.trim() || disabled" @click="add">Thêm và chọn quán</AppButton><AppButton variant="ghost" :disabled="busy" @click="adding = false">Hủy</AppButton></div></div>
+  <div v-if="adding" class="stack-sm add-restaurant"><h3 class="section-title">Quán mới</h3><div class="field"><GlassInput label="Tên quán" v-model="name" maxlength="240" :disabled="busy || disabled" placeholder="Ví dụ: Cơm Nhà" /></div><div class="field"><GlassInput label="Chi nhánh (tùy chọn)" v-model="branch" maxlength="120" :disabled="busy || disabled" placeholder="Địa chỉ hoặc tên chi nhánh" /></div><div class="row-wrap"><AppButton :loading="busy" :disabled="!name.trim() || disabled" @click="add">Thêm và chọn quán</AppButton><AppButton variant="ghost" :disabled="busy" @click="adding = false">Hủy</AppButton></div></div>
   <p v-if="error" class="alert" role="alert">{{ error }}</p>
 </div></template>
 <style scoped>
-.compact .picker-fields{grid-template-columns:1fr}.compact .field{font-size:14px;gap:7px}.compact .meta{font-size:12px;line-height:1.6}.compact :deep(.btn){font-size:13px}.compact .input{min-height:46px;border-radius:10px}.picker-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .75rem; }
+.compact .picker-fields{grid-template-columns:1fr}.compact .field{font-size:14px;gap:7px}.compact .meta{font-size:14px;line-height:1.6}.compact :deep(.btn){font-size:16px}.compact .input{min-height:48px;border-radius:var(--radius-field)}.picker-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .75rem; }
 .add-restaurant { padding: 1rem; background: var(--bg-tint); border: 1px solid var(--line); border-radius: var(--radius-sm); }
-@media (max-width: 600px) { .compact .picker-fields{grid-template-columns:1fr}.compact .field{font-size:14px;gap:7px}.compact .meta{font-size:12px;line-height:1.6}.compact :deep(.btn){font-size:13px}.compact .input{min-height:46px;border-radius:10px}.picker-fields { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .compact .picker-fields{grid-template-columns:1fr}.compact .field{font-size:14px;gap:7px}.compact .meta{font-size:14px;line-height:1.6}.compact :deep(.btn){font-size:16px}.compact .input{min-height:48px;border-radius:var(--radius-field)}.picker-fields { grid-template-columns: minmax(0, 1fr); } }
 </style>

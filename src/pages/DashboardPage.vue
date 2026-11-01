@@ -550,6 +550,9 @@ watch([startDate, endDate, onlyMyMenus], () => {
 </template>
 
 <style scoped>
+.dashboard-tab, .preset-chip { min-height:44px; }
+input.input, select.input { font-size:16px; min-height:48px; }
+
 .dashboard-tabs {
   display: inline-flex;
   gap: 0.35rem;
@@ -572,7 +575,8 @@ watch([startDate, endDate, onlyMyMenus], () => {
   background: transparent;
   color: var(--ink-soft);
   font-weight: 700;
-  font-size: var(--fs-sm);
+  font-size: 16px;
+  min-height: 48px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }

@@ -118,7 +118,7 @@ async function copyList() {
   overflow: hidden;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 20px 22px;
   display: flex;
   flex-direction: column;
@@ -131,12 +131,14 @@ async function copyList() {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .osp-header-right {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .osp-copy {
@@ -145,7 +147,7 @@ async function copyList() {
   background: transparent;
   border-radius: 12px;
   padding: 0.1rem 0.45rem;
-  font-size: var(--fs-xs);
+  font-size: 14px;
   line-height: 1.4;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
@@ -166,7 +168,7 @@ async function copyList() {
   background: transparent;
   border-radius: 12px;
   padding: 0.1rem 0.5rem;
-  font-size: var(--fs-xs);
+  font-size: 14px;
   line-height: 1.4;
   cursor: pointer;
   white-space: nowrap;
@@ -178,7 +180,7 @@ async function copyList() {
 }
 
 .osp-badge {
-  font-size: var(--fs-xs);
+  font-size: 14px;
   padding: 0.15rem 0.6rem;
 }
 
@@ -198,21 +200,21 @@ async function copyList() {
   align-items: baseline;
   gap: 0.5rem;
   flex-wrap: wrap;
-  padding: 0.1rem 0;
+  padding: 12px 0;
 }
 
 .osp-dish {
   font-weight: 600;
-  font-size: var(--fs-sm);
+  font-size: 16px;
   color: var(--ink);
-  flex-shrink: 0;
-  max-width: 40%;
+  flex-shrink: 1;
+  max-width: 100%;
 }
 
 .osp-count {
   background: var(--bg-tint);
   color: var(--ink);
-  font-size: var(--fs-xs);
+  font-size: 14px;
   font-weight: 700;
   padding: 0.05rem 0.45rem;
   border-radius: 12px;
@@ -221,18 +223,17 @@ async function copyList() {
 
 .osp-people {
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: 14px;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .osp-price {
   color: var(--ink);
   font-weight: 700;
-  font-size: var(--fs-sm);
+  font-size: 16px;
   margin-left: auto;
   flex-shrink: 0;
 }
@@ -242,7 +243,7 @@ async function copyList() {
   justify-content: space-between;
   align-items: center;
   font-weight: 700;
-  font-size: var(--fs-sm);
+  font-size: 16px;
   color: var(--ink);
 }
 

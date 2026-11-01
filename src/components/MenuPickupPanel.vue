@@ -44,9 +44,12 @@ async function savePreferences(){if(await form.value?.save()){showPreferences.va
     <div v-if="pickup && pickup.status!=='unassigned'" class="pickup-person"><Avatar :profile="pickup.primary" :size="40" /><div><strong>{{ pickup.primary?.full_name || 'Người lấy cơm' }}</strong><p class="meta">{{ pickup.status==='received'?'Đã lấy cơm':'Người lấy cơm' }}</p><a v-if="contact && pickup.status==='assigned'" :href="'tel:'+contact">{{ contact }}</a></div></div>
     <p v-else-if="!loading" class="meta">{{ menu.is_closed ? 'Chưa chọn người lấy cơm.' : 'Chốt đơn rồi chọn người lấy cơm nhé.' }}</p>
     <p v-if="pickup?.backup" class="meta">Dự phòng: {{ pickup.backup.full_name }}</p>
-    <div class="row-wrap"><AppButton v-if="canReceive" :loading="busy" @click="change('received')">Đã lấy cơm</AppButton><AppButton v-if="poster && pickup?.backup_user_id && pickup.status==='assigned'" variant="ghost" :disabled="busy" @click="change('backup')">Gọi người dự phòng</AppButton><AppButton variant="ghost" :disabled="busy" @click="showPreferences=!showPreferences">{{ showPreferences?'Đóng':'Thông tin của mình' }}</AppButton></div>
-    <PickupPreferenceForm v-if="showPreferences" ref="form" :date="menu.menu_date" :disabled="busy"><template #actions="{saving}"><AppButton variant="ghost" :loading="saving" @click="savePreferences">Lưu thông tin</AppButton></template></PickupPreferenceForm>
+    <div class="row-wrap"><AppButton v-if="canReceive" :loading="busy" @click="change('received')">Đã lấy cơm</AppButton><AppButton v-if="poster && pickup?.backup_user_id && pickup.status==='assigned'" variant="ghost" :disabled="busy" @click="change('backup')">Gọi người dự phòng</AppButton></div>
+    <PickupPreferenceForm ref="form" :date="menu.menu_date" :disabled="busy"><template #actions="{saving}"><AppButton variant="ghost" :loading="saving" @click="savePreferences">Lưu thông tin</AppButton></template></PickupPreferenceForm>
     <p v-if="error" class="alert" role="alert">{{ error }} <button type="button" @click="load">Thử lại</button></p>
   </section>
 </template>
-<style scoped>.pickup-panel{margin:20px 0;display:grid;gap:14px}.pickup-panel h2{font-size:20px;margin:0}.pickup-person{display:flex;align-items:center;gap:12px}.pickup-person p{margin:4px 0}.pickup-panel .meta{font-size:13px}</style>
+<style scoped>
+.pickup-panel{margin:20px 0;display:grid;gap:14px}.pickup-panel h2{font-size:20px;margin:0}.pickup-person{display:flex;align-items:center;gap:12px}.pickup-person p{margin:4px 0}.pickup-panel .meta{font-size:14px}
+.pickup-panel{border-radius:24px;padding:24px;gap:18px}.pickup-panel h2{font-size:22px;letter-spacing:-.02em}.pickup-panel .meta{font-size:14px;line-height:1.6}.pickup-person strong{font-size:17px}.pickup-person a{display:inline-flex;align-items:center;min-height:44px;font-size:16px}
+</style>

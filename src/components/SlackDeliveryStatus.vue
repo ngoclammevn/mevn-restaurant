@@ -18,5 +18,5 @@ const label = computed(() => labels[props.state.status] || labels.pending)
   </div>
 </template>
 <style scoped>
-.slack-status{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;font-size:.82rem;color:var(--text-secondary,#64748b)}.slack-status p{width:100%;margin:.2rem 0}.slack-status button,.slack-status a{color:var(--primary,#2563eb);font:inherit}.slack-status button{background:transparent;border:1px solid var(--border,#cbd5e1);border-radius:6px;padding:.3rem .5rem;cursor:pointer}
+.slack-status{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;font-size:.82rem;color:var(--text-secondary,#64748b)}.slack-status p{width:100%;margin:.2rem 0}.slack-status button,.slack-status a{color:var(--primary,#2563eb);font:inherit}.slack-status button{background:transparent;border:1px solid var(--border,#cbd5e1);border-radius:var(--radius-control);padding:.3rem .5rem;cursor:pointer}
 </style>

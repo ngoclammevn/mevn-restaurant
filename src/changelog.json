@@ -1,5 +1,33 @@
 [
   {
+    "date": "2026-11-01",
+    "changes": [
+      "Sửa thanh điều hướng để kéo, bấm và dùng bàn phím đều mở đúng trang",
+      "Giữ chữ tiếng Việt khi nhập và sửa nút xóa nội dung trong ô nhập",
+      "Cải thiện ô lựa chọn trên màn hình thấp và khi tạm khóa thao tác",
+      "Đồng bộ ô nhập, danh sách lựa chọn và popup đánh giá theo giao diện Apple",
+      "Thống nhất độ bo góc của nút và bỏ các lớp khung lồng nhau trong form thanh toán",
+      "Thêm bộ lọc danh mục Liquid Glass, hiện đủ lựa chọn trên điện thoại và kết hợp tìm món",
+      "Làm rõ tab đang mở và giữ thanh điều hướng ổn định khi sang trang đăng menu",
+      "Chuyển trạng thái online lên header điện thoại, giữ thanh tab nổi cách mép màn hình",
+      "Đồng bộ nút thanh toán và sắp xếp nhóm thao tác dễ bấm hơn trên điện thoại",
+      "Sửa chữ và icon chồng lên nhau khi kéo thanh điều hướng trên điện thoại",
+      "Dùng công tắc kính cho tình trạng còn món, khả năng lấy cơm và tự thu xếp nhận cơm",
+      "Làm rõ nút đang dùng và nút tạm khóa, khôi phục hiệu ứng nhấn và ánh sáng",
+      "Sửa layout Hồ sơ trên màn hình nhỏ, tăng cỡ chữ phụ và Việt hóa nút chọn ảnh"
+    ]
+  },
+  {
+    "date": "2026-10-31",
+    "changes": [
+      "Đồng bộ giao diện theo phong cách Apple, chữ rõ hơn và nút dễ bấm trên máy tính lẫn điện thoại",
+      "Thêm thanh điều hướng Liquid Glass và bố cục chọn món hai cột trên máy tính",
+      "Hiện trực tiếp các thao tác thanh toán, sửa món, nhắc đặt cơm và thông tin lấy cơm",
+      "Tô xanh ngày đã thanh toán, đỏ ngày còn đơn chưa trả; thêm ký hiệu và chú thích trong lịch",
+      "Làm gọn trang đăng menu và tự sắp xếp ô nhập món phù hợp với màn hình điện thoại"
+    ]
+  },
+  {
     "date": "2026-10-30",
     "changes": [
       "Lưu số điện thoại nhận cơm một lần, kiểm tra định dạng và cho đổi số ngay trong menu",

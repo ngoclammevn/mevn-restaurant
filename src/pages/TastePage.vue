@@ -1,4 +1,5 @@
 <script setup>
+import GlassSegmented from '../components/ui/liquid/GlassSegmented.vue'
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useOrders } from '../composables/useOrders'
@@ -52,7 +53,7 @@ const labels = computed(() => summary.value.commonLabels.map(item => ({ key: ite
     <template v-if="orders.length">
       <div class="taste-grid">
         <TasteSummaryChart title="Món ăn" :items="chartMode === 'liked' ? liked : frequent" :empty-text="chartMode === 'liked' ? 'Bạn chưa chấm món nào từ 4 sao.' : 'Bạn chưa có món nào trong danh sách này.'">
-          <div class="taste-tabs" role="group" aria-label="Loại biểu đồ"><button type="button" :aria-pressed="chartMode === 'liked'" @click="chartMode = 'liked'">Món đánh giá tốt</button><button type="button" :aria-pressed="chartMode === 'frequent'" @click="chartMode = 'frequent'">Món hay đặt</button></div>
+          <GlassSegmented class="taste-tabs" label="Loại biểu đồ" :options="['Món đánh giá tốt','Món hay đặt']" :model-value="chartMode==='liked'?0:1" @update:model-value="chartMode=$event===0?'liked':'frequent'" />
           <p class="meta taste-description" role="status">{{ chartMode === 'liked' ? 'Điểm bạn tự đánh giá; số lần đặt không thể hiện mức yêu thích.' : 'Số lượt đã chọn món này; tách riêng khỏi điểm đánh giá.' }}</p>
           <template #footer><details class="taste-explainer"><summary>Dữ liệu này được hiểu thế nào?</summary><p class="meta">Mỗi món gắn riêng với một quán. Điểm đến từ đánh giá bạn đã lưu, lượt chọn đến từ đơn của bạn. Một vài đánh giá chưa đủ để kết luận khẩu vị lâu dài.</p></details></template>
         </TasteSummaryChart>
@@ -63,7 +64,7 @@ const labels = computed(() => summary.value.commonLabels.map(item => ({ key: ite
   </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
 </div></template>
 <style scoped>
-.taste-summary { background:#f4f5f0; border-color:#d9decf; color:#48523e; }.taste-summary h2 { font-size:21px; margin:12px 0 8px; }.taste-summary p { margin:0 0 8px; }.taste-summary .meta { font-size:12px; }
-.taste-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start; margin-top:4px; }.taste-tabs { display:flex; gap:8px; margin:18px 0 24px; }.taste-tabs button { flex:1; min-height:44px; border:1px solid var(--line-strong); border-radius:11px; padding:9px 13px; background:var(--card); font-size:14px; cursor:pointer; }.taste-tabs button[aria-pressed=true] { background:#f1f3ec; border-color:#bbc4b0; color:#303c25; }.taste-description { font-size:12px; }.taste-explainer summary { font-size:14px; padding:10px 0; }.taste-explainer p { font-size:12px; }
-.taste-feelings h2,.taste-unreviewed h2 { font-size:21px; margin:0 0 8px; }.taste-feelings > .meta { font-size:12px; }.taste-tags { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }.taste-tags span { padding:8px 12px; border-radius:20px; font-size:14px; color:#58624f; background:#f2f3ef; }.taste-rule { border-top:1px solid var(--line); padding-top:20px; margin-top:20px; }.taste-rule h3 { margin:12px 0 8px; font-size:20px; }.taste-rule p { margin-bottom:16px; }.taste-unreviewed { margin-top:4px; }.taste-unreviewed p { margin-bottom:16px; }@media(max-width:640px) { .taste-grid { grid-template-columns:1fr; gap:18px; }.taste-tabs button { padding:9px 10px; } }
+.taste-summary { background:var(--card); border-color:var(--line); color:var(--ink); }.taste-summary h2 { font-size:21px; margin:12px 0 8px; }.taste-summary p { margin:0 0 8px; }.taste-summary .meta { font-size:14px; }
+.taste-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start; margin-top:4px; }.taste-tabs { display:flex; gap:8px; margin:18px 0 24px; }.taste-tabs button { flex:1; min-height:44px; border:1px solid var(--line-strong); border-radius:var(--radius-control); padding:9px 13px; background:var(--card); font-size:16px; cursor:pointer; }.taste-tabs button[aria-pressed=true] { background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); }.taste-description { font-size:14px; }.taste-explainer summary { font-size:14px; padding:10px 0; }.taste-explainer p { font-size:14px; }
+.taste-feelings h2,.taste-unreviewed h2 { font-size:21px; margin:0 0 8px; }.taste-feelings > .meta { font-size:14px; }.taste-tags { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }.taste-tags span { padding:8px 12px; border-radius:20px; font-size:14px; color:var(--primary-ink); background:var(--primary-soft); }.taste-rule { border-top:1px solid var(--line); padding-top:20px; margin-top:20px; }.taste-rule h3 { margin:12px 0 8px; font-size:20px; }.taste-rule p { margin-bottom:16px; }.taste-unreviewed { margin-top:4px; }.taste-unreviewed p { margin-bottom:16px; }@media(max-width:640px) { .taste-grid { grid-template-columns:1fr; gap:18px; }.taste-tabs button { padding:9px 10px; } }
 </style>
