@@ -30,8 +30,12 @@ export function useSlackNotifications() {
       if (action !== 'sync' && requests.get(key) === request && session.value?.id === sessionId && !controller.signal.aborted) states.value = { ...states.value, [key]: result }
       return result
     } catch (error) {
-      const result = { status: 'pending', error: error.code || 'request_interrupted', ...(eventId ? {eventId} : {}) }
-      if (action !== 'sync' && requests.get(key) === request && session.value?.id === sessionId && !controller.signal.aborted) states.value = { ...states.value, [key]: result }
+      const code = error.code || 'request_interrupted'
+      const status = ['service_not_configured','slack_not_configured'].includes(code) ? 'disabled' : 'pending'
+      const result = { status, error: code, ...(eventId && status !== 'disabled' ? {eventId} : {}) }
+      const isCurrent = requests.get(key) === request && session.value?.id === sessionId && !controller.signal.aborted
+      if (action !== 'sync' && isCurrent) states.value = { ...states.value, [key]: result }
+      if (status === 'disabled' && isCurrent) requests.delete(key)
       return result
     } finally { controllers.delete(controller) }
   }
@@ -57,6 +61,7 @@ export function useSlackNotifications() {
     const id = session.value?.id
     for (const menu of ownedMenuIds) {
       if (!id || session.value?.id !== id) break
+      if (states.value[menu]?.status === 'disabled') continue
       if (states.value[menu]?.status === 'pending' && requests.has(menu)) await retryPending(menu)
       else await publishMenu(menu)
       const result = await send('sync', { menu_id: menu }, menu)

@@ -5,13 +5,12 @@ import { useMenus } from '../composables/useMenus'
 import { useSupabaseClient } from '../lib/supabase'
 import { useSlackNotifications } from '../composables/useSlackNotifications'
 import CloseMenuDialog from './CloseMenuDialog.vue'
-import MenuClosureHistory from './MenuClosureHistory.vue'
 import MenuPickupPanel from './MenuPickupPanel.vue'
 import MenuReminderField from './MenuReminderField.vue'
 import SlackDeliveryStatus from './SlackDeliveryStatus.vue'
 import SlackPublishDialog from './SlackPublishDialog.vue'
 import { AppButton } from './ui'
-const props=defineProps({menu:{type:Object,required:true},disabled:Boolean})
+const props=defineProps({menu:{type:Object,required:true},disabled:Boolean,hidePickupPreference:Boolean})
 const emit=defineEmits(['updated','busy'])
 const {user}=useUser(),{setMenuClosed,getMenu}=useMenus(),sb=useSupabaseClient()
 const notifications=useSlackNotifications(),sharing=useSlackNotifications(),reminders=useSlackNotifications()
@@ -103,14 +102,16 @@ defineExpose({closeMenu,reopenMenu})
     <p v-if="menu.payment_mode==='sponsored'" class="sponsored-notice"><strong>{{ menu.poster?.full_name || 'Người đăng' }} mời bữa này</strong><span v-if="menu.sponsor_reason"> · {{ menu.sponsor_reason }}</span>. Bạn không cần chuyển khoản.</p>
     <div v-if="owner && !menu.archived_at" class="card coordination-actions">
       <h2>Menu của bạn</h2><div class="row-wrap"><AppButton :loading="busy" :disabled="disabled" @click="menu.is_closed?reopenMenu():closeMenu()">{{ menu.is_closed?'Mở lại nhận đơn':'Chốt đơn' }}</AppButton><AppButton variant="ghost" :disabled="busy" @click="showShare=true">Đăng kênh chung</AppButton></div>
-      <p v-if="menu.current_closure" class="meta">Lần chốt {{ menu.current_closure.revision }} · Xem món và giá của lần này trong lịch sử.</p>
       <SlackDeliveryStatus v-if="notifications.states.value[menu.id]" :state="notifications.states.value[menu.id]" @retry="retry(notifications)" @resolve="resolve(notifications,$event)" />
-      <details><summary>Nhắc đặt cơm trên Slack</summary><MenuReminderField v-model="reminderAt" :menu-date="menu.menu_date" :disabled="busy || savingReminder || menu.is_closed" /><AppButton variant="ghost" :disabled="busy || menu.is_closed" :loading="savingReminder" @click="saveReminder">Lưu lịch nhắc</AppButton><SlackDeliveryStatus v-if="reminders.states.value[menu.id]" :state="reminders.states.value[menu.id]" @retry="retry(reminders,'reminder')" @resolve="resolve(reminders,$event)" /></details>
+      <section class="coordination-reminder"><h3>Nhắc đặt cơm</h3><MenuReminderField v-model="reminderAt" :menu-date="menu.menu_date" :disabled="busy || savingReminder || menu.is_closed" /><AppButton variant="ghost" :disabled="busy || menu.is_closed" :loading="savingReminder" @click="saveReminder">Lưu lịch nhắc</AppButton><SlackDeliveryStatus v-if="reminders.states.value[menu.id]" :state="reminders.states.value[menu.id]" @retry="retry(reminders,'reminder')" @resolve="resolve(reminders,$event)" /></section>
     </div>
-    <MenuPickupPanel v-if="!menu.archived_at" :menu="menu" @changed="pickupChanged" /><MenuClosureHistory v-if="menu.current_closure_id" :menu="menu" />
+    <MenuPickupPanel v-if="!menu.archived_at" :menu="menu" :hide-preference="hidePickupPreference" @changed="pickupChanged" />
     <p v-if="error && !showClose" class="alert" role="alert">{{ error }}</p>
     <CloseMenuDialog :open="showClose" :menu="menu" :busy="busy" :error="error" @close="cancelClose" @confirm="confirmClose" />
     <SlackPublishDialog v-if="showShare && owner" :menu="menu" :state="sharing.states.value[menu.id] || {status:'pending'}" @close="showShare=false" @publish="sharing.shareMenu(menu.id)" @retry="retry(sharing,'share')" @resolve="resolve(sharing,$event)" />
   </section>
 </template>
-<style scoped>.coordination-actions{display:grid;gap:14px;margin:20px 0}.coordination-actions h2{font-size:20px;margin:0}.coordination-actions details{border-top:1px solid var(--line);padding-top:8px}.coordination-actions summary{cursor:pointer;min-height:44px;align-content:center;font-size:14px}.coordination-actions details .btn{margin-top:12px}.sponsored-notice{padding:16px;background:var(--bg-tint);border:1px solid var(--line);border-radius:12px;font-size:14px}</style>
+<style scoped>
+.coordination-actions{display:grid;gap:14px;margin:20px 0}.coordination-actions h2{font-size:20px;margin:0}.coordination-reminder{border-top:1px solid var(--line);padding-top:8px}.coordination-actions summary{cursor:pointer;min-height:44px;align-content:center;font-size:14px}.coordination-reminder .btn{margin-top:12px}.sponsored-notice{padding:16px;background:var(--bg-tint);border:1px solid var(--line);border-radius:12px;font-size:14px}
+.coordination-actions{padding:24px;border-radius:24px;gap:20px}.coordination-reminder h3{font-size:17px;margin:8px 0 14px}.coordination-actions h2{font-size:22px;letter-spacing:-.02em}.sponsored-notice{font-size:16px;line-height:1.6;border-radius:18px}.coordination-actions .meta{font-size:14px}
+</style>

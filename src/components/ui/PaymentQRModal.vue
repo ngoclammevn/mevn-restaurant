@@ -3,6 +3,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import AppButton from './AppButton.vue'
 import AppDialog from './AppDialog.vue'
+import GlassInput from './liquid/GlassInput.vue'
 import { LIST_BANKS } from '../../lib/banks'
 import { orderPriceItems } from '../../lib/settlement-items'
 import { managedOrderAmount } from '../../lib/manage-summary'
@@ -15,7 +16,7 @@ const emit = defineEmits(['close', 'paid'])
 const { user } = useUser()
 const own = computed(() => !!user.value?.id && props.order.user_id === user.value.id)
 const activeTab = ref('bank'), amount = ref(null), copiedField = ref(''), copyError = ref(''), downloadError = ref(''), downloading = ref(false)
-const qrError = ref(false), qrKey = ref(0)
+const qrError = ref(false), qrKey = ref(0), editingAmount = ref(false)
 let copyTimer, generation = 0
 const payInfo = computed(() => {
   const text = props.poster?.payment_info || ''
@@ -31,15 +32,14 @@ const fullBankName = computed(() => {
 const breakdown = computed(()=>({items:orderPriceItems(props.menu || {},props.order).map(item=>({name:item.name,price:item.unitPrice})),total:managedOrderAmount(props.menu || {},props.order)}))
 const amountText = computed(() => amount.value == null ? '' : new Intl.NumberFormat('vi-VN').format(amount.value))
 const money = value => value == null ? 'Chưa có giá' : `${new Intl.NumberFormat('vi-VN').format(value)} đ`
-function inputAmount(event) {
-  const digits = event.target.value.replace(/[^0-9]/g, '')
+function setAmountText(text) {
+  const digits = String(text ?? '').replace(/[^0-9]/g, '')
   amount.value = digits ? Math.min(Number(digits), 100000000) : null
-  event.target.value = amountText.value
 }
 const memo = computed(() => {
-  const name = String(props.order.user?.full_name || 'Khach').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
-  const parts = props.menuDate?.split('-') ?? []
-  return `${name} com ${parts.length === 3 ? `${parts[2]}/${parts[1]}` : ''}`.trim().slice(0, 24)
+  const name = String(user.value?.fullName || [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' ')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, value => value === 'Đ' ? 'D' : 'd').replace(/\s+/g, ' ').trim()
+  const [, month, day] = props.menuDate.split('-')
+  return `${name} chuyen tien com ${day}/${month}`.trim()
 })
 const qrUrl = computed(() => {
   const bank = activeTab.value === 'momo' ? '971025' : payInfo.value.bankId
@@ -49,7 +49,7 @@ const qrUrl = computed(() => {
 })
 const momoDeepLink = computed(() => `https://nhantien.momo.vn/${encodeURIComponent(payInfo.value.momoPhone)}/${amount.value ?? ''}`)
 watch(() => props.order.id, () => {
-  generation++; amount.value = breakdown.value.total
+  generation++; amount.value = breakdown.value.total; editingAmount.value = false
   activeTab.value = hasBank.value ? 'bank' : 'momo'
   copyError.value = ''; copiedField.value = ''; downloadError.value = ''; downloading.value = false
 }, { immediate: true })
@@ -83,7 +83,7 @@ async function downloadQr() {
     const blob = await response.blob()
     if (current !== generation) return
     const objectUrl = URL.createObjectURL(blob), link = document.createElement('a')
-    link.href = objectUrl; link.download = `QR-${memo.value.replace(/\s+/g, '-') || 'thanh-toan'}.png`
+    link.href = objectUrl; link.download = `QR-${memo.value.replace(/[\\/:*?"<>|\s]+/g, '-') || 'thanh-toan'}.png`
     document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(objectUrl)
   } catch {
     if (current !== generation) return
@@ -93,27 +93,26 @@ async function downloadQr() {
 }
 </script>
 <template>
-  <AppDialog :open="menu?.payment_mode!=='sponsored'" :title="`Chuyển khoản cho ${poster?.full_name || 'người đăng menu'}`" @close="close">
-    <div class="stack payment-dialog">
-      <div class="payment-context"><span class="eyebrow">Đơn của bạn · {{ menuDate.split('-').reverse().join('/') }}</span><p class="meta">{{ order.item_text }}{{ menu?.restaurant?.name ? ` · ${menu.restaurant.name}` : '' }}</p></div>
-      <details><summary>Món đã đặt</summary><div v-for="(item,index) in breakdown.items" :key="index" class="row-wrap payment-line"><span>{{ item.name }}</span><span>{{ money(item.price) }}</span></div><div v-if="breakdown.total != null" class="row-wrap payment-line payment-total"><strong>Tổng từ menu</strong><strong>{{ money(breakdown.total) }}</strong></div></details>
-      <div v-if="hasBank || hasMomo" class="payment-tabs" role="group" aria-label="Phương thức chuyển tiền"><button v-if="hasBank" type="button" :class="{ active: activeTab === 'bank' }" :aria-pressed="activeTab === 'bank'" @click="activeTab = 'bank'">Ngân hàng</button><button v-if="hasMomo" type="button" :class="{ active: activeTab === 'momo' }" :aria-pressed="activeTab === 'momo'" @click="activeTab = 'momo'">MoMo</button></div>
-      <div v-if="hasBank || hasMomo" class="payment-grid">
-        <div class="stack-sm payment-qr-area">
-          <template v-if="amount != null"><img v-if="!qrError" :key="`${activeTab}-${qrKey}`" :src="qrUrl" alt="Mã QR chuyển tiền cho người đăng menu" class="payment-qr" width="240" height="240" @error="qrError = true" /><p v-if="qrError" class="alert">Chưa tải được mã QR. <button type="button" @click="retryQR">Thử lại</button></p><AppButton variant="ghost" :loading="downloading" @click="downloadQr">Tải mã QR</AppButton></template><p v-else class="meta">Nhập số tiền để hiện mã QR.</p>
-          <p v-if="activeTab === 'momo'" class="meta">Mã này dùng ứng dụng ngân hàng để quét. <a v-if="amount != null" :href="momoDeepLink" target="_blank" rel="noopener noreferrer">Mở MoMo</a></p>
+  <AppDialog :open="menu?.payment_mode!=='sponsored'" title="Chuyển tiền" @close="close">
+    <div class="payment-dialog">
+      <div class="payment-heading"><span class="meta">Bữa ăn ngày {{ menuDate.split('-').reverse().join('/') }}</span><strong class="payment-amount">{{ amount == null ? 'Chưa có số tiền' : money(amount) }}</strong><button v-if="breakdown.total != null" type="button" class="payment-text-action" :disabled="loading" @click="editingAmount=!editingAmount">{{ editingAmount ? 'Xong' : 'Sửa số tiền' }}</button></div>
+      <div v-if="breakdown.total == null || editingAmount" class="field"><GlassInput :label="breakdown.total == null ? 'Số tiền đã thống nhất (đ)' : 'Số tiền chuyển (đ)'" inputmode="numeric" :model-value="amountText" :disabled="loading" placeholder="Nhập số tiền" @update:model-value="setAmountText" /></div>
+      <nav v-if="hasBank && hasMomo" class="payment-tabs" aria-label="Cách chuyển tiền"><button type="button" :class="{active:activeTab==='bank'}" :aria-pressed="activeTab==='bank'" @click="activeTab='bank'">Ngân hàng</button><button type="button" :class="{active:activeTab==='momo'}" :aria-pressed="activeTab==='momo'" @click="activeTab='momo'">MoMo</button></nav>
+      <template v-if="hasBank || hasMomo">
+        <div class="payment-qr-area">
+          <template v-if="amount != null"><img v-if="!qrError" :key="`${activeTab}-${qrKey}`" :src="qrUrl" :alt="`Mã QR chuyển ${money(amount)} cho ${poster?.full_name || 'người đăng menu'}`" class="payment-qr" width="240" height="240" @error="qrError=true" /><p v-if="qrError" class="alert">Chưa tải được mã QR. <button type="button" class="payment-text-action" @click="retryQR">Thử lại</button></p><button type="button" class="payment-text-action" :disabled="downloading" @click="downloadQr">{{ downloading ? 'Đang tải…' : 'Lưu mã QR' }}</button></template><p v-else class="meta">Nhập số tiền để hiện mã QR.</p>
+          <p v-if="activeTab==='momo'" class="meta">Quét bằng ứng dụng ngân hàng. <a v-if="amount != null" :href="momoDeepLink" target="_blank" rel="noopener noreferrer">Mở MoMo</a></p>
         </div>
-        <section class="payment-account">      <div class="payment-amount"><span class="meta">Số tiền</span><strong>{{ amount == null ? 'Chưa có số tiền' : money(amount) }}</strong></div>
-      <label class="field">{{ breakdown.total == null ? 'Nhập số tiền đã thống nhất (đ)' : 'Điều chỉnh số tiền (đ)' }}<input class="input" inputmode="numeric" :value="amountText" :disabled="loading" placeholder="Nhập số tiền" @input="inputAmount" /></label>
-<dl class="payment-details"><template v-if="activeTab === 'bank'"><dt>Ngân hàng</dt><dd>{{ fullBankName }}</dd><dt>Số tài khoản</dt><dd><span>{{ payInfo.accountNumber }}</span><AppButton variant="ghost" @click="copyText(payInfo.accountNumber, 'bank')">{{ copiedField === 'bank' ? 'Đã chép' : 'Sao chép' }}</AppButton></dd></template><template v-else><dt>Số điện thoại MoMo</dt><dd><span>{{ payInfo.momoPhone }}</span><AppButton variant="ghost" @click="copyText(payInfo.momoPhone, 'momo')">{{ copiedField === 'momo' ? 'Đã chép' : 'Sao chép' }}</AppButton></dd></template><dt>Tên người nhận</dt><dd>{{ payInfo.accountName || poster?.full_name }}</dd><dt>Nội dung chuyển tiền</dt><dd><span>{{ memo }}</span><AppButton variant="ghost" @click="copyText(memo, 'memo')">{{ copiedField === 'memo' ? 'Đã chép' : 'Sao chép' }}</AppButton></dd></dl></section>
-      </div>
-      <div v-else class="stack-sm"><label class="field">Số tiền đã thống nhất (đ)<input class="input" inputmode="numeric" :value="amountText" :disabled="loading" placeholder="Nhập số tiền" @input="inputAmount" /></label><p class="order-lines meta">{{ poster?.payment_info || 'Người đăng chưa thêm thông tin nhận tiền. Liên hệ người đăng để chuyển tiền.' }}</p></div>
+        <section class="payment-recipient"><span class="meta">Người nhận</span><strong>{{ payInfo.accountName || poster?.full_name || 'Người đăng menu' }}</strong><span v-if="activeTab==='bank'" class="meta">{{ fullBankName }}</span><div class="payment-copy-row"><span>{{ activeTab==='bank' ? payInfo.accountNumber : payInfo.momoPhone }}</span><button type="button" class="payment-text-action" @click="copyText(activeTab==='bank' ? payInfo.accountNumber : payInfo.momoPhone,'account')">{{ copiedField==='account' ? 'Đã chép' : 'Sao chép' }}</button></div></section>
+        <div class="payment-memo"><span class="meta">Nội dung chuyển tiền</span><div class="payment-copy-row"><strong>{{ memo }}</strong><button type="button" class="payment-text-action" @click="copyText(memo,'memo')">{{ copiedField==='memo' ? 'Đã chép' : 'Sao chép' }}</button></div></div>
+      </template>
+      <p v-else class="order-lines meta">{{ poster?.payment_info || 'Người đăng chưa thêm thông tin nhận tiền. Liên hệ người đăng để chuyển tiền.' }}</p>
       <p v-if="copyError" class="alert" role="alert">{{ copyError }}</p><p v-if="downloadError" class="meta" role="status">{{ downloadError }}</p><p v-if="error" class="alert" role="alert">{{ error }}</p>
-      <p v-if="own" class="payment-notice">Bạn tự xác nhận sau khi chuyển tiền. Người thu tiền chỉ xem trạng thái, không đánh dấu hộ.</p>
+      <p v-if="own" class="payment-notice">Chuyển tiền xong, bạn bấm xác nhận bên dưới nhé.</p>
     </div>
     <template #footer><AppButton v-if="own && !order.is_paid" block :loading="loading" @click="confirmPaid">Tôi đã chuyển tiền</AppButton></template>
   </AppDialog>
 </template>
 <style scoped>
-.payment-dialog { gap:18px; }.payment-context { margin-top:-10px; }.payment-context .eyebrow { font-size:12px; }.payment-context p { font-size:12px; margin-top:6px; white-space:pre-line; }.payment-amount { margin:0 0 8px; }.payment-amount strong { display:block; font-size:30px; line-height:1.2; margin:8px 0; }.payment-amount > .meta { font-size:14px; }.payment-account > .field { font-size:13px; margin:14px 0; }.payment-account .input { font-size:15px; }.payment-tabs { display:flex; gap:8px; margin:0; }.payment-tabs button { min-height:44px; padding:9px 13px; border:1px solid var(--line-strong); border-radius:11px; background:var(--card); font-size:13px; cursor:pointer; }.payment-tabs button.active { background:#f2f3ef; color:#35412e; border-color:#d8dcd1; }.payment-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }.payment-qr-area { align-items:center; padding:16px; background:var(--bg-tint); border:1px dashed #829e80; border-radius:12px; }.payment-qr { width:100%; max-width:240px; height:auto; background:white; }.payment-qr-area > .meta { font-size:12px; text-align:center; }.payment-details { margin:0; min-width:0; }.payment-details dt { font-size:14px; color:var(--ink-soft); padding-top:14px; }.payment-details dd { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:4px 0 14px; border-bottom:1px solid var(--line); margin:0; font-size:14px; overflow-wrap:anywhere; }.payment-details dd > .btn { padding:8px 11px; font-size:13px; }.payment-line { padding:8px 0; justify-content:space-between; font-size:14px; }.payment-total { border-top:1px solid var(--line); }.payment-notice { border:1px solid #d9decf; border-radius:12px; background:#f4f5f0; padding:14px 16px; font-size:14px; color:#48523e; }@media(max-width:640px) { .payment-grid { grid-template-columns:1fr; }.payment-qr-area { padding:20px; }.payment-qr { max-width:220px; } }
+.payment-dialog{display:grid;gap:16px;min-width:0;font-size:16px;line-height:1.5}.payment-dialog .meta{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:0}.payment-heading{display:grid;justify-items:center;gap:4px;text-align:center}.payment-amount{font-size:32px;line-height:1.2;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums}.payment-text-action{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:none;color:var(--primary-ink);font:inherit;font-size:14px;min-height:44px;padding:8px;cursor:pointer}.payment-text-action:disabled{opacity:.45;cursor:default}.payment-text-action:focus-visible,.payment-tabs button:focus-visible{outline:3px solid var(--primary);outline-offset:2px}.payment-tabs{display:flex;justify-content:center;gap:4px}.payment-tabs button{font:inherit;font-size:16px;min-height:44px;padding:10px 16px;border:0;border-radius:10px;background:transparent;color:var(--ink-soft);cursor:pointer}.payment-tabs button.active{background:var(--bg-tint);color:var(--ink);font-weight:600}.payment-qr-area{display:grid;justify-items:center;gap:4px}.payment-qr{width:min(240px,100%);height:auto;background:#fff}.payment-qr-area>.meta{text-align:center}.payment-recipient{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:16px;min-width:0}.payment-recipient>strong{font-size:17px;font-weight:650;overflow-wrap:anywhere}.payment-copy-row{display:flex;justify-content:space-between;align-items:center;gap:12px;min-width:0}.payment-copy-row>span,.payment-copy-row>strong{overflow-wrap:anywhere;min-width:0;font-size:16px;font-variant-numeric:tabular-nums}.payment-copy-row button{flex:none}.payment-memo{border-top:1px solid var(--line);padding-top:12px}.payment-notice{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.5}.order-lines{white-space:pre-line;overflow-wrap:anywhere}@media(max-width:380px){.payment-qr{width:200px}.payment-amount{font-size:28px}}
 </style>

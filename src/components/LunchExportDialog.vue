@@ -1,4 +1,5 @@
 <script setup>
+import AppDatePicker from './ui/AppDatePicker.vue'
 import { ref, watch, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { useLunchExport } from '../composables/useLunchExport'
@@ -6,6 +7,7 @@ import { lunchExportCsv } from '../lib/lunch-export'
 import { createLunchWorkbook, downloadLunchFile } from '../lib/lunch-workbook'
 import { todayInVN } from '../lib/date'
 import { AppDialog, AppButton } from './ui'
+import GlassSegmented from './ui/liquid/GlassSegmented.vue'
 const props=defineProps({open:Boolean,menu:Object})
 const emit=defineEmits(['close'])
 const {user}=useUser(),{loadLunchExport}=useLunchExport()
@@ -32,4 +34,4 @@ async function exportFile(kind){
 }
 function close(){cancel();emit('close')}
 </script>
-<template><AppDialog :open="open" title="Xuất đơn và tiền chưa thu" @close="close"><div class="stack"><label v-if="menu" class="field">Phạm vi<select v-model="scope" class="input" :disabled="busy"><option value="menu">Menu đang xem</option><option value="range">Menu của tôi theo khoảng ngày</option></select></label><div v-if="scope==='range'" class="row-wrap"><label class="field">Từ ngày<input v-model="from" type="date" class="input" :disabled="busy" /></label><label class="field">Đến ngày<input v-model="to" type="date" class="input" :disabled="busy" /></label></div><p class="meta">Excel có ba sheet: Gửi quán, Theo người và Chưa thu. Món chưa có giá nằm riêng; bữa được mời không tính nợ.</p><p v-if="model" role="status">{{ model.meta.menuCount }} menu · {{ model.meta.orderCount }} đơn đã xuất.</p><p v-if="error" class="alert" role="alert">{{ error }}</p></div><template #footer><AppButton variant="ghost" @click="close">Đóng</AppButton><AppButton variant="ghost" :loading="busy" @click="exportFile('csv')">CSV</AppButton><AppButton :loading="busy" @click="exportFile('xlsx')">Tải Excel</AppButton></template></AppDialog></template>
+<template><AppDialog :open="open" title="Xuất đơn và tiền chưa thu" @close="close"><div class="stack"><div v-if="menu" class="field"><span>Phạm vi</span><GlassSegmented label="Phạm vi xuất" :options="['Menu đang xem','Theo khoảng ngày']" :model-value="scope === 'range' ? 1 : 0" @update:model-value="!busy && (scope = $event === 1 ? 'range' : 'menu')" /></div><div v-if="scope==='range'" class="row-wrap"><div class="field"><AppDatePicker label="Từ ngày" v-model="from" :disabled="busy" clearable /></div><div class="field"><AppDatePicker label="Đến ngày" v-model="to" :disabled="busy" clearable /></div></div><p class="meta">Excel có ba sheet: Gửi quán, Theo người và Chưa thu. Món chưa có giá nằm riêng; bữa được mời không tính nợ.</p><p v-if="model" role="status">{{ model.meta.menuCount }} menu · {{ model.meta.orderCount }} đơn đã xuất.</p><p v-if="error" class="alert" role="alert">{{ error }}</p></div><template #footer><AppButton variant="ghost" @click="close">Đóng</AppButton><AppButton variant="ghost" :loading="busy" @click="exportFile('csv')">CSV</AppButton><AppButton :loading="busy" @click="exportFile('xlsx')">Tải Excel</AppButton></template></AppDialog></template>
