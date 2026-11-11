@@ -68,7 +68,6 @@ onUnmounted(()=>{generation++;releasePreview()})
         <div v-if="mode==='upload' && previewUrl" class="avatar-crop avatar-crop--small"><img :src="previewUrl" alt="Xem trước ảnh đã cắt" :style="cropStyle" /></div>
         <MascotAvatar v-else-if="mode==='mascot'" :mascot-id="mascotId" :size="86" label="mascot xem trước" interactive />
         <Avatar v-else :profile="draft" :size="86" />
-        <p class="meta">Lựa chọn chỉ thay đổi khi bạn bấm Lưu.</p>
       </div>
       <fieldset class="avatar-picker-fields" :disabled="saving || reading">
         <legend class="sr-only">Chọn loại ảnh đại diện</legend>
@@ -80,7 +79,7 @@ onUnmounted(()=>{generation++;releasePreview()})
         </template>
         <template v-if="mode==='upload'">
           <label class="field avatar-file-label" :for="inputId">Chọn ảnh JPG, PNG hoặc WebP<input :id="inputId" type="file" accept="image/jpeg,image/png,image/webp" @change="chooseFile" /></label>
-          <p class="meta">Tối đa 2 MB · 8192 px mỗi cạnh · 25 triệu pixel. App cắt ảnh vuông và bỏ dữ liệu đính kèm trước khi tải lên.</p>
+          <p class="meta">Tối đa 2 MB</p>
           <div v-if="previewUrl" class="avatar-crop-controls">
             <div class="avatar-crop"><img :src="previewUrl" alt="Xem trước phần ảnh sau khi cắt" :style="cropStyle" /></div>
             <label>Phóng to<input v-model.number="zoom" type="range" min="1" max="3" step="0.01" /></label>

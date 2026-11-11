@@ -10,7 +10,7 @@ import MenuReminderField from './MenuReminderField.vue'
 import SlackDeliveryStatus from './SlackDeliveryStatus.vue'
 import SlackPublishDialog from './SlackPublishDialog.vue'
 import { AppButton } from './ui'
-const props=defineProps({menu:{type:Object,required:true},disabled:Boolean,hidePickupPreference:Boolean})
+const props=defineProps({menu:{type:Object,required:true},disabled:Boolean,hidePickupPreference:Boolean,hidePickup:Boolean})
 const emit=defineEmits(['updated','busy'])
 const {user}=useUser(),{setMenuClosed,getMenu}=useMenus(),sb=useSupabaseClient()
 const notifications=useSlackNotifications(),sharing=useSlackNotifications(),reminders=useSlackNotifications()
@@ -105,7 +105,7 @@ defineExpose({closeMenu,reopenMenu})
       <SlackDeliveryStatus v-if="notifications.states.value[menu.id]" :state="notifications.states.value[menu.id]" @retry="retry(notifications)" @resolve="resolve(notifications,$event)" />
       <section class="coordination-reminder"><h3>Nhắc đặt cơm</h3><MenuReminderField v-model="reminderAt" :menu-date="menu.menu_date" :disabled="busy || savingReminder || menu.is_closed" /><AppButton variant="ghost" :disabled="busy || menu.is_closed" :loading="savingReminder" @click="saveReminder">Lưu lịch nhắc</AppButton><SlackDeliveryStatus v-if="reminders.states.value[menu.id]" :state="reminders.states.value[menu.id]" @retry="retry(reminders,'reminder')" @resolve="resolve(reminders,$event)" /></section>
     </div>
-    <MenuPickupPanel v-if="!menu.archived_at" :menu="menu" :hide-preference="hidePickupPreference" @changed="pickupChanged" />
+    <MenuPickupPanel v-if="!menu.archived_at && !hidePickup" :menu="menu" :hide-preference="hidePickupPreference" @changed="pickupChanged" />
     <p v-if="error && !showClose" class="alert" role="alert">{{ error }}</p>
     <CloseMenuDialog :open="showClose" :menu="menu" :busy="busy" :error="error" @close="cancelClose" @confirm="confirmClose" />
     <SlackPublishDialog v-if="showShare && owner" :menu="menu" :state="sharing.states.value[menu.id] || {status:'pending'}" @close="showShare=false" @publish="sharing.shareMenu(menu.id)" @retry="retry(sharing,'share')" @resolve="resolve(sharing,$event)" />
