@@ -39,10 +39,11 @@ async function paid(value) {
 </script>
 <template>
   <article :class="['order-card', compact ? 'order-card--compact' : 'card stack-sm', { 'order-card--own': own }]">
-    <div class="order-heading"><router-link :to="`/menu/${menu.id}`" class="order-title">{{ menu.restaurant?.name || menu.title }}</router-link><span v-if="sponsored" class="badge">Được mời</span><PaidStamp v-else :paid="order.is_paid" /></div>
+    <PaymentQRModal v-if="showInlineQr" inline :order="paymentOrder" :poster="menu.poster" :menu="menu" :menu-date="menu.menu_date" :loading="loading" :error="error" @paid="paid(true)" />
+    <div class="order-heading"><router-link :to="`/menu/${menu.id}`" class="order-title">{{ menu.restaurant?.name || menu.title }}</router-link><span v-if="sponsored" class="badge">Được mời</span><PaidStamp v-else-if="!showInlineQr" :paid="order.is_paid" /></div>
     <p class="order-items order-lines">{{ compact ? order.item_text.split('\n').filter(Boolean).join(' · ') : order.item_text }}</p>
     <p v-if="order.note" class="meta order-lines">{{ order.note }}</p>
-    <p v-if="amount != null" class="order-amount">{{ Number(amount).toLocaleString('vi-VN') }}đ</p><p v-else class="meta">—</p>
+    <template v-if="!showInlineQr"><p v-if="amount != null" class="order-amount">{{ Number(amount).toLocaleString('vi-VN') }}đ</p><p v-else class="meta">—</p></template>
     <div v-if="own" class="order-actions">
       <AppButton v-if="!sponsored && !order.is_paid && !showInlineQr" variant="ghost" @click="qr = true">Chuyển khoản</AppButton>
       <PaidToggle class="order-pay-action" v-if="!sponsored && !showInlineQr && (!compact || order.is_paid)" :paid="order.is_paid" :loading="loading" @toggle="paid" />
@@ -52,8 +53,7 @@ async function paid(value) {
     <p v-if="!compact && own && !sponsored && !order.is_paid && !showInlineQr" class="meta">Chuyển khoản{{ menu.poster?.full_name ? ` cho ${menu.poster.full_name}` : '' }} rồi bấm “Tôi đã chuyển tiền”.</p>
     <p v-if="!compact && own && !sponsored && menu.poster?.payment_info && !hasQR && !showInlineQr" class="meta order-lines">{{ menu.poster.payment_info }}</p>
     <p v-if="error && !showInlineQr" class="alert" role="alert">{{ error }}</p>
-    <PaymentQRModal v-if="showInlineQr" inline :order="paymentOrder" :poster="menu.poster" :menu="menu" :menu-date="menu.menu_date" :loading="loading" :error="error" @paid="paid(true)" />
-    <PaymentQRModal v-else-if="qr && own && !sponsored" :order="paymentOrder" :poster="menu.poster" :menu="menu" :menu-date="menu.menu_date" :loading="loading" :error="error" @close="!loading && (qr = false)" @paid="paid(true)" />
+    <PaymentQRModal v-if="qr && own && !sponsored && !showInlineQr" :order="paymentOrder" :poster="menu.poster" :menu="menu" :menu-date="menu.menu_date" :loading="loading" :error="error" @close="!loading && (qr = false)" @paid="paid(true)" />
     <ReviewDialog v-if="review && own" :order="order" :menu="menu" @close="review = false" @saved="emit('changed')" />
   </article>
 </template>
