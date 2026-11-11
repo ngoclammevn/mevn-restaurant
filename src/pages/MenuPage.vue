@@ -262,7 +262,7 @@ async function copyLink() {
     <section v-if="ownMenu" class="card menu-poster-tools"><h2 class="section-title">Danh sách gửi quán</h2><OrderSummaryPanel :menu="menu" :read-only="!!menu.archived_at" :orders="menu.orders ?? []" :menu-note="menu.note || ''" :is-closed="!!menu.is_closed" :before-copy="closeOrdering" @reopen="reopenOrdering" /></section>
 
     <aside v-if="structured && !orderingLocked && selectedDishes.length && (!myOrders.length || editing || additionalOrder)" class="selection-bar" aria-label="Món đang chọn"><div class="selection-bar__content"><div><p>{{ selectedDishes.length }} món đã chọn</p><strong>{{ !selectedDishes.length ? '0đ' : total === null ? 'Chưa có đủ giá' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div><AppButton variant="ghost" :disabled="menu.is_closed || !canSave" :loading="busy" @click="requestConfirmation">{{ menu.is_closed ? 'Menu đã chốt' : editing ? 'Xem lại thay đổi' : 'Tiếp tục đặt món' }} <span aria-hidden="true">→</span></AppButton></div></aside>
-    <AppDialog :open="zoomImage" title="Ảnh thực đơn" @close="zoomImage = false"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></AppDialog>
+    <AppDialog :open="zoomImage" wide title="Ảnh thực đơn" @close="zoomImage = false"><a :href="menu.image_url" target="_blank" rel="noopener" class="menu-zoom-link">Mở ảnh gốc để phóng to</a><img :src="menu.image_url" :alt="menu.title" class="menu-zoom-image" /></AppDialog>
     <OrderConfirmDialog :open="showConfirm" :menu="menu" :dishes="structured ? selectedDishes : []" :item-text="itemText" :note="note" :recipient-name="recipientName" :total="total" :busy="busy" :error="actionError" :editing="!!editing" @close="!busy && (showConfirm = false)" @confirm="submit"><template #recipient><div v-if="!editing && user" class="field"><GlassSelect label="Đặt cho" v-model="recipient" :disabled="busy" :options="[{value:'',label:'Cho tôi · '+(user.fullName || 'Tôi')},...profiles.filter(p=>p.id!==user.id).map(p=>({value:p.id,label:p.full_name}))]" /></div></template><template #pickup><PickupPreferenceForm v-if="user" ref="pickupForm" :date="menu.menu_date" :enabled="!recipient || recipient===user.id" :disabled="busy" /></template></OrderConfirmDialog>
     <DishFeedbackDialog :open="!!feedbackDish" :dish="feedbackDish" :restaurant="menu.restaurant" :stats="feedback[`${menu.restaurant_id}:${feedbackDish?.restaurant_dish_id}`]" :reviews="feedbackReviews" :loading="feedbackLoading" :error="feedbackError" @close="closeFeedback" @retry="loadFeedback" />
   </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
@@ -301,6 +301,8 @@ async function copyLink() {
 .menu-source-image { background:var(--card); border:1px solid var(--line); border-radius:20px; overflow:hidden; }
 .menu-source-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px; }
 .menu-source-heading h2 { font-size:16px; }.menu-source-heading .meta { font-size:14px; }
+.menu-zoom-image { display:block; width:100%; height:auto; border-radius:8px; }
+.menu-zoom-link { display:inline-block; margin-bottom:12px; font-weight:600; color:var(--primary); }
 .menu-image-button { display:block; width:100%; padding:0; border:0; background:var(--bg-tint); cursor:zoom-in; }
 .menu-source-image img { width:100%; height:220px; object-fit:contain; }
 .menu-poster-tools summary,.menu-payment-info summary { min-height:44px; padding:10px 0; cursor:pointer; font-size:14px; color:var(--ink-soft); }

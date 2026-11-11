@@ -54,7 +54,9 @@ watch(() => user.value?.id, async (accountId, previousAccountId) => {
     }
   } catch { /* An expired draft can be replaced. */ }
   postMode.value = dishes.value !== null || (imageFile.value && useOcr.value) ? 'structured' : 'plain'
-  postSource.value = imageFile.value ? 'image' : 'manual'
+  // Mặc định đọc từ ảnh; chỉ giữ "Nhập món" khi bản nháp đã có món tự nhập.
+  if (imageFile.value || (postMode.value === 'structured' && !dishes.value?.length)) changeSource('image')
+  else postSource.value = 'manual'
   await nextTick()
   if (current !== generation) return
   ready = true
@@ -187,7 +189,7 @@ async function publishMenu() {
       if(current===generation && user.value?.id===account)notificationWarning.value='Menu đã đăng. Chưa hoàn tất thông báo hoặc lịch nhắc; bạn có thể thử lại trong Quản lý.'
     }
     if(current!==generation || user.value?.id!==account)return
-    reset(); await nextTick(); ready = true
+    reset(); postSource.value = 'image'; dishes.value = null; await nextTick(); ready = true
   } catch { if (current === generation && user.value?.id === account) error.value = 'Chưa đăng được menu hoặc tải ảnh. Bạn vẫn còn bản nháp để thử lại.' }
   finally { if (current === generation && user.value?.id === account) { posting.value = false; status.value = '' } }
 }
