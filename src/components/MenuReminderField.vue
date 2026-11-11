@@ -13,7 +13,7 @@ function update(value){
   if(props.disabled)return
   const time=value.trim()
   if(!time){error.value='';emit('update:modelValue',null);return}
-  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)){draft.value=localTime.value;error.value=localTime.value ? `Giờ chưa hợp lệ. App giữ giờ ${localTime.value}; nhập theo dạng 10:45 nhé.` : 'Nhập giờ theo dạng 10:45 nhé.';return}
+  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)){draft.value=localTime.value;error.value=localTime.value ? `Giờ chưa hợp lệ, vẫn giữ ${localTime.value}. Nhập theo dạng 10:45 nhé.` : 'Nhập giờ theo dạng 10:45 nhé.';return}
   draft.value=time;error.value=''
   emit('update:modelValue',new Date(`${props.menuDate}T${time}:00+07:00`).toISOString())
 }
@@ -25,7 +25,7 @@ function update(value){
   <div class="reminder-custom"><GlassInput :id="id" v-model="draft" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="Giờ khác, vd. 10:50" :disabled="disabled" :aria-describedby="id+'-hint'" :aria-invalid="!!error" @blur="update(draft)" /><AppButton v-if="modelValue" variant="ghost" :disabled="disabled" @click="update('')">Tắt nhắc</AppButton></div>
   <p v-if="error" class="alert" role="alert">{{ error }}</p>
   <p v-if="!modelValue" class="reminder-state">Chưa bật lịch nhắc.</p>
-  <small :id="id+'-hint'">Bot nhắc trong thread đặt cơm; mọi người trong kênh đều thấy. Chọn giờ trước khi chốt đơn. Bạn đóng trình duyệt thì bot vẫn nhắc.</small>
+  <small :id="id+'-hint'">Bot nhắc trong thread đặt cơm, cả kênh đều thấy.</small>
  </div>
 </template>
 <style scoped>

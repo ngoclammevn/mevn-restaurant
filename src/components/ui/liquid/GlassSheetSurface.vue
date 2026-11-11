@@ -66,7 +66,9 @@ onUnmounted(() => {
 <style>
 .glass-sheet-surface { position:absolute; inset:0; --lg-font:var(--font); --lg-ink:var(--ink); }
 .glass-sheet-surface .lg-sheet-layer { z-index:1; }
-.glass-sheet-surface .lg-sheet.lg-glass { width:calc(100% - 16px); max-width:720px; max-height:calc(100% - 16px); display:flex; flex-direction:column; overflow:hidden; margin-bottom:max(8px,env(safe-area-inset-bottom)); border-radius:30px; color:var(--ink); background:#fff; }
+/* Chừa 96px phía trên: sheet không phủ kín màn hình, và không chui dưới thanh địa chỉ thu gọn của Safari iOS
+   (thanh này nổi đè lên vùng nhìn). Đáy sheet đã chừa vùng an toàn bằng margin-bottom nên nội dung khỏi cộng thêm. */
+.glass-sheet-surface .lg-sheet.lg-glass { width:calc(100% - 16px); max-width:720px; max-height:calc(100% - 96px); display:flex; flex-direction:column; overflow:hidden; margin-bottom:max(8px,env(safe-area-inset-bottom)); border-radius:30px; color:var(--ink); background:#fff; }
 .glass-sheet-surface .lg-sheet__content { padding:0; display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; }
 .glass-sheet-surface .lg-sheet__grabber-zone { flex:none; }
 .glass-sheet-surface .lg-sheet__scrim { background:rgb(0 0 0 / 25%); }

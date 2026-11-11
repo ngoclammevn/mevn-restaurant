@@ -32,7 +32,7 @@ h1,h2,h3,p { margin:0; }
 .app-bar { position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:24px; min-height:72px; padding:10px max(24px,calc((100vw - var(--maxw)) / 2 + 24px)); background:rgb(245 245 247 / 88%); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-bottom:1px solid rgb(0 0 0 / 5%); }
 .brand { display:inline-flex; align-items:center; gap:10px; font-size:21px; font-weight:800; letter-spacing:-.03em; color:var(--ink); text-decoration:none; white-space:nowrap; }
 .app-icon { display:inline-block; width:20px; height:20px; flex:none; vertical-align:middle; }
-.brand>.app-icon { width:27px; height:27px; color:var(--primary); }
+.brand-logo { width:auto; height:27px; }
 .brand-dot { width:32px; height:32px; border-radius:8px; background:var(--primary-soft); display:grid; place-items:center; color:var(--primary); }
 .app-navigation { display:flex; align-items:center; gap:8px; }
 .app-navigation--desktop { margin-left:auto; }
@@ -145,7 +145,7 @@ summary { min-height:44px; padding:10px 0; }.label-chip { min-height:44px; }
 @media(max-width:900px) {
   .app-shell--nav-hidden { --mobile-nav-space:0px; }
   .app-bar { min-height:66px; padding:10px 16px; gap:8px; justify-content:space-between; }
-  .brand { font-size:19px; }.brand>.app-icon { width:24px; height:24px; }
+  .brand { font-size:19px; }.brand-logo { height:24px; }
   .app-navigation--desktop { display:none; }.user-action { padding:0; border:0; gap:3px; }
   .user-action .post-action { min-width:44px; width:44px; padding:10px; border:0; }.post-action>span:not(.spinner) { display:none; }
   .app-navigation--mobile { display:flex; position:fixed; left:16px; right:16px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:40; max-width:480px; margin-inline:auto; padding:0; height:auto; background:transparent; border:0; }

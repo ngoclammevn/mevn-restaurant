@@ -79,7 +79,7 @@ async function copyList() {
           class="osp-copy"
           :disabled="copying"
           :class="{ 'osp-copy--done': copied }"
-          :title="copied ? 'Đã copy' : (isClosed || readOnly) ? 'Copy danh sách' : 'Copy danh sách (sẽ chốt đơn)'"
+          :title="copied ? 'Đã sao chép' : (isClosed || readOnly) ? 'Sao chép danh sách' : 'Sao chép danh sách và chốt đơn'"
           @click="copyList"
         >{{ copied ? 'Đã sao chép' : (isClosed || readOnly) ? 'Sao chép danh sách' : 'Sao chép & chốt đơn' }}</button>
         <span class="badge badge--paid osp-badge">{{ totalParts }} phần</span>
