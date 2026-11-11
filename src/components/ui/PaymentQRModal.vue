@@ -61,6 +61,21 @@ watch([hasBank, hasMomo], ([bank, momo]) => {
   else if (activeTab.value === 'momo' && !momo && bank) activeTab.value = 'bank'
 })
 watch([activeTab, amount, payInfo], () => { qrError.value = false; downloadError.value = '' })
+// iOS: tải file chỉ vào app Tệp. Share sheet có mục "Lưu hình ảnh" để vào Ảnh.
+// Tải sẵn ảnh vì Safari/Chrome iOS chặn navigator.share nếu gọi sau một await dài trong lúc bấm.
+const isIOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+const qrFileName = () => `QR-${memo.value.replace(/[\\/:*?"<>|\s]+/g, '-') || 'thanh-toan'}.png`
+let qrFile = null
+watch(qrUrl, async url => {
+  qrFile = null
+  if (!isIOS || !url || amount.value == null || !navigator.canShare) return
+  try {
+    const response = await fetch(url)
+    if (!response.ok || qrUrl.value !== url) return
+    const blob = await response.blob()
+    if (qrUrl.value === url) qrFile = new File([blob], qrFileName(), { type: blob.type || 'image/png' })
+  } catch { qrFile = null }
+}, { immediate: true })
 watch(() => user.value?.id, () => { generation++; emit('close') })
 onUnmounted(() => { generation++; clearTimeout(copyTimer) })
 function close() { if (!props.loading) emit('close') }
@@ -78,6 +93,10 @@ async function copyText(text, field) {
 }
 async function downloadQr() {
   if (amount.value == null || downloading.value) return
+  if (qrFile && navigator.canShare?.({ files: [qrFile] })) {
+    try { await navigator.share({ files: [qrFile] }); return }
+    catch (error) { if (error?.name === 'AbortError') return }
+  }
   const current = generation, url = qrUrl.value
   downloading.value = true; downloadError.value = ''
   try {
@@ -86,7 +105,7 @@ async function downloadQr() {
     const blob = await response.blob()
     if (current !== generation) return
     const objectUrl = URL.createObjectURL(blob), link = document.createElement('a')
-    link.href = objectUrl; link.download = `QR-${memo.value.replace(/[\\/:*?"<>|\s]+/g, '-') || 'thanh-toan'}.png`
+    link.href = objectUrl; link.download = qrFileName()
     document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(objectUrl)
   } catch {
     if (current !== generation) return
