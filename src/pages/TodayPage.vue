@@ -7,7 +7,7 @@ import { todayInVN } from '../lib/date'
 import { menuDishes } from '../lib/menu'
 import { getMascotEggEvent, getMascotSeasonTheme, hasUnlockedMascotEgg, MASCOT_EGG_UNLOCKED_EVENT } from '../lib/mascot-events'
 import { useMascotEggUnlockPulse } from '../composables/useMascotEggUnlockPulse'
-import { AppButton, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
+import { AppButton, Spinner, EmptyState, SignInModal } from '../components/ui'
 import AsciiSkeleton from '../components/ui/AsciiSkeleton.vue'
 import Avatar from '../components/ui/Avatar.vue'
 import GlassSelect from '../components/ui/liquid/GlassSelect.vue'
@@ -79,9 +79,8 @@ watch(seasonalPreview, value => {
 const presence = useAppPresence()
 const weekdayLabel = new Intl.DateTimeFormat('vi-VN', { weekday:'long', timeZone:'Asia/Ho_Chi_Minh' }).format(new Date(`${today}T12:00:00+07:00`))
 const dateLabel = `${weekdayLabel[0].toUpperCase()}${weekdayLabel.slice(1)} · ${Number(today.slice(8))} tháng ${Number(today.slice(5,7))}`
-const orderedPeople = computed(() => new Set(menus.value.flatMap(menu => (menu.orders || []).map(o => o.user_id))).size)
+const orderedPeople = menu => new Set((menu.orders || []).map(o => o.user_id)).size
 const firstOpenMenu = computed(() => menus.value.find(menu => !menu.is_closed && !(menu.orders || []).some(o => o.user_id === user.value?.id))?.id)
-const openMenus = computed(() => menus.value.filter(menu => !menu.is_closed).length)
 let generation = 0, refreshTimer
 async function load() {
   const current = ++generation; error.value = ''
@@ -120,31 +119,29 @@ function activity(menu) {
 }
 </script>
 <template><div class="today-page" :data-seasonal-event="seasonalTheme.eventId" :style="seasonalStyle" :class="{ 'today-page--seasonal-unlock': seasonalUnlockPulse }">
-  <PageHeader :eyebrow="dateLabel" title="Trưa nay, ăn gì?" :sub="isSignedIn ? `${openMenus} menu đang nhận đặt món. Chọn bữa trưa của bạn.` : 'Đăng nhập để chọn bữa trưa của bạn.'" />
+  <span class="eyebrow today-date">{{ dateLabel }}</span>
   <aside v-if="isSeasonPreviewEnabled" class="season-preview" aria-label="Xem thử giao diện theo mùa"><div class="season-preview__intro"><strong>Xem thử giao diện theo mùa</strong><span class="meta">Chỉ hiện khi chạy local</span></div><GlassSelect label="Mùa hoặc dịp lễ" v-model="seasonalPreview" :options="seasonalPreviewOptions" /></aside>
   <EmptyState v-if="!isSignedIn" title="Xem menu hôm nay" description="Đăng nhập để xem menu và đơn cơm của bạn."><AppButton @click="showSignIn = true">Đăng nhập</AppButton></EmptyState>
   <div v-else-if="loading && !menus.length" class="today-menu-grid"><AsciiSkeleton v-for="index in 2" :key="index" kind="menu-card" label="Đang tải menu hôm nay…" /></div>
   <div v-else-if="error && !menus.length" class="stack-sm"><p class="alert">{{ error }}</p><AppButton variant="ghost" @click="load">Thử lại</AppButton></div>
   <template v-else>
     <p v-if="loading" class="meta" role="status">Đang cập nhật…</p><div v-if="error" class="row-wrap"><p class="alert" role="alert">{{ error }}</p><AppButton variant="ghost" @click="load">Thử lại</AppButton></div>
-    <section id="today-menus"><div class="today-section-heading"><h2>Menu hôm nay</h2><span class="meta">{{ orderedPeople ? `Đã có ${orderedPeople} người đặt` : 'Chưa có ai đặt' }}</span></div>
+    <section id="today-menus"><h1 class="today-section-heading">Menu hôm nay</h1>
       <EmptyState v-if="!menus.length" title="Chưa có menu hôm nay" description="Đăng menu đầu tiên để mọi người chọn bữa trưa."><AppButton to="/post">Đăng menu</AppButton></EmptyState>
-      <div v-else class="today-menu-grid"><article v-for="menu in menus" :key="menu.id" class="card today-menu-card"><div class="today-menu-status"><span class="badge" :class="{ 'today-menu-closed': menu.is_closed }">{{ menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn' }}</span><span v-if="hasOwnOrder(menu)" class="today-own-order">Bạn đã đặt</span></div><RouterLink v-if="menu.image_url" :to="`/menu/${menu.id}`" class="today-menu-image"><img :src="menu.image_url" :alt="`Ảnh menu ${menu.restaurant?.name || menu.title}`" loading="lazy" /></RouterLink><h3>{{ menu.restaurant?.name || menu.title }}</h3><p class="today-menu-meta">{{ menuMetadata(menu) }}</p><p class="today-menu-preview">{{ preview(menu) }}</p><div class="today-menu-activity"><template v-for="entry in activity(menu) ? [activity(menu)] : []" :key="entry.name"><Avatar :profile="entry.profile" :name="entry.name" :size="34" /><p>{{ entry.name }} {{ entry.text }} <strong>{{ entry.dish }}</strong></p></template><p v-if="!activity(menu)" class="meta">Chưa có đơn · {{ menu.is_closed ? 'Menu đã chốt' : 'Bạn có thể chọn món trước' }}</p></div><AppButton block :variant="menu.id === firstOpenMenu && !hasOwnOrder(menu) ? 'primary' : 'ghost'" :to="`/menu/${menu.id}`">{{ hasOwnOrder(menu) ? 'Xem menu & đơn của bạn' : menu.is_closed ? 'Xem menu' : 'Xem menu & chọn món' }} <span aria-hidden="true">→</span></AppButton></article></div>
+      <div v-else class="today-menu-grid"><article v-for="menu in menus" :key="menu.id" class="card today-menu-card"><div class="today-menu-status"><span class="badge" :class="{ 'today-menu-closed': menu.is_closed }">{{ menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn' }}</span><span v-if="hasOwnOrder(menu)" class="today-own-order">Bạn đã đặt</span></div><RouterLink v-if="menu.image_url" :to="`/menu/${menu.id}`" class="today-menu-image"><img :src="menu.image_url" :alt="`Ảnh menu ${menu.restaurant?.name || menu.title}`" loading="lazy" /></RouterLink><div class="today-menu-title"><h3>{{ menu.restaurant?.name || menu.title }}</h3><span class="meta">{{ orderedPeople(menu) ? `${orderedPeople(menu)} người đặt` : 'Chưa có ai đặt' }}</span></div><p class="today-menu-meta">{{ menuMetadata(menu) }}</p><p class="today-menu-preview">{{ preview(menu) }}</p><div class="today-menu-activity"><template v-for="entry in activity(menu) ? [activity(menu)] : []" :key="entry.name"><Avatar :profile="entry.profile" :name="entry.name" :size="34" /><p>{{ entry.name }} {{ entry.text }} <strong>{{ entry.dish }}</strong></p></template><p v-if="!activity(menu)" class="meta">Chưa có đơn · {{ menu.is_closed ? 'Menu đã chốt' : 'Bạn có thể chọn món trước' }}</p></div><AppButton block :variant="menu.id === firstOpenMenu && !hasOwnOrder(menu) ? 'primary' : 'ghost'" :to="`/menu/${menu.id}`">{{ hasOwnOrder(menu) ? 'Xem menu & đơn của bạn' : menu.is_closed ? 'Xem menu' : 'Xem menu & chọn món' }} <span aria-hidden="true">→</span></AppButton></article></div>
     </section>
   </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
 </div></template>
 <style scoped>
 .today-page { min-width:0; }
-.today-page :deep(.page-header) { margin-bottom:24px; }
+.today-date { display:block; margin-bottom:8px; }
 .today-page .meta { font-size:14px; color:var(--ink-soft); }
 .season-preview { display:grid; grid-template-columns:minmax(180px,1fr) minmax(240px,320px); align-items:end; gap:12px 24px; margin:0 0 20px; padding:14px 16px; border:1px dashed var(--line-strong); border-radius:16px; background:var(--card); }
 .season-preview__intro { display:grid; gap:2px; align-self:center; }
 .season-preview__intro strong { font-size:15px; }
 .season-preview__intro .meta { font-size:13px; }
 #today-menus { scroll-margin-top:96px; }
-.today-section-heading { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin:0 0 16px; }
-.today-section-heading h2 { font-size:24px; font-weight:750; margin:0; }
-.today-section-heading .meta { text-align:right; }
+.today-section-heading { font-size:24px; font-weight:750; margin:0 0 16px; }
 .today-menu-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
 .today-menu-card { border-radius:24px; padding:24px; display:flex; flex-direction:column; min-width:0; box-shadow:none; }
 .today-menu-status { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 12px; }
@@ -153,7 +150,8 @@ function activity(menu) {
 .today-own-order { font-size:14px; font-weight:700; color:var(--primary-ink); }
 .today-menu-image { display:block; margin-top:18px; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--bg-tint); }
 .today-menu-image img { width:100%; height:200px; object-fit:contain; }
-.today-menu-card h3 { font-size:24px; font-weight:750; line-height:1.35; margin:18px 0 6px; overflow-wrap:anywhere; }
+.today-menu-title { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:18px 0 6px; }.today-menu-title .meta { flex:none; }
+.today-menu-card h3 { font-size:24px; font-weight:750; line-height:1.35; margin:0; min-width:0; overflow-wrap:anywhere; }
 .today-menu-meta { font-size:14px; font-weight:600; line-height:1.6; color:var(--ink-soft); margin:4px 0; overflow-wrap:anywhere; }
 .today-menu-preview { font-size:16px; line-height:1.65; color:var(--ink); margin:8px 0 0; overflow-wrap:anywhere; }
 .today-menu-activity { border-top:1px solid var(--line); margin:20px 0 18px; padding-top:16px; display:flex; align-items:center; gap:10px; min-height:51px; }
@@ -164,8 +162,6 @@ function activity(menu) {
   .season-preview { grid-template-columns:1fr; gap:10px; margin-bottom:16px; padding:12px 14px; }
   .today-menu-grid { grid-template-columns:1fr; gap:16px; }
   .today-menu-card { padding:20px; }
-  .today-section-heading { align-items:flex-start; flex-direction:column; gap:4px; }
-  .today-section-heading .meta { text-align:left; }
   .today-menu-card h3 { font-size:22px; }
   .today-menu-image img { height:180px; }
 }
