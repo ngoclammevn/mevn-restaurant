@@ -229,8 +229,7 @@ async function copyLink() {
     <div class="menu-heading"><PageHeader :eyebrow="menu.menu_date === todayInVN() ? `Menu hôm nay · ${formatVNDate(menu.menu_date)}` : `Menu ngày ${formatVNDate(menu.menu_date)}`" :title="menu.restaurant?.name || menu.title" :sub="`${menu.poster?.full_name || 'Thành viên'} đăng · ${new Set((menu.orders || []).map(o => o.user_id)).size} người đã đặt · ${menu.archived_at ? 'Đã lưu trữ' : menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn'}`" />
     <div class="menu-heading-tools"><button type="button" class="menu-text-action" @click="copyLink">{{ copied ? 'Đã chép link' : 'Chia sẻ menu' }}</button><AppButton v-if="ownMenu" variant="ghost" size="sm" :to="{path:'/manage',query:{menu_id:menu.id}}">Quản lý menu</AppButton></div></div>
     <p v-if="savedMessage" class="success-message" role="status">{{ savedMessage }}</p><p v-if="pickupWarning" class="alert" role="status">{{ pickupWarning }}</p>
-    <button v-if="menu.image_url" type="button" class="card menu-image-card" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" alt="" /><span><strong>Ảnh thực đơn</strong><span class="meta">Bấm để xem lớn</span></span><span class="menu-image-card__cta" aria-hidden="true">Xem lớn →</span></button>
-    <MenuCommunity :menu="menu" @changed="refreshMenu(); presence.notifyOrderChanged(menu.id)" />
+    <MenuCommunity :menu="menu" @changed="refreshMenu(); presence.notifyOrderChanged(menu.id)"><button v-if="menu.image_url" type="button" class="menu-image-card" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" alt="" /><span><strong>Ảnh thực đơn</strong><span class="meta">Bấm để xem lớn</span></span><span class="menu-image-card__cta" aria-hidden="true">Xem lớn →</span></button></MenuCommunity>
     <p v-if="menu.archived_at" class="menu-closed-note">Menu đã lưu trữ. Bạn vẫn có thể thanh toán các đơn còn thiếu và xem lại lịch sử.</p><p v-else-if="menu.is_closed" class="menu-closed-note">{{ menu.payment_mode==='sponsored'?'Menu đã chốt. Bữa này được mời; bạn vẫn có thể đánh giá món.':'Menu đã chốt. Bạn vẫn có thể chuyển khoản và đánh giá đơn của mình.' }}</p>
     <button v-if="myOrders.length && !editing && !additionalOrder && !orderingLocked" type="button" class="menu-text-action menu-add-order" @click="additionalOrder=true">+ Đặt thêm đơn</button>
     <div v-if="!myOrders.length || editing || additionalOrder" class="menu-order-layout">
@@ -296,8 +295,8 @@ async function copyLink() {
 .menu-zoom-image { display:block; width:100%; height:auto; border-radius:8px; }
 .menu-zoom-link { display:inline-block; margin-bottom:12px; font-weight:600; color:var(--primary); }
 .menu-poster-tools summary,.menu-payment-info summary { min-height:44px; padding:10px 0; cursor:pointer; font-size:14px; color:var(--ink-soft); }
-.menu-image-card { display:flex; align-items:center; gap:14px; width:100%; margin:16px 0 0; padding:12px; text-align:left; font:inherit; color:inherit; cursor:zoom-in; }
-.menu-image-card:hover { border-color:var(--primary); }
+.menu-image-card { display:flex; align-items:center; gap:14px; width:100%; margin:0 0 16px; padding:0 0 16px; border:0; border-bottom:1px solid var(--line); background:transparent; text-align:left; font:inherit; color:inherit; cursor:zoom-in; }
+.menu-image-card:hover .menu-image-card__cta { text-decoration:underline; }
 .menu-image-card img { flex:none; width:88px; height:88px; object-fit:cover; border-radius:12px; background:var(--bg-tint); }
 .menu-image-card>span:not(.menu-image-card__cta) { display:grid; gap:2px; flex:1; min-width:0; }
 .menu-image-card__cta { flex:none; font-weight:600; color:var(--primary-ink); }

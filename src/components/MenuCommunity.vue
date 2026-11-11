@@ -51,6 +51,7 @@ async function markReceived() {
 </script>
 <template>
   <section class="card menu-community">
+    <slot />
     <div class="menu-community-heading"><h2>Mọi người đã đặt</h2><span class="badge">{{ people }} người</span></div>
     <p v-if="assigned && !pickerHasOrder" class="meta">Người lấy cơm: <strong>{{ assigned.primary?.full_name || 'Thành viên' }}</strong> · {{ assigned.status === 'received' ? 'Đã lấy cơm' : 'Chưa lấy' }}</p>
     <article v-for="order in orders" :key="order.id" class="menu-community-person">
