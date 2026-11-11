@@ -99,7 +99,7 @@ function goToday() { month.value = today.slice(0, 7); selected.value = today }
       </div>
       <div class="calendar-legend" aria-label="Chú thích trạng thái thanh toán"><span><i class="legend-swatch legend-paid" aria-hidden="true">✓</i> Đã trả / Được mời</span><span><i class="legend-swatch legend-unpaid" aria-hidden="true">!</i> Có đơn chưa trả</span><span><i class="legend-swatch legend-empty" aria-hidden="true">–</i> Chưa có đơn</span></div><p class="meta calendar-hint">Viền đậm: ngày đang chọn · Chọn ngày để xem chi tiết.</p>
     </section>
-    <AppDialog :open="dayOpen" :title="`Ngày ${formatVNDate(selected)}`" @close="dayOpen = false"><div class="stack history-day"><AsciiSkeleton v-if="loading && !orders.length" kind="calendar" label="Đang tải lịch cơm…" /><p v-else-if="loading" class="meta" role="status">Đang cập nhật…</p><div class="stack"><OrderCard v-for="order in selectedOrders" :key="order.id" :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn" description="Ngày này chưa có bữa trưa. Đơn đặt hộ bạn cũng xuất hiện ở đây." /></div></div></AppDialog>
+    <AppDialog :open="dayOpen" :title="`Ngày ${formatVNDate(selected)}`" @close="dayOpen = false"><div class="stack history-day"><AsciiSkeleton v-if="loading && !orders.length" kind="calendar" label="Đang tải lịch cơm…" /><p v-else-if="loading" class="meta" role="status">Đang cập nhật…</p><div class="stack"><OrderCard v-for="order in selectedOrders" :key="order.id" inline-qr :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn" description="Ngày này chưa có bữa trưa. Đơn đặt hộ bạn cũng xuất hiện ở đây." /></div></div></AppDialog>
     <div class="history-detail-grid">
       <section class="card stack history-unpaid"><div><h2>Đơn chưa thanh toán</h2><p class="meta">Xem các đơn còn thiếu tiền ở đây.</p></div><Spinner v-if="unpaidLoading" label="Đang tải đơn chưa trả…" /><p v-if="unpaidError" class="alert" role="alert">{{ unpaidError }} <button type="button" @click="loadUnpaid">Thử lại</button></p><div v-for="order in unpaidOrders" :key="order.id" class="stack-sm history-unpaid-entry"><p class="meta">{{ formatVNDate(order.menu.menu_date) }}</p><OrderCard :order="order" :menu="order.menu" @changed="orderChanged(order)" /></div><p v-if="!unpaidLoading && !unpaidError && !unpaidOrders.length" class="meta">Bạn đã thanh toán tất cả đơn cơm.</p></section>
     </div>
@@ -142,7 +142,7 @@ function goToday() { month.value = today.slice(0, 7); selected.value = today }
 .history-detail-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:24px; margin-top:4px; align-items:start; }
 .history-detail-grid > section { min-width:0; padding:24px; box-shadow:none; }
 .history-detail-grid h2 { font-size:22px; font-weight:750; margin:0 0 8px; overflow-wrap:anywhere; }
-.history-detail-grid :deep(.order-card), .history-day :deep(.order-card) { padding:0; border:0; border-radius:0; box-shadow:none; }
+.history-detail-grid :deep(.order-card), .history-day :deep(.order-card) { padding:0; border:0; border-radius:0; box-shadow:none; background:transparent; }
 .history-detail-grid :deep(.order-card + .order-card), .history-day :deep(.order-card + .order-card) { padding-top:20px; border-top:1px solid var(--line); }
 .history-unpaid-entry { padding:16px 0 0; border-top:1px solid var(--line); }
 @media(max-width:900px) {
