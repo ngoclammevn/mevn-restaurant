@@ -241,7 +241,7 @@ async function copyLink() {
           <section class="card post-card post-options"><h2><span class="post-step">2</span>Thanh toán &amp; nhắc đặt cơm</h2><SponsorshipField v-model="paymentMode" v-model:reason="sponsorReason" :disabled="posting" /><MenuReminderField v-model="reminderAt" :menu-date="menuDate" :disabled="posting" /></section>
         </div>
         <aside>
-          <section class="card post-card"><h2><span class="post-step">3</span>Quán và ngày ăn</h2><RestaurantPicker compact v-model="restaurantId" :disabled="posting" @selection="restaurantName=$event?.name || ''" /><div class="post-two-fields"><div class="field"><AppDatePicker id="post-date" label="Ngày ăn" v-model="menuDate" required :aria-invalid="formErrors.some(e=>e.fieldId==='post-date')" :disabled="posting" /><span v-if="formErrors.some(e=>e.fieldId==='post-date')" class="field-error">Chọn ngày nhận đơn.</span></div><div class="manual-close-note"><span class="field-label">Chốt đơn</span><p class="meta">Bạn chốt đơn trong Quản lý</p><p class="post-help">Ngày ăn theo giờ Việt Nam</p></div></div></section>
+          <section class="card post-card"><h2><span class="post-step">3</span>Quán và ngày ăn</h2><RestaurantPicker compact v-model="restaurantId" :disabled="posting" @selection="restaurantName=$event?.name || ''" /><div class="post-two-fields"><div class="field"><AppDatePicker id="post-date" label="Ngày ăn" v-model="menuDate" required :aria-invalid="formErrors.some(e=>e.fieldId==='post-date')" :disabled="posting" /><span v-if="formErrors.some(e=>e.fieldId==='post-date')" class="field-error">Chọn ngày nhận đơn.</span></div></div></section>
           <section class="card post-card post-summary"><h2><span class="post-step">4</span>Trước khi đăng</h2><h3>{{ restaurantName || 'Chưa chọn quán' }}</h3><p class="meta">{{ formatVNDate(menuDate) }}</p><div class="post-summary-line"><span>Nội dung</span><strong>{{ dishes!==null ? (dishes.length+' món') : postMode==='plain' ? 'Nội dung tự nhập' : 'Ảnh thực đơn' }}</strong></div><div class="post-summary-line"><span>Người thu tiền</span><strong>{{ user?.fullName || user?.firstName || 'Bạn' }}</strong></div><p class="post-note">{{ dishes!==null ? 'Người đặt chọn món trong danh sách.' : postMode==='plain' ? 'Người đặt nhập tên món. Không tự tính tiền.' : 'Kiểm tra món đọc từ ảnh trước khi đăng.' }}</p><p class="meta">Thông tin chuyển khoản theo trang Cá nhân.</p><p v-if="status" class="progress-note" role="status">{{ status }}</p><p v-if="error" class="alert" role="alert">{{ error }}</p><AppButton class="post-wide" type="submit" :loading="posting">{{ imageFile && useOcr && dishes===null ? 'Đọc ảnh và kiểm tra món' : 'Xem lại menu' }}</AppButton><p class="post-help post-fixed-hint">Bạn có thể đổi trang rồi quay lại viết tiếp.</p></section></aside>
       </div>
     </form>
@@ -259,8 +259,6 @@ async function copyLink() {
 .post-card .field { font-size:16px; font-weight:650; color:var(--ink); }
 .post-card .input,.post-card .textarea { min-width:0; font-size:16px; font-weight:500; }
 .post-two-fields { display:grid; grid-template-columns:1fr; gap:16px; margin-top:20px; }
-.manual-close-note { display:grid; align-content:start; gap:7px; }
-.manual-close-note .meta { color:var(--ink); }
 .field-label { font-size:14px; font-weight:700; }
 .post-method { margin:0 0 18px; max-width:620px; }
 .post-method-readonly { margin:0 0 18px; padding:12px 14px; border-radius:var(--radius-control); background:var(--bg-tint); color:var(--ink); font-weight:650; }
