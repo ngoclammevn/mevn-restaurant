@@ -52,7 +52,7 @@ watch(() => route.path, resetMobileNavigation)
 watch(() => route.path, async () => { await nextTick(); const target = document.querySelector('#main-content h1, #main-content'); if (target) { target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }) } })
 </script>
 <template><div class="app-shell" :class="{ 'app-shell--nav-hidden': mobileNavHidden }"><a href="#main-content" class="skip-link">Đến nội dung chính</a>
-  <header class="app-bar"><router-link to="/" class="brand"><AppIcon name="lunch" />Cơm Trưa</router-link><AppNavigation surface="desktop" :path="route.path" />
+  <header class="app-bar"><router-link to="/" class="brand"><img src="/ME-logo.png" alt="" class="brand-logo" width="267" height="168" />Cơm Trưa</router-link><AppNavigation surface="desktop" :path="route.path" />
     <div class="user-action"><AppButton v-if="isSignedIn" to="/post" variant="ghost" size="sm" class="post-action" aria-label="Đăng menu"><AppIcon name="plus" /><span>Đăng menu</span></AppButton>
       <button type="button" class="updates-action" :aria-label="`Cập nhật ứng dụng · ${latestDate}`" @click="openUpdates"><AppIcon name="updates" /><span v-if="unread" class="updates-dot" aria-hidden="true" /></button>
       <router-link v-if="isSignedIn" to="/profile" class="profile-action" aria-label="Mở trang cá nhân"><Avatar :profile="currentProfile || {id:user?.id,avatar_url:user?.imageUrl,provider_has_image:user?.hasImage}" :name="user?.fullName || user?.firstName" :size="40" /></router-link><AppButton v-else size="sm" @click="showSignIn = true">Đăng nhập</AppButton>
