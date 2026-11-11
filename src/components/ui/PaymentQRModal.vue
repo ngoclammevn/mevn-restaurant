@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, h } from 'vue'
 import { useUser } from '@clerk/vue'
 import AppButton from './AppButton.vue'
 import AppDialog from './AppDialog.vue'
@@ -10,8 +10,11 @@ import { managedOrderAmount } from '../../lib/manage-summary'
 const props = defineProps({
   order: { type: Object, required: true }, poster: { type: Object, required: true },
   menuDate: { type: String, required: true }, menu: { type: Object },
-  loading: Boolean, error: { type: String, default: '' },
+  loading: Boolean, error: { type: String, default: '' }, inline: Boolean,
 })
+// inline: hiện thẳng trong trang/popup khác, khỏi mở thêm một hộp thoại chồng lên.
+const InlineShell = (_, { slots }) => h('div', { class: 'payment-inline' }, [slots.default?.(), slots.footer?.()])
+InlineShell.props = ['open', 'title']
 const emit = defineEmits(['close', 'paid'])
 const { user } = useUser()
 const own = computed(() => !!user.value?.id && props.order.user_id === user.value.id)
@@ -93,7 +96,7 @@ async function downloadQr() {
 }
 </script>
 <template>
-  <AppDialog :open="menu?.payment_mode!=='sponsored'" title="Chuyển tiền" @close="close">
+  <component :is="inline ? InlineShell : AppDialog" :open="menu?.payment_mode!=='sponsored'" title="Chuyển tiền" @close="close">
     <div class="payment-dialog">
       <div class="payment-heading"><span class="meta">Bữa ăn ngày {{ menuDate.split('-').reverse().join('/') }}</span><strong class="payment-amount">{{ amount == null ? 'Chưa có số tiền' : money(amount) }}</strong><button v-if="breakdown.total != null" type="button" class="payment-text-action" :disabled="loading" @click="editingAmount=!editingAmount">{{ editingAmount ? 'Xong' : 'Sửa số tiền' }}</button></div>
       <div v-if="breakdown.total == null || editingAmount" class="field"><GlassInput :label="breakdown.total == null ? 'Số tiền đã thống nhất (đ)' : 'Số tiền chuyển (đ)'" inputmode="numeric" :model-value="amountText" :disabled="loading" placeholder="Nhập số tiền" @update:model-value="setAmountText" /></div>
@@ -111,8 +114,9 @@ async function downloadQr() {
       <p v-if="own" class="payment-notice">Chuyển tiền xong, bạn bấm xác nhận bên dưới nhé.</p>
     </div>
     <template #footer><AppButton v-if="own && !order.is_paid" block :loading="loading" @click="confirmPaid">Tôi đã chuyển tiền</AppButton></template>
-  </AppDialog>
+  </component>
 </template>
 <style scoped>
+.payment-inline{display:grid;gap:16px;margin-top:12px;padding:20px 16px;border:1px solid var(--line);border-radius:18px;background:var(--bg-tint)}
 .payment-dialog{display:grid;gap:16px;min-width:0;font-size:16px;line-height:1.5}.payment-dialog .meta{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:0}.payment-heading{display:grid;justify-items:center;gap:4px;text-align:center}.payment-amount{font-size:32px;line-height:1.2;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums}.payment-text-action{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:none;color:var(--primary-ink);font:inherit;font-size:14px;min-height:44px;padding:8px;cursor:pointer}.payment-text-action:disabled{opacity:.45;cursor:default}.payment-text-action:focus-visible,.payment-tabs button:focus-visible{outline:3px solid var(--primary);outline-offset:2px}.payment-tabs{display:flex;justify-content:center;gap:4px}.payment-tabs button{font:inherit;font-size:16px;min-height:44px;padding:10px 16px;border:0;border-radius:10px;background:transparent;color:var(--ink-soft);cursor:pointer}.payment-tabs button.active{background:var(--bg-tint);color:var(--ink);font-weight:600}.payment-qr-area{display:grid;justify-items:center;gap:4px}.payment-qr{width:min(240px,100%);height:auto;background:#fff}.payment-qr-area>.meta{text-align:center}.payment-recipient{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:16px;min-width:0}.payment-recipient>strong{font-size:17px;font-weight:650;overflow-wrap:anywhere}.payment-copy-row{display:flex;justify-content:space-between;align-items:center;gap:12px;min-width:0}.payment-copy-row>span,.payment-copy-row>strong{overflow-wrap:anywhere;min-width:0;font-size:16px;font-variant-numeric:tabular-nums}.payment-copy-row button{flex:none}.payment-memo{border-top:1px solid var(--line);padding-top:12px}.payment-notice{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.5}.order-lines{white-space:pre-line;overflow-wrap:anywhere}@media(max-width:380px){.payment-qr{width:200px}.payment-amount{font-size:28px}}
 </style>

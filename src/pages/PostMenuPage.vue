@@ -54,7 +54,9 @@ watch(() => user.value?.id, async (accountId, previousAccountId) => {
     }
   } catch { /* An expired draft can be replaced. */ }
   postMode.value = dishes.value !== null || (imageFile.value && useOcr.value) ? 'structured' : 'plain'
-  postSource.value = imageFile.value ? 'image' : 'manual'
+  // Mặc định đọc từ ảnh; chỉ giữ "Nhập món" khi bản nháp đã có món tự nhập.
+  if (imageFile.value || (postMode.value === 'structured' && !dishes.value?.length)) changeSource('image')
+  else postSource.value = 'manual'
   await nextTick()
   if (current !== generation) return
   ready = true
@@ -187,7 +189,7 @@ async function publishMenu() {
       if(current===generation && user.value?.id===account)notificationWarning.value='Menu đã đăng. Chưa hoàn tất thông báo hoặc lịch nhắc; bạn có thể thử lại trong Quản lý.'
     }
     if(current!==generation || user.value?.id!==account)return
-    reset(); await nextTick(); ready = true
+    reset(); postSource.value = 'image'; dishes.value = null; await nextTick(); ready = true
   } catch { if (current === generation && user.value?.id === account) error.value = 'Chưa đăng được menu hoặc tải ảnh. Bạn vẫn còn bản nháp để thử lại.' }
   finally { if (current === generation && user.value?.id === account) { posting.value = false; status.value = '' } }
 }
@@ -205,9 +207,8 @@ async function copyLink() {
       <FormErrorSummary ref="errorSummary" :errors="formErrors" />
       <div class="post-grid">
         <div class="post-stack">
-          <section class="card post-card"><h2><span class="post-step">1</span>Quán và ngày ăn</h2><RestaurantPicker compact v-model="restaurantId" :disabled="posting" @selection="restaurantName=$event?.name || ''" /><div class="post-two-fields"><div class="field"><AppDatePicker id="post-date" label="Ngày ăn" v-model="menuDate" required :aria-invalid="formErrors.some(e=>e.fieldId==='post-date')" :disabled="posting" /><span v-if="formErrors.some(e=>e.fieldId==='post-date')" class="field-error">Chọn ngày nhận đơn.</span></div><div class="manual-close-note"><span class="field-label">Chốt đơn</span><p class="meta">Bạn chốt đơn trong Quản lý</p><p class="post-help">Ngày ăn theo giờ Việt Nam</p></div></div></section>
           <section id="post-content" tabindex="-1" class="card post-card">
-            <h2><span class="post-step">2</span>Nội dung menu</h2>
+            <h2><span class="post-step">1</span>Nội dung menu</h2>
             <GlassSegmented v-if="!posting" class="post-method" label="Cách thêm menu" :options="postMethodOptions" :model-value="postMethodIndex" @update:model-value="choosePostMethod" />
             <p v-else class="post-method-readonly" role="status">{{ postMethodOptions[postMethodIndex] }}</p>
             <template v-if="postMode==='structured'">
@@ -229,7 +230,7 @@ async function copyLink() {
               </div>
               <details v-if="restaurantId && catalog.length && dishes?.length" class="catalog-links">
                 <summary>Gắn món với danh sách của quán <span>Không bắt buộc</span></summary>
-                <p class="post-help">Chỉ chọn khi món trong thực đơn khớp món đã lưu ở quán. Việc này giúp gom đánh giá đúng món; không ảnh hưởng đơn đặt hay giá tiền.</p>
+                <p class="post-help">Để gom đánh giá đúng món. Không đổi đơn hay giá.</p>
                 <div v-for="(dish,index) in dishes" :key="index" class="field"><GlassSelect :label="`Món tương ứng với ${dish.name || `món ${index+1}`}`" v-model="dish.restaurant_dish_id" :disabled="posting" :options="[{value:null,label:'Không liên kết'},...catalog.map(p=>({value:p.id,label:p.name+(p.variant?' · '+p.variant:'')}))]" /></div>
               </details>
               <label class="field post-note-field">Lưu ý của người đăng · Không bắt buộc<textarea v-model="note" class="textarea" rows="3" :disabled="posting" placeholder="Ví dụ: nhận cơm tại sảnh…" /></label>
@@ -237,9 +238,11 @@ async function copyLink() {
             <template v-else><label class="field post-note-field">Nội dung menu<textarea v-model="note" class="textarea" rows="6" :disabled="posting" /></label><p class="post-help">Người đặt nhập tên món tự do. Bạn tự xác nhận giá với quán.</p><section class="catalog-links"><h3>Ảnh thực đơn</h3><FileUpload v-model="imageFile" :disabled="posting" /></section></template>
             <p v-for="entry in formErrors.filter(e=>e.fieldId==='post-content')" :key="entry.message" class="field-error">{{ entry.message }}</p>
           </section>
-          <section class="card post-card post-options"><h2><span class="post-step">3</span>Thanh toán &amp; nhắc đặt cơm</h2><SponsorshipField v-model="paymentMode" v-model:reason="sponsorReason" :disabled="posting" /><MenuReminderField v-model="reminderAt" :menu-date="menuDate" :disabled="posting" /></section>
+          <section class="card post-card post-options"><h2><span class="post-step">2</span>Thanh toán &amp; nhắc đặt cơm</h2><SponsorshipField v-model="paymentMode" v-model:reason="sponsorReason" :disabled="posting" /><MenuReminderField v-model="reminderAt" :menu-date="menuDate" :disabled="posting" /></section>
         </div>
-        <aside><section class="card post-card post-summary"><h2><span class="post-step">4</span>Trước khi đăng</h2><h3>{{ restaurantName || 'Chưa chọn quán' }}</h3><p class="meta">{{ formatVNDate(menuDate) }}</p><div class="post-summary-line"><span>Nội dung</span><strong>{{ dishes!==null ? (dishes.length+' món') : postMode==='plain' ? 'Nội dung tự nhập' : 'Ảnh thực đơn' }}</strong></div><div class="post-summary-line"><span>Người thu tiền</span><strong>{{ user?.fullName || user?.firstName || 'Bạn' }}</strong></div><p class="post-note">{{ dishes!==null ? 'Người đặt chọn món trong danh sách.' : postMode==='plain' ? 'Người đặt nhập tên món. Không tự tính tiền.' : 'Kiểm tra món đọc từ ảnh trước khi đăng.' }}</p><p class="meta">Thông tin chuyển khoản theo trang Cá nhân.</p><p v-if="status" class="progress-note" role="status">{{ status }}</p><p v-if="error" class="alert" role="alert">{{ error }}</p><AppButton class="post-wide" type="submit" :loading="posting">{{ imageFile && useOcr && dishes===null ? 'Đọc ảnh và kiểm tra món' : 'Xem lại menu' }}</AppButton><p class="post-help post-fixed-hint">Bạn có thể đổi trang rồi quay lại viết tiếp.</p></section></aside>
+        <aside>
+          <section class="card post-card"><h2><span class="post-step">3</span>Quán và ngày ăn</h2><RestaurantPicker compact v-model="restaurantId" :disabled="posting" @selection="restaurantName=$event?.name || ''" /><div class="post-two-fields"><div class="field"><AppDatePicker id="post-date" label="Ngày ăn" v-model="menuDate" required :aria-invalid="formErrors.some(e=>e.fieldId==='post-date')" :disabled="posting" /><span v-if="formErrors.some(e=>e.fieldId==='post-date')" class="field-error">Chọn ngày nhận đơn.</span></div></div></section>
+          <section class="card post-card post-summary"><h2><span class="post-step">4</span>Trước khi đăng</h2><h3>{{ restaurantName || 'Chưa chọn quán' }}</h3><p class="meta">{{ formatVNDate(menuDate) }}</p><div class="post-summary-line"><span>Nội dung</span><strong>{{ dishes!==null ? (dishes.length+' món') : postMode==='plain' ? 'Nội dung tự nhập' : 'Ảnh thực đơn' }}</strong></div><div class="post-summary-line"><span>Người thu tiền</span><strong>{{ user?.fullName || user?.firstName || 'Bạn' }}</strong></div><p class="post-note">{{ dishes!==null ? 'Người đặt chọn món trong danh sách.' : postMode==='plain' ? 'Người đặt nhập tên món. Không tự tính tiền.' : 'Kiểm tra món đọc từ ảnh trước khi đăng.' }}</p><p class="meta">Thông tin chuyển khoản theo trang Cá nhân.</p><p v-if="status" class="progress-note" role="status">{{ status }}</p><p v-if="error" class="alert" role="alert">{{ error }}</p><AppButton class="post-wide" type="submit" :loading="posting">{{ imageFile && useOcr && dishes===null ? 'Đọc ảnh và kiểm tra món' : 'Xem lại menu' }}</AppButton></section></aside>
       </div>
     </form>
     <PostMenuPreviewDialog :open="showPreview" :restaurant-name="restaurantName" :collector-name="user?.fullName || user?.firstName || 'Bạn'" :menu-date="menuDate" :dishes="dishes" :note="note" :image-preview="imagePreview" :posting="posting" :errors="error" @close="closePreview" @publish="publishMenu" /><SignInModal v-if="showSignIn" @close="showSignIn=false" />
@@ -248,16 +251,14 @@ async function copyLink() {
 <style scoped>
 .post-page { min-width:0; }
 .post-page :deep(.btn) { min-height:48px; font-size:16px; font-weight:600;  padding:11px 16px; }
-.post-grid { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:24px; align-items:start; }
+.post-grid { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:24px; align-items:start; }
 .post-stack { display:grid; gap:20px; min-width:0; }
 .post-card { padding:28px; min-width:0; border-radius:24px; }
 .post-card h2 { display:flex; align-items:center; gap:10px; font-size:20px; font-weight:750; margin:0 0 20px; line-height:1.4; }
 .post-step { display:inline-grid; place-items:center; flex:none; width:28px; height:28px; border-radius:8px; background:var(--primary-soft); color:var(--primary); font-size:14px; font-weight:750; }
 .post-card .field { font-size:16px; font-weight:650; color:var(--ink); }
 .post-card .input,.post-card .textarea { min-width:0; font-size:16px; font-weight:500; }
-.post-two-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; margin-top:20px; }
-.manual-close-note { display:grid; align-content:start; gap:7px; }
-.manual-close-note .meta { color:var(--ink); }
+.post-two-fields { display:grid; grid-template-columns:1fr; gap:16px; margin-top:20px; }
 .field-label { font-size:14px; font-weight:700; }
 .post-method { margin:0 0 18px; max-width:620px; }
 .post-method-readonly { margin:0 0 18px; padding:12px 14px; border-radius:var(--radius-control); background:var(--bg-tint); color:var(--ink); font-weight:650; }
@@ -289,7 +290,8 @@ async function copyLink() {
 .ocr-option { display:flex; align-items:center; gap:10px; min-height:44px; font-size:14px; margin-top:8px; color:var(--ink); }
 .ocr-option input { width:20px; height:20px; flex:none; accent-color:var(--primary); }
 .post-note-field { margin-top:20px; }
-.post-grid>aside { position:sticky; top:90px; min-width:0; }
+.post-grid>aside { display:grid; gap:24px; align-self:stretch; align-content:start; min-width:0; }
+.post-grid>aside>.post-summary { position:sticky; top:90px; }
 .post-summary { background:var(--card); }
 .post-summary h3 { font-size:21px; font-weight:750; line-height:1.45; margin:0; overflow-wrap:anywhere; }
 .post-summary>.meta { font-size:14px; color:var(--ink-soft); margin:8px 0; }
@@ -299,7 +301,6 @@ async function copyLink() {
 .post-summary-line strong { min-width:0; overflow-wrap:anywhere; text-align:right; font-weight:750; }
 .post-note { font-size:14px; color:var(--ink-soft); background:var(--bg-tint); border-radius:8px; padding:12px; margin:8px 0 16px; line-height:1.65; }
 .post-wide { width:100%; margin-top:20px; }
-.post-fixed-hint { margin-top:12px; }
 .catalog-links { margin-top:18px; border-top:1px solid var(--line); }
 .catalog-links summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:48px; padding:8px 0; color:var(--ink); font-size:15px; font-weight:650; cursor:pointer; }
 .catalog-links summary span { flex:none; color:var(--ink-soft); font-size:13px; font-weight:500; }
@@ -330,7 +331,7 @@ async function copyLink() {
 }
 @media(max-width:850px) {
   .post-grid { grid-template-columns:1fr; }
-  .post-grid>aside { position:static; }
+  .post-grid>aside>.post-summary { position:static; }
 }
 @media(max-width:540px) {
   .post-stack { gap:16px; }

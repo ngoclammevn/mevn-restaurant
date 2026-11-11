@@ -36,10 +36,10 @@ async function add() {
 }
 </script>
 <template><div class="stack-sm restaurant-picker" :class="{compact}">
-  <div class="picker-fields"><div v-if="!disabled && !compact" class="field"><GlassInput label="Tìm quán" v-model="query" type="search" placeholder="Tên quán hoặc chi nhánh…" /></div><GlassSelect label="Menu này của quán nào?" :model-value="modelValue" :options="[{ value: '', label: 'Chưa xác định quán' }, ...filtered.map(r => ({ value: r.id, label: r.name + (r.branch ? ` · ${r.branch}` : '') }))]" :disabled="disabled || busy" @update:model-value="emit('update:modelValue', $event)" /></div>
+  <div class="picker-fields"><div v-if="!disabled && !compact" class="field"><GlassInput label="Tìm quán" v-model="query" type="search" placeholder="Tên quán hoặc chi nhánh…" /></div><GlassSelect label="Menu này của quán nào?" :model-value="modelValue" :options="[{ value: '', label: 'Không chọn quán' }, ...filtered.map(r => ({ value: r.id, label: r.name + (r.branch ? ` · ${r.branch}` : '') }))]" :disabled="disabled || busy" @update:model-value="emit('update:modelValue', $event)" /></div>
   <p v-if="disabled && lockReason" class="meta">{{ lockReason }}</p>
   <p v-else-if="selection" class="meta">Đã chọn {{ selection.name }}{{ selection.branch ? ` · ${selection.branch}` : '' }}. Món và đánh giá sẽ thuộc quán này.</p>
-  <p v-else class="meta">Chọn quán để ghi nhận đánh giá.</p>
+  <p v-else class="meta">Không bắt buộc. Chọn quán nếu muốn lưu món và đánh giá theo quán.</p>
   <div v-if="!disabled && !adding" class="row-wrap"><p v-if="query && !filtered.length" class="meta" role="status">Chưa tìm thấy quán phù hợp.</p><AppButton variant="ghost" @click="adding = true">+ Thêm quán mới</AppButton></div>
   <div v-if="adding" class="stack-sm add-restaurant"><h3 class="section-title">Quán mới</h3><div class="field"><GlassInput label="Tên quán" v-model="name" maxlength="240" :disabled="busy || disabled" placeholder="Ví dụ: Cơm Nhà" /></div><div class="field"><GlassInput label="Chi nhánh (tùy chọn)" v-model="branch" maxlength="120" :disabled="busy || disabled" placeholder="Địa chỉ hoặc tên chi nhánh" /></div><div class="row-wrap"><AppButton :loading="busy" :disabled="!name.trim() || disabled" @click="add">Thêm và chọn quán</AppButton><AppButton variant="ghost" :disabled="busy" @click="adding = false">Hủy</AppButton></div></div>
   <p v-if="error" class="alert" role="alert">{{ error }}</p>

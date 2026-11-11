@@ -14,14 +14,12 @@ import { normalizeMenu, menuDishes, parseMenuNote, serializeMenu } from '../lib/
 import { formatVNDate, todayInVN } from '../lib/date'
 import { getMascotSeasonTheme } from '../lib/mascot-events'
 import { useMascotEggUnlockPulse } from '../composables/useMascotEggUnlockPulse'
-import { managedOrderAmount } from '../lib/manage-summary'
 import { autolink } from '../lib/autolink'
-import { AppButton, PageHeader, Spinner, EmptyState, MenuBoard, OrderSummaryPanel, PaidStamp, SignInModal, AppDialog } from '../components/ui'
-import OrderCard from '../components/OrderCard.vue'
+import { AppButton, PageHeader, Spinner, EmptyState, MenuBoard, OrderSummaryPanel, SignInModal, AppDialog } from '../components/ui'
 import MenuCoordination from '../components/MenuCoordination.vue'
+import MenuCommunity from '../components/MenuCommunity.vue'
 import PickupPreferenceForm from '../components/PickupPreferenceForm.vue'
 import AsciiSkeleton from '../components/ui/AsciiSkeleton.vue'
-import Avatar from '../components/ui/Avatar.vue'
 import AppIcon from '../components/ui/AppIcon.vue'
 const route = useRoute(), router = useRouter()
 const seasonalTheme = getMascotSeasonTheme()
@@ -136,7 +134,6 @@ async function refreshMenu() {
     selected.value[name] = fresh || { ...dish, available: false }
   }
 }
-function orderChanged() { queueRefresh(); loadFeedbackBatch() }
 async function loadFeedbackBatch() {
   if (!user.value || !menu.value?.restaurant_id) return
   const current = generation, account = user.value.id, menuId = menu.value.id, restaurantId = menu.value.restaurant_id
@@ -229,21 +226,20 @@ async function copyLink() {
   <AsciiSkeleton v-if="loading" kind="menu-card" :height="380" label="Đang tải menu…" />
   <EmptyState v-else-if="error" title="Chưa xem được menu" :description="error"><AppButton variant="ghost" @click="load()">Thử lại</AppButton></EmptyState>
   <template v-else-if="menu">
-    <div class="menu-heading"><PageHeader :eyebrow="menu.menu_date === todayInVN() ? `Menu hôm nay · ${formatVNDate(menu.menu_date)}` : `Menu ngày ${formatVNDate(menu.menu_date)}`" :title="menu.restaurant?.name || menu.title" :sub="`${menu.poster?.full_name || 'Thành viên'} đăng · ${new Set((menu.orders || []).map(o => o.user_id)).size} người đã đặt · ${menu.archived_at ? 'Đã lưu trữ' : menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn'}`" />
-    <div class="menu-heading-tools"><button v-if="menu.image_url" type="button" class="menu-text-action" @click="zoomImage = true">Xem ảnh thực đơn</button><button type="button" class="menu-text-action" @click="copyLink">{{ copied ? 'Đã chép link' : 'Chia sẻ menu' }}</button><AppButton v-if="ownMenu" variant="ghost" size="sm" :to="{path:'/manage',query:{menu_id:menu.id}}">Quản lý menu</AppButton></div></div>
+    <div class="menu-heading"><PageHeader :eyebrow="menu.menu_date === todayInVN() ? `Menu hôm nay · ${formatVNDate(menu.menu_date)}` : `Menu ngày ${formatVNDate(menu.menu_date)}`" :title="menu.restaurant?.name || menu.title" :sub="`${menu.poster?.full_name || 'Thành viên'} đăng · ${menu.archived_at ? 'Đã lưu trữ' : menu.is_closed ? 'Đã chốt đơn' : 'Đang nhận đơn'}`" />
+    <div class="menu-heading-tools"><button type="button" class="menu-text-action" @click="copyLink">{{ copied ? 'Đã chép link' : 'Chia sẻ menu' }}</button><AppButton v-if="ownMenu" variant="ghost" size="sm" :to="{path:'/manage',query:{menu_id:menu.id}}">Quản lý menu</AppButton></div></div>
     <p v-if="savedMessage" class="success-message" role="status">{{ savedMessage }}</p><p v-if="pickupWarning" class="alert" role="status">{{ pickupWarning }}</p>
-    <section v-if="myOrders.length" class="card menu-personal" aria-labelledby="my-menu-orders"><span id="my-menu-orders" class="eyebrow">Bữa trưa của bạn</span><OrderCard v-for="order in myOrders" :key="order.id" :order="order" :menu="menu" compact @changed="orderChanged" /></section>
+    <MenuCommunity :menu="menu" @changed="refreshMenu(); presence.notifyOrderChanged(menu.id)"><button v-if="menu.image_url" type="button" class="menu-image-card" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" alt="" /><strong>Ảnh thực đơn</strong><span class="menu-image-card__cta" aria-hidden="true">Xem ảnh menu →</span></button></MenuCommunity>
     <p v-if="menu.archived_at" class="menu-closed-note">Menu đã lưu trữ. Bạn vẫn có thể thanh toán các đơn còn thiếu và xem lại lịch sử.</p><p v-else-if="menu.is_closed" class="menu-closed-note">{{ menu.payment_mode==='sponsored'?'Menu đã chốt. Bữa này được mời; bạn vẫn có thể đánh giá món.':'Menu đã chốt. Bạn vẫn có thể chuyển khoản và đánh giá đơn của mình.' }}</p>
     <button v-if="myOrders.length && !editing && !additionalOrder && !orderingLocked" type="button" class="menu-text-action menu-add-order" @click="additionalOrder=true">+ Đặt thêm đơn</button>
     <div v-if="!myOrders.length || editing || additionalOrder" class="menu-order-layout">
       <div class="menu-board-column">
         <MenuBoard v-if="structured" heading="Chọn món của bạn" :note="boardNote" :picks="selected" :disabled="orderingLocked || busy" :viewers="boardViewers" :feedback="feedback" :restaurant-id="menu.restaurant_id" show-feedback :feedback-state="!menu.restaurant_id ? 'Chưa ghi nhận quán' : !user ? 'Đăng nhập để xem đánh giá' : ratings.length ? '' : feedbackBatchError" @toggle-dish="toggleDish" @feedback="openFeedback" />
-        <section v-else class="card menu-plain"><h2>Chọn món của bạn</h2><p v-if="menu.note" class="order-lines" v-html="autolink(menu.note)" /><button v-if="menu.image_url" type="button" class="menu-image-button" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></button></section>
+        <section v-else class="card menu-plain"><h2>Chọn món của bạn</h2><p v-if="menu.note" class="order-lines" v-html="autolink(menu.note)" /></section>
         <AppButton v-if="feedbackBatchError" variant="ghost" @click="loadFeedbackBatch">Tải lại đánh giá</AppButton>
 
       </div>
-      <aside v-if="!orderingLocked || (menu.image_url && structured)" class="menu-order-sidebar">
-        <section v-if="menu.image_url && structured" class="menu-source-image"><div class="menu-source-heading"><h2>Ảnh thực đơn</h2><span class="meta">Bấm để phóng to</span></div><button type="button" class="menu-image-button" aria-label="Xem ảnh thực đơn lớn" @click="zoomImage = true"><img :src="menu.image_url" :alt="menu.title" /></button></section>
+      <aside v-if="!orderingLocked" class="menu-order-sidebar">
       <form v-if="!orderingLocked" id="order-form" ref="orderForm" class="menu-cart-summary" :class="{'menu-cart-summary--structured':structured}" @submit.prevent="requestConfirmation">
         <h2 tabindex="-1">{{ editing ? 'Sửa món trong đơn' : 'Đơn của bạn' }}</h2>
         <template v-if="structured"><ul v-if="selectedDishes.length" class="cart-selected-list"><li v-for="dish in selectedDishes" :key="dish.id || dish.name"><div><strong>{{ dish.name }}</strong><span class="meta">{{ dish.price == null || dish.price === '' ? 'Chưa có giá' : `${Number(dish.price).toLocaleString('vi-VN')}đ` }}</span></div><button type="button" :disabled="busy" :aria-label="`Bỏ chọn ${dish.name}`" @click="toggleDish(dish)"><span aria-hidden="true">×</span></button></li></ul><p v-else class="cart-empty">Chọn món trong menu để bắt đầu nhé.</p></template>
@@ -258,11 +254,11 @@ async function copyLink() {
       </aside>
     </div>
     <p v-if="actionError && orderingLocked" class="alert" role="alert">{{ actionError }}</p>
-    <MenuCoordination hide-pickup-preference ref="coordination" :menu="menu" :disabled="busy" @updated="coordinated" @busy="busy=$event" /><section class="card menu-community"><div class="menu-community-heading"><h2>Mọi người đã đặt</h2><span class="badge">{{ new Set((menu.orders || []).map(o => o.user_id)).size }} người</span></div><p class="meta">Danh sách này chỉ gồm các đơn đã gửi.</p><article v-for="order in menu.orders || []" :key="order.id" class="menu-community-person"><Avatar :profile="order.user" :name="order.user?.full_name" :size="34" /><div><strong>{{ order.user?.full_name || 'Thành viên' }}</strong><p>{{ order.item_text.split('\n').join(' · ') }}<span v-if="managedOrderAmount(menu, order) !== null"> · {{ Number(managedOrderAmount(menu, order)).toLocaleString('vi-VN') }}đ</span></p><p v-if="order.note" class="meta">{{ order.note }}</p></div><span v-if="menu.payment_mode==='sponsored'" class="badge">Được mời</span><PaidStamp v-else :paid="order.is_paid" /></article><p v-if="!menu.orders?.length" class="meta">Chưa có đơn. Bạn có thể chọn món trước.</p></section>
+    <MenuCoordination hide-pickup-preference hide-pickup ref="coordination" :menu="menu" :disabled="busy" @updated="coordinated" @busy="busy=$event" />
     <section v-if="ownMenu" class="card menu-poster-tools"><h2 class="section-title">Danh sách gửi quán</h2><OrderSummaryPanel :menu="menu" :read-only="!!menu.archived_at" :orders="menu.orders ?? []" :menu-note="menu.note || ''" :is-closed="!!menu.is_closed" :before-copy="closeOrdering" @reopen="reopenOrdering" /></section>
 
     <aside v-if="structured && !orderingLocked && selectedDishes.length && (!myOrders.length || editing || additionalOrder)" class="selection-bar" aria-label="Món đang chọn"><div class="selection-bar__content"><div><p>{{ selectedDishes.length }} món đã chọn</p><strong>{{ !selectedDishes.length ? '0đ' : total === null ? 'Chưa có đủ giá' : `${Number(total).toLocaleString('vi-VN')}đ` }}</strong></div><AppButton variant="ghost" :disabled="menu.is_closed || !canSave" :loading="busy" @click="requestConfirmation">{{ menu.is_closed ? 'Menu đã chốt' : editing ? 'Xem lại thay đổi' : 'Tiếp tục đặt món' }} <span aria-hidden="true">→</span></AppButton></div></aside>
-    <AppDialog :open="zoomImage" title="Ảnh thực đơn" @close="zoomImage = false"><img :src="menu.image_url" :alt="menu.title" class="post-image" /></AppDialog>
+    <AppDialog :open="zoomImage" wide title="Ảnh thực đơn" @close="zoomImage = false"><a :href="menu.image_url" target="_blank" rel="noopener" class="menu-zoom-link">Mở ảnh gốc</a><img :src="menu.image_url" :alt="menu.title" class="menu-zoom-image" /></AppDialog>
     <OrderConfirmDialog :open="showConfirm" :menu="menu" :dishes="structured ? selectedDishes : []" :item-text="itemText" :note="note" :recipient-name="recipientName" :total="total" :busy="busy" :error="actionError" :editing="!!editing" @close="!busy && (showConfirm = false)" @confirm="submit"><template #recipient><div v-if="!editing && user" class="field"><GlassSelect label="Đặt cho" v-model="recipient" :disabled="busy" :options="[{value:'',label:'Cho tôi · '+(user.fullName || 'Tôi')},...profiles.filter(p=>p.id!==user.id).map(p=>({value:p.id,label:p.full_name}))]" /></div></template><template #pickup><PickupPreferenceForm v-if="user" ref="pickupForm" :date="menu.menu_date" :enabled="!recipient || recipient===user.id" :disabled="busy" /></template></OrderConfirmDialog>
     <DishFeedbackDialog :open="!!feedbackDish" :dish="feedbackDish" :restaurant="menu.restaurant" :stats="feedback[`${menu.restaurant_id}:${feedbackDish?.restaurant_dish_id}`]" :reviews="feedbackReviews" :loading="feedbackLoading" :error="feedbackError" @close="closeFeedback" @retry="loadFeedback" />
   </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
@@ -274,16 +270,14 @@ async function copyLink() {
 .menu-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:16px; }
 .menu-heading :deep(.page-header) { min-width:0; }
 .menu-heading-tools { display:flex; gap:8px; flex-wrap:wrap; flex:none; }
-.menu-personal { margin:16px 0; padding:16px 20px; }
 .menu-add-order { margin:0 0 12px; }
 .menu-heading :deep(.page-title) { font-size:26px; }.menu-heading :deep(.page-sub) { font-size:14px; }
-.menu-personal>.eyebrow { display:block; margin-bottom:8px; }
 /* 1272px = 908px danh sách + 24px gap + 340px đơn. */
 .menu-order-layout { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:24px; align-items:start; margin:24px 0 32px; }
 .menu-board-column,.menu-order-sidebar { min-width:0; }
 .menu-order-sidebar { display:grid; gap:16px; position:sticky; top:96px;  }
 .menu-cart-summary { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:20px; display:grid; gap:16px; }
-.menu-cart-summary h2,.menu-plain h2,.menu-community h2,.menu-source-heading h2 { font-size:20px; font-weight:700; line-height:1.4; margin:0; }
+.menu-cart-summary h2,.menu-plain h2 { font-size:20px; font-weight:700; line-height:1.4; margin:0; }
 .menu-cart-summary .field { margin:0; font-size:16px; font-weight:600; gap:8px; }
 .menu-cart-summary .meta { font-size:14px; font-weight:400; margin:0; }
 .menu-cart-summary textarea { min-height:76px; font-weight:400; }
@@ -298,21 +292,15 @@ async function copyLink() {
 .cart-total { display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); padding-top:16px; font-size:14px; }
 .cart-total strong { font-size:22px; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .menu-plain h2 { margin-bottom:16px; }
-.menu-source-image { background:var(--card); border:1px solid var(--line); border-radius:20px; overflow:hidden; }
-.menu-source-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px; }
-.menu-source-heading h2 { font-size:16px; }.menu-source-heading .meta { font-size:14px; }
-.menu-image-button { display:block; width:100%; padding:0; border:0; background:var(--bg-tint); cursor:zoom-in; }
-.menu-source-image img { width:100%; height:220px; object-fit:contain; }
+.menu-zoom-image { display:block; width:100%; height:auto; border-radius:8px; }
+.menu-zoom-link { display:inline-block; margin-bottom:12px; font-weight:600; color:var(--primary); }
 .menu-poster-tools summary,.menu-payment-info summary { min-height:44px; padding:10px 0; cursor:pointer; font-size:14px; color:var(--ink-soft); }
-.menu-community { margin:28px 0 16px; }
+.menu-image-card { display:flex; align-items:center; gap:14px; width:100%; margin:0 0 16px; padding:0 0 16px; border:0; border-bottom:1px solid var(--line); background:transparent; text-align:left; font:inherit; color:inherit; cursor:zoom-in; }
+.menu-image-card:hover .menu-image-card__cta { text-decoration:underline; }
+.menu-image-card img { flex:none; width:88px; height:88px; object-fit:cover; border-radius:12px; background:var(--bg-tint); }
+.menu-image-card>strong { flex:1; min-width:0; }
+.menu-image-card__cta { flex:none; font-weight:600; color:var(--primary-ink); }
 .menu-poster-tools,.menu-payment-info { margin:16px 0; display:grid; gap:16px; }
-.menu-community-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
-.menu-community>.meta { margin:8px 0; }
-.menu-community-person { display:flex; align-items:flex-start; gap:12px; padding:16px 0; border-bottom:1px solid var(--line); }
-.menu-community-person>div { flex:1; min-width:0; }
-.menu-community-person strong { font-size:16px; }
-.menu-community-person p { font-size:14px; color:var(--ink-soft); margin:4px 0; overflow-wrap:anywhere; }
-.menu-community-person:last-child { border-bottom:0; }
 .menu-closed-note { padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--bg-tint); font-size:14px; margin:20px 0; }
 .selection-bar { display:none; }
 .menu-page button:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
@@ -322,25 +310,21 @@ async function copyLink() {
 }
 @media(max-width:980px) {
   .menu-order-layout { grid-template-columns:1fr; }.menu-order-sidebar { position:static; max-height:none; overflow:visible; grid-template-columns: minmax(0,1fr) minmax(0,1fr); align-items:start; }
-  .menu-source-image { order:2; }.menu-cart-summary { order:1; }.menu-order-sidebar:not(:has(.menu-source-image)) { grid-template-columns:1fr; }
+  .menu-order-sidebar { grid-template-columns:1fr; }
 }
 @media(max-width:700px) {
   .menu-heading { display:block; margin-bottom:20px; }.menu-heading-tools { max-width:none; justify-content:flex-start; margin-top:16px; }
-  .menu-order-layout { gap:20px; margin-top:20px; }.menu-order-sidebar { display:flex; flex-direction:column; }.menu-cart-summary,.menu-source-image { width:100%; }
-  .menu-community-person { flex-wrap:wrap; }.menu-community-person :deep(.paid-stamp) { margin-left:46px; }
+  .menu-order-layout { gap:20px; margin-top:20px; }.menu-order-sidebar { display:flex; flex-direction:column; }.menu-cart-summary { width:100%; }
   .selection-bar { display:block; position:fixed; left:12px; right:12px; margin:0; padding:12px 16px; border-radius:24px; bottom:calc(var(--mobile-nav-space, var(--mobile-nav-height)) + 16px + env(safe-area-inset-bottom)); transition:bottom .22s cubic-bezier(.2,.8,.2,1); background:rgb(255 255 255 / 94%); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--line); z-index:30; box-shadow:0 -4px 20px rgb(23 37 29 / 6%); }
   .selection-bar__content { display:flex; align-items:center; justify-content:space-between; gap:12px; }
   .selection-bar p { font-size:14px; color:var(--ink-soft); }.selection-bar strong { font-size:18px; font-variant-numeric:tabular-nums; }
   .selection-bar :deep(.btn) { background:var(--primary); border-color:var(--primary); color:white; font-size:16px; padding:10px 12px; }
 }
-.menu-text-action { min-height:44px; padding:8px 10px; border:0; border-radius:8px; background:transparent; color:var(--primary-ink); font:inherit; font-size:15px; font-weight:600; cursor:pointer; }.menu-text-action:hover { background:var(--primary-soft); }.menu-personal { position:relative; isolation:isolate; overflow:hidden; border-color:color-mix(in srgb,var(--season-accent) 15%,var(--line)); background:linear-gradient(115deg,color-mix(in srgb,var(--season-surface) 78%,#eff8f2) 0%,#fffdf8 62%,#fbf4e8 100%); }.menu-personal::before { content:""; position:absolute; z-index:0; right:22px; bottom:-8px; width:190px; height:170px; background:url(/illustrations/lunch-chef.svg) center bottom/contain no-repeat; opacity:.18; pointer-events:none; }.menu-personal>* { position:relative; z-index:1; }
+.menu-text-action { min-height:44px; padding:8px 10px; border:0; border-radius:8px; background:transparent; color:var(--primary-ink); font:inherit; font-size:15px; font-weight:600; cursor:pointer; }.menu-text-action:hover { background:var(--primary-soft); }
 .menu-page[data-seasonal-event] :deep(.mb-dish-card:not(.mb-dish-card--picked):not(.mb-dish-card--unavailable)) { border-color:color-mix(in srgb,var(--season-accent) 12%,var(--line)); background:color-mix(in srgb,var(--season-accent) 2%,var(--card)); }
 .menu-page[data-seasonal-event] :deep(.mb-dish-card:not(.mb-dish-card--picked):not(.mb-dish-card--unavailable):hover) { border-color:color-mix(in srgb,var(--season-accent) 30%,var(--line-strong)); }
 .menu-page :deep(.menu-board) { position:relative; }
-.menu-personal { border-color:color-mix(in srgb,var(--season-accent) 23%,var(--line)); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--season-accent) 6%,transparent); }
-.menu-personal::before { opacity:.26; }
 .menu-page--seasonal-unlock :deep(.menu-board)::after { content:""; position:absolute; inset:-6px; border:2px solid color-mix(in srgb,var(--season-accent) 50%,transparent); border-radius:20px; opacity:0; pointer-events:none; animation:menu-seasonal-reveal 1.5s ease-out both; }
 @keyframes menu-seasonal-reveal { 0% { opacity:0; } 24% { opacity:.7; } 100% { opacity:0; } }
-@media(max-width:600px) { .menu-personal { background:linear-gradient(120deg,color-mix(in srgb,var(--season-surface) 80%,#eff8f2) 0%,#fffdf8 78%); }.menu-personal::before { right:-22px; width:126px; height:126px; opacity:.09; } }
 @media(prefers-reduced-motion:reduce) { .menu-page--seasonal-unlock :deep(.menu-board)::after { animation:none; display:none; } }
 </style>

@@ -8,7 +8,7 @@ import { managedOrderAmount } from '../lib/manage-summary'
 import { reviewForItem } from '../lib/menu'
 import { AppButton, PaidToggle, PaidStamp, PaymentQRModal } from './ui'
 import ReviewDialog from './ReviewDialog.vue'
-const props = defineProps({ order: { type: Object, required: true }, menu: { type: Object, required: true }, compact: Boolean })
+const props = defineProps({ order: { type: Object, required: true }, menu: { type: Object, required: true }, compact: Boolean, inlineQr: Boolean })
 const emit = defineEmits(['changed'])
 const { user } = useUser()
 const { togglePaid } = useOrders()
@@ -21,6 +21,7 @@ const loading = ref(false), error = ref(''), qr = ref(false), review = ref(false
 const eligible = computed(() => own.value && props.menu.menu_date <= todayInVN() && props.order.order_items?.length)
 const reviewCount = computed(() => (props.order.order_items ?? []).filter(reviewForItem).length)
 const amount = computed(() => managedOrderAmount(props.menu, props.order))
+const showInlineQr = computed(() => props.inlineQr && own.value && !sponsored.value && !props.order.is_paid)
 const reviewLabel = computed(() => reviewCount.value ? `Đánh giá (${reviewCount.value}/${props.order.order_items?.length ?? 0})` : 'Đánh giá bữa ăn')
 async function paid(value) {
   if (!own.value || loading.value || sponsored.value) return
@@ -43,15 +44,16 @@ async function paid(value) {
     <p v-if="order.note" class="meta order-lines">{{ order.note }}</p>
     <p v-if="amount != null" class="order-amount">{{ Number(amount).toLocaleString('vi-VN') }}đ</p><p v-else class="meta">—</p>
     <div v-if="own" class="order-actions">
-      <AppButton v-if="!sponsored && !order.is_paid" variant="ghost" @click="qr = true">Chuyển khoản</AppButton>
-      <PaidToggle class="order-pay-action" v-if="!sponsored && (!compact || order.is_paid)" :paid="order.is_paid" :loading="loading" @toggle="paid" />
+      <AppButton v-if="!sponsored && !order.is_paid && !showInlineQr" variant="ghost" @click="qr = true">Chuyển khoản</AppButton>
+      <PaidToggle class="order-pay-action" v-if="!sponsored && !showInlineQr && (!compact || order.is_paid)" :paid="order.is_paid" :loading="loading" @toggle="paid" />
       <router-link v-if="!menu.is_closed && !menu.archived_at" class="order-text-action" :to="{ path: `/menu/${menu.id}`, query: { edit: order.id } }">Sửa món</router-link>
       <button v-if="eligible" type="button" class="order-text-action" @click="review = true">{{ reviewLabel }}</button>
     </div>
-    <p v-if="!compact && own && !sponsored && !order.is_paid" class="meta">Chuyển khoản{{ menu.poster?.full_name ? ` cho ${menu.poster.full_name}` : '' }} rồi bấm “Tôi đã chuyển tiền”.</p>
-    <p v-if="!compact && own && !sponsored && menu.poster?.payment_info && !hasQR" class="meta order-lines">{{ menu.poster.payment_info }}</p>
-    <p v-if="error" class="alert" role="alert">{{ error }}</p>
-    <PaymentQRModal v-if="qr && own && !sponsored" :order="paymentOrder" :poster="menu.poster" :menu="menu" :menu-date="menu.menu_date" :loading="loading" :error="error" @close="!loading && (qr = false)" @paid="paid(true)" />
+    <p v-if="!compact && own && !sponsored && !order.is_paid && !showInlineQr" class="meta">Chuyển khoản{{ menu.poster?.full_name ? ` cho ${menu.poster.full_name}` : '' }} rồi bấm “Tôi đã chuyển tiền”.</p>
+    <p v-if="!compact && own && !sponsored && menu.poster?.payment_info && !hasQR && !showInlineQr" class="meta order-lines">{{ menu.poster.payment_info }}</p>
+    <p v-if="error && !showInlineQr" class="alert" role="alert">{{ error }}</p>
+    <PaymentQRModal v-if="showInlineQr" inline :order="paymentOrder" :poster="menu.poster" :menu="menu" :menu-date="menu.menu_date" :loading="loading" :error="error" @paid="paid(true)" />
+    <PaymentQRModal v-else-if="qr && own && !sponsored" :order="paymentOrder" :poster="menu.poster" :menu="menu" :menu-date="menu.menu_date" :loading="loading" :error="error" @close="!loading && (qr = false)" @paid="paid(true)" />
     <ReviewDialog v-if="review && own" :order="order" :menu="menu" @close="review = false" @saved="emit('changed')" />
   </article>
 </template>

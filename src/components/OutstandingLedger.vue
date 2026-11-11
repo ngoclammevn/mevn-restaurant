@@ -36,7 +36,7 @@ function ageLabel(date) { const days=age(date); return days<0 ? 'Chưa tới ng�
 </script>
 <template>
   <section class="ledger-workspace">
-    <header class="ledger-title"><div><h2>Tiền chưa thu</h2><p class="meta">Chọn tháng để xem tổng tiền, sau đó tìm từng người còn thiếu.</p></div></header>
+    <header class="ledger-title"><div><h2>Tiền chưa thu</h2></div></header>
     <section class="ledger-overview" aria-label="Tổng tiền chưa thu">
       <div class="ledger-overview-total"><span>Còn phải thu</span><strong>{{ money(totalAmount) }}</strong></div>
       <div class="ledger-overview-count"><strong>{{ allGroups.length }} người</strong><span>{{ countOf(allGroups) }} đơn chưa thanh toán</span></div>

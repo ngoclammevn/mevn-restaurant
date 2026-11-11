@@ -7,14 +7,14 @@ import { useOrders } from '../composables/useOrders'
 import { useAppPresence } from '../composables/useAppPresence'
 import { monthDays, shiftMonth } from '../lib/calendar'
 import { todayInVN, formatVNDate } from '../lib/date'
-import { AppButton, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
+import { AppButton, AppDialog, PageHeader, Spinner, EmptyState, SignInModal } from '../components/ui'
 import OrderCard from '../components/OrderCard.vue'
 const { user, isSignedIn } = useUser()
 const { listMyOrders } = useOrders()
 const { onOrderChanged } = useAppPresence()
 const today = todayInVN(), month = ref(today.slice(0, 7)), selected = ref(today)
 const days = computed(() => monthDays(month.value))
-const orders = ref([]), loading = ref(false), error = ref(''), showSignIn = ref(false)
+const orders = ref([]), loading = ref(false), error = ref(''), showSignIn = ref(false), dayOpen = ref(false)
 const unpaidOrders = ref([]), unpaidLoading = ref(false), unpaidError = ref('')
 const grouped = computed(() => {
   const result = {}
@@ -90,18 +90,18 @@ function goToday() { month.value = today.slice(0, 7); selected.value = today }
       <div class="history-month"><AppButton variant="ghost" aria-label="Tháng trước" @click="move(-1)">←</AppButton><h2>{{ monthTitle }}</h2><AppButton variant="ghost" aria-label="Tháng sau" @click="move(1)">→</AppButton><AppButton variant="ghost" class="history-today" @click="goToday">Hôm nay</AppButton></div>
       <p v-if="loading" class="meta" role="status">Đang tải trạng thái thanh toán…</p>
       <div class="calendar-grid"><span v-for="label in ['T2','T3','T4','T5','T6','T7','CN']" :key="label" class="calendar-weekday">{{ label }}</span>
-        <button v-for="date in days" :key="date" type="button" class="calendar-cell" :class="[{ outside: !date.startsWith(month), active: selected === date, today: date === today }, dayPayments[date] ? `calendar-${dayPayments[date].state}` : 'calendar-empty']" :aria-label="`${formatVNDate(date)}, ${(grouped[date] ?? []).length} đơn, ${dayPayments[date]?.label || (loading ? 'Đang tải' : error ? 'Chưa tải được' : 'Chưa có đơn')}${date === today ? ', hôm nay' : ''}`" :aria-pressed="selected === date" :aria-current="date === today ? 'date' : undefined" @click="selected = date">
+        <button v-for="date in days" :key="date" type="button" class="calendar-cell" :class="[{ outside: !date.startsWith(month), active: selected === date, today: date === today }, dayPayments[date] ? `calendar-${dayPayments[date].state}` : 'calendar-empty']" :aria-label="`${formatVNDate(date)}, ${(grouped[date] ?? []).length} đơn, ${dayPayments[date]?.label || (loading ? 'Đang tải' : error ? 'Chưa tải được' : 'Chưa có đơn')}${date === today ? ', hôm nay' : ''}`" :aria-pressed="selected === date" :aria-current="date === today ? 'date' : undefined" @click="selected = date; dayOpen = true">
           <b>{{ Number(date.slice(-2)) }}</b>
           <span v-if="grouped[date]?.length" class="calendar-dishes">{{ grouped[date].map(order => order.item_text).join(', ') }}</span>
           <span v-if="grouped[date]?.length" class="calendar-count">{{ grouped[date].length }} đơn</span>
           <span v-if="dayPayments[date]" class="calendar-payment"><span class="calendar-status-symbol" aria-hidden="true">{{ dayPayments[date].symbol }}</span><span class="calendar-state-label">{{ dayPayments[date].label }}</span></span>
         </button>
       </div>
-      <div class="calendar-legend" aria-label="Chú thích trạng thái thanh toán"><span><i class="legend-swatch legend-paid" aria-hidden="true">✓</i> Đã trả / Được mời</span><span><i class="legend-swatch legend-unpaid" aria-hidden="true">!</i> Có đơn chưa trả</span><span><i class="legend-swatch legend-empty" aria-hidden="true">–</i> Chưa có đơn</span></div><p class="meta calendar-hint">Viền đậm: ngày đang chọn · Chọn ngày để xem chi tiết.</p>
+      <div class="calendar-legend" aria-label="Chú thích trạng thái thanh toán"><span><i class="legend-swatch legend-paid" aria-hidden="true">✓</i> Đã trả / Được mời</span><span><i class="legend-swatch legend-unpaid" aria-hidden="true">!</i> Có đơn chưa trả</span><span><i class="legend-swatch legend-empty" aria-hidden="true">–</i> Chưa có đơn</span></div>
     </section>
+    <AppDialog :open="dayOpen" :title="`Ngày ${formatVNDate(selected)}`" @close="dayOpen = false"><div class="stack history-day"><AsciiSkeleton v-if="loading && !orders.length" kind="calendar" label="Đang tải lịch cơm…" /><p v-else-if="loading" class="meta" role="status">Đang cập nhật…</p><div class="stack"><OrderCard v-for="order in selectedOrders" :key="order.id" inline-qr :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn" description="Ngày này chưa có bữa trưa. Đơn đặt hộ bạn cũng xuất hiện ở đây." /></div></div></AppDialog>
     <div class="history-detail-grid">
-      <section class="card stack history-day"><h2 class="history-day-title">Ngày {{ formatVNDate(selected) }}</h2><AsciiSkeleton v-if="loading && !orders.length" kind="calendar" label="Đang tải lịch cơm…" /><p v-else-if="loading" class="meta" role="status">Đang cập nhật…</p><div class="stack"><OrderCard v-for="order in selectedOrders" :key="order.id" :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn" description="Ngày này chưa có bữa trưa. Đơn đặt hộ bạn cũng xuất hiện ở đây." /></div></section>
-      <section class="card stack history-unpaid"><div><h2>Đơn chưa thanh toán</h2><p class="meta">Xem các đơn còn thiếu tiền ở đây.</p></div><Spinner v-if="unpaidLoading" label="Đang tải đơn chưa trả…" /><p v-if="unpaidError" class="alert" role="alert">{{ unpaidError }} <button type="button" @click="loadUnpaid">Thử lại</button></p><div v-for="order in unpaidOrders" :key="order.id" class="stack-sm history-unpaid-entry"><p class="meta">{{ formatVNDate(order.menu.menu_date) }}</p><OrderCard :order="order" :menu="order.menu" @changed="orderChanged(order)" /></div><p v-if="!unpaidLoading && !unpaidError && !unpaidOrders.length" class="meta">Bạn đã thanh toán tất cả đơn cơm.</p></section>
+      <section class="card stack history-unpaid"><div><h2>Đơn chưa thanh toán</h2></div><Spinner v-if="unpaidLoading" label="Đang tải đơn chưa trả…" /><p v-if="unpaidError" class="alert" role="alert">{{ unpaidError }} <button type="button" @click="loadUnpaid">Thử lại</button></p><div v-for="order in unpaidOrders" :key="order.id" class="stack-sm history-unpaid-entry"><p class="meta">{{ formatVNDate(order.menu.menu_date) }}</p><OrderCard :order="order" :menu="order.menu" @changed="orderChanged(order)" /></div><p v-if="!unpaidLoading && !unpaidError && !unpaidOrders.length" class="meta">Bạn đã thanh toán tất cả đơn cơm.</p></section>
     </div>
   </template><SignInModal v-if="showSignIn" @close="showSignIn = false" />
 </div></template>
@@ -138,18 +138,16 @@ function goToday() { month.value = today.slice(0, 7); selected.value = today }
 .legend-paid { background:var(--calendar-paid-bg); border-color:var(--calendar-paid-border); color:var(--calendar-paid-ink); }
 .legend-unpaid { background:var(--calendar-unpaid-bg); border-color:var(--calendar-unpaid-border); color:var(--calendar-unpaid-ink); }
 .legend-empty { background:var(--bg-tint); border-color:var(--line); color:var(--ink-soft); }
-.calendar-hint { margin-top:12px; }
-.history-detail-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px; margin-top:4px; align-items:start; }
+.history-detail-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:24px; margin-top:4px; align-items:start; }
 .history-detail-grid > section { min-width:0; padding:24px; box-shadow:none; }
 .history-detail-grid h2 { font-size:22px; font-weight:750; margin:0 0 8px; overflow-wrap:anywhere; }
-.history-detail-grid .history-day-title { font-size:20px; margin:0; }
-.history-detail-grid :deep(.order-card) { padding:0; border:0; border-radius:0; box-shadow:none; }
-.history-detail-grid :deep(.order-card + .order-card) { padding-top:20px; border-top:1px solid var(--line); }
+.history-detail-grid :deep(.order-card), .history-day :deep(.order-card) { padding:0; border:0; border-radius:0; box-shadow:none; background:transparent; }
+.history-detail-grid :deep(.order-card + .order-card), .history-day :deep(.order-card + .order-card) { padding-top:20px; border-top:1px solid var(--line); }
 .history-unpaid-entry { padding:16px 0 0; border-top:1px solid var(--line); }
 @media(max-width:900px) {
   .calendar-cell { min-height:112px; padding:8px; }
   .calendar-dishes { display:none; }
-  .history-detail-grid { grid-template-columns:1fr; gap:20px; }
+  .history-detail-grid { gap:20px; }
 }
 @media(max-width:640px) {
   .history-heading { display:block; }

@@ -8,6 +8,7 @@ const paths = {
   manage: ['M4 7h16M4 17h16M8 4v6m8 4v6'],
   arrow: ['M19 12H5m6-6-6 6 6 6'],
   plus: ['M12 5v14M5 12h14'],
+  upload: ['M12 15V4m-5 5 5-5 5 5', 'M4 15v5h16v-5'],
   check: ['M5 12l4 4L19 6'],
   person: ['M16 7a4 4 0 1 1-8 0a4 4 0 0 1 8 0', 'M4 21v-2a8 8 0 0 1 16 0v2'],
   updates: ['M5 3h14v18H5z', 'M8 7h8M8 11h8M8 15h5'],
