@@ -7,6 +7,7 @@ import GlassInput from './liquid/GlassInput.vue'
 import { LIST_BANKS } from '../../lib/banks'
 import { orderPriceItems } from '../../lib/settlement-items'
 import { managedOrderAmount } from '../../lib/manage-summary'
+import { paymentImage } from '../../lib/payment-image'
 const props = defineProps({
   order: { type: Object, required: true }, poster: { type: Object, required: true },
   menuDate: { type: String, required: true }, menu: { type: Object },
@@ -62,19 +63,29 @@ watch([hasBank, hasMomo], ([bank, momo]) => {
 })
 watch([activeTab, amount, payInfo], () => { qrError.value = false; downloadError.value = '' })
 // iOS: tải file chỉ vào app Tệp. Share sheet có mục "Lưu hình ảnh" để vào Ảnh.
-// Tải sẵn ảnh vì Safari/Chrome iOS chặn navigator.share nếu gọi sau một await dài trong lúc bấm.
+// Dựng ảnh sẵn vì Safari/Chrome iOS chặn navigator.share nếu gọi sau một await dài trong lúc bấm.
 const isIOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
-const qrFileName = () => `QR-${memo.value.replace(/[\\/:*?"<>|\s]+/g, '-') || 'thanh-toan'}.png`
-let qrFile = null
+const imageName = () => `Chuyen-tien-${memo.value.replace(/[\\/:*?"<>|\s]+/g, '-') || 'com'}.png`
+async function buildImage(url) {
+  // Mẫu "compact" chỉ có QR; thông tin chuyển khoản tự vẽ bên dưới để khỏi lặp.
+  const response = await fetch(url.replace('-compact2.png', '-compact.png'))
+  if (!response.ok) throw new Error('qr_unavailable')
+  const blob = await paymentImage(await response.blob(), {
+    title: `Tiền cơm ngày ${props.menuDate.split('-').reverse().join('/')}`,
+    amount: money(amount.value),
+    rows: [
+      { label: 'Người nhận', value: payInfo.value.accountName || props.poster?.full_name || '' },
+      { label: activeTab.value === 'bank' ? fullBankName.value : 'MoMo', value: activeTab.value === 'bank' ? payInfo.value.accountNumber : payInfo.value.momoPhone },
+      { label: 'Nội dung chuyển khoản', value: memo.value },
+    ],
+  })
+  return new File([blob], imageName(), { type: 'image/png' })
+}
+let preparedImage = null
 watch(qrUrl, async url => {
-  qrFile = null
-  if (!isIOS || !url || amount.value == null || !navigator.canShare) return
-  try {
-    const response = await fetch(url)
-    if (!response.ok || qrUrl.value !== url) return
-    const blob = await response.blob()
-    if (qrUrl.value === url) qrFile = new File([blob], qrFileName(), { type: blob.type || 'image/png' })
-  } catch { qrFile = null }
+  preparedImage = null
+  if (!isIOS || amount.value == null || !navigator.canShare) return
+  try { const file = await buildImage(url); if (qrUrl.value === url) preparedImage = file } catch { preparedImage = null }
 }, { immediate: true })
 watch(() => user.value?.id, () => { generation++; emit('close') })
 onUnmounted(() => { generation++; clearTimeout(copyTimer) })
@@ -93,19 +104,17 @@ async function copyText(text, field) {
 }
 async function downloadQr() {
   if (amount.value == null || downloading.value) return
-  if (qrFile && navigator.canShare?.({ files: [qrFile] })) {
-    try { await navigator.share({ files: [qrFile] }); return }
+  if (preparedImage && navigator.canShare?.({ files: [preparedImage] })) {
+    try { await navigator.share({ files: [preparedImage] }); return }
     catch (error) { if (error?.name === 'AbortError') return }
   }
   const current = generation, url = qrUrl.value
   downloading.value = true; downloadError.value = ''
   try {
-    const response = await fetch(url)
-    if (!response.ok) throw new Error('QR image unavailable')
-    const blob = await response.blob()
+    const file = await buildImage(url)
     if (current !== generation) return
-    const objectUrl = URL.createObjectURL(blob), link = document.createElement('a')
-    link.href = objectUrl; link.download = qrFileName()
+    const objectUrl = URL.createObjectURL(file), link = document.createElement('a')
+    link.href = objectUrl; link.download = file.name
     document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(objectUrl)
   } catch {
     if (current !== generation) return
@@ -122,7 +131,7 @@ async function downloadQr() {
       <nav v-if="hasBank && hasMomo" class="payment-tabs" aria-label="Cách chuyển tiền"><button type="button" :class="{active:activeTab==='bank'}" :aria-pressed="activeTab==='bank'" @click="activeTab='bank'">Ngân hàng</button><button type="button" :class="{active:activeTab==='momo'}" :aria-pressed="activeTab==='momo'" @click="activeTab='momo'">MoMo</button></nav>
       <template v-if="hasBank || hasMomo">
         <div class="payment-qr-area">
-          <template v-if="amount != null"><img v-if="!qrError" :key="`${activeTab}-${qrKey}`" :src="qrUrl" :alt="`Mã QR chuyển ${money(amount)} cho ${poster?.full_name || 'người đăng menu'}`" class="payment-qr" width="240" height="240" @error="qrError=true" /><p v-if="qrError" class="alert">Chưa tải được mã QR. <button type="button" class="payment-text-action" @click="retryQR">Thử lại</button></p><button type="button" class="payment-text-action" :disabled="downloading" @click="downloadQr">{{ downloading ? 'Đang tải…' : 'Lưu mã QR' }}</button></template><p v-else class="meta">Nhập số tiền để hiện mã QR.</p>
+          <template v-if="amount != null"><img v-if="!qrError" :key="`${activeTab}-${qrKey}`" :src="qrUrl" :alt="`Mã QR chuyển ${money(amount)} cho ${poster?.full_name || 'người đăng menu'}`" class="payment-qr" width="240" height="240" @error="qrError=true" /><p v-if="qrError" class="alert">Chưa tải được mã QR. <button type="button" class="payment-text-action" @click="retryQR">Thử lại</button></p><button type="button" class="payment-text-action" :disabled="downloading" @click="downloadQr">{{ downloading ? 'Đang tạo ảnh…' : 'Lưu ảnh chuyển khoản' }}</button></template><p v-else class="meta">Nhập số tiền để hiện mã QR.</p>
           <p v-if="activeTab==='momo'" class="meta">Quét bằng ứng dụng ngân hàng. <a v-if="amount != null" :href="momoDeepLink" target="_blank" rel="noopener noreferrer">Mở MoMo</a></p>
         </div>
         <section class="payment-recipient"><span class="meta">Người nhận</span><strong>{{ payInfo.accountName || poster?.full_name || 'Người đăng menu' }}</strong><span v-if="activeTab==='bank'" class="meta">{{ fullBankName }}</span><div class="payment-copy-row"><span>{{ activeTab==='bank' ? payInfo.accountNumber : payInfo.momoPhone }}</span><button type="button" class="payment-text-action" @click="copyText(activeTab==='bank' ? payInfo.accountNumber : payInfo.momoPhone,'account')">{{ copiedField==='account' ? 'Đã chép' : 'Sao chép' }}</button></div></section>
