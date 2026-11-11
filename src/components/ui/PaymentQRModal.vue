@@ -12,6 +12,8 @@ const props = defineProps({
   order: { type: Object, required: true }, poster: { type: Object, required: true },
   menuDate: { type: String, required: true }, menu: { type: Object },
   loading: Boolean, error: { type: String, default: '' }, inline: Boolean,
+  // batch: trả gộp nhiều đơn { total, count, from, to } — thay số tiền, nội dung CK và tiêu đề ảnh.
+  batch: { type: Object, default: null },
 })
 // inline: hiện thẳng trong trang/popup khác, khỏi mở thêm một hộp thoại chồng lên.
 const InlineShell = (_, { slots }) => h('div', { class: 'payment-inline' }, [slots.default?.(), slots.footer?.()])
@@ -33,7 +35,10 @@ const fullBankName = computed(() => {
   const bank = LIST_BANKS.find(entry => entry.code === payInfo.value.bankId)
   return bank ? `${bank.name} (${bank.code})` : payInfo.value.bankId
 })
-const breakdown = computed(()=>({items:orderPriceItems(props.menu || {},props.order).map(item=>({name:item.name,price:item.unitPrice})),total:managedOrderAmount(props.menu || {},props.order)}))
+const breakdown = computed(()=>props.batch ? {items:[],total:props.batch.total} : {items:orderPriceItems(props.menu || {},props.order).map(item=>({name:item.name,price:item.unitPrice})),total:managedOrderAmount(props.menu || {},props.order)})
+const dayMonth = date => date.split('-').reverse().slice(0, 2).join('/')
+const batchRange = computed(() => props.batch && (props.batch.from === props.batch.to ? dayMonth(props.batch.from) : `${dayMonth(props.batch.from)}-${dayMonth(props.batch.to)}`))
+const heading = computed(() => props.batch ? `${props.batch.count} bữa, ${batchRange.value}` : `Bữa ăn ngày ${props.menuDate.split('-').reverse().join('/')}`)
 const amountText = computed(() => amount.value == null ? '' : new Intl.NumberFormat('vi-VN').format(amount.value))
 const money = value => value == null ? 'Chưa có giá' : `${new Intl.NumberFormat('vi-VN').format(value)} đ`
 function setAmountText(text) {
@@ -42,8 +47,8 @@ function setAmountText(text) {
 }
 const memo = computed(() => {
   const name = String(user.value?.fullName || [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' ')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, value => value === 'Đ' ? 'D' : 'd').replace(/\s+/g, ' ').trim()
-  const [, month, day] = props.menuDate.split('-')
-  return `${name} chuyen tien com ${day}/${month}`.trim()
+  if (props.batch) return `${name} tra com ${props.batch.count} bua ${batchRange.value}`.trim()
+  return `${name} chuyen tien com ${dayMonth(props.menuDate)}`.trim()
 })
 const qrUrl = computed(() => {
   const bank = activeTab.value === 'momo' ? '971025' : payInfo.value.bankId
@@ -61,6 +66,7 @@ watch([hasBank, hasMomo], ([bank, momo]) => {
   if (activeTab.value === 'bank' && !bank && momo) activeTab.value = 'momo'
   else if (activeTab.value === 'momo' && !momo && bank) activeTab.value = 'bank'
 })
+watch(() => props.batch?.total, total => { if (props.batch) { amount.value = total; editingAmount.value = false } })
 watch([activeTab, amount, payInfo], () => { qrError.value = false; downloadError.value = '' })
 // iOS: tải file chỉ vào app Tệp. Share sheet có mục "Lưu hình ảnh" để vào Ảnh.
 // Dựng ảnh sẵn vì Safari/Chrome iOS chặn navigator.share nếu gọi sau một await dài trong lúc bấm.
@@ -71,7 +77,7 @@ async function buildImage(url) {
   const response = await fetch(url.replace('-compact2.png', '-compact.png'))
   if (!response.ok) throw new Error('qr_unavailable')
   const blob = await paymentImage(await response.blob(), {
-    title: `Tiền cơm ngày ${props.menuDate.split('-').reverse().join('/')}`,
+    title: props.batch ? `Tiền cơm ${heading.value}` : `Tiền cơm ngày ${props.menuDate.split('-').reverse().join('/')}`,
     amount: money(amount.value),
     rows: [
       { label: 'Người nhận', value: payInfo.value.accountName || props.poster?.full_name || '' },
@@ -126,7 +132,7 @@ async function downloadQr() {
 <template>
   <component :is="inline ? InlineShell : AppDialog" :open="menu?.payment_mode!=='sponsored'" title="Chuyển tiền" @close="close">
     <div class="payment-dialog">
-      <div class="payment-heading"><span v-if="!inline" class="meta">Bữa ăn ngày {{ menuDate.split('-').reverse().join('/') }}</span><strong class="payment-amount">{{ amount == null ? 'Chưa có số tiền' : money(amount) }}</strong><button v-if="breakdown.total != null" type="button" class="payment-text-action" :disabled="loading" @click="editingAmount=!editingAmount">{{ editingAmount ? 'Xong' : 'Sửa số tiền' }}</button></div>
+      <div class="payment-heading"><span v-if="!inline || batch" class="meta">{{ heading }}</span><strong class="payment-amount">{{ amount == null ? 'Chưa có số tiền' : money(amount) }}</strong><button v-if="breakdown.total != null" type="button" class="payment-text-action" :disabled="loading" @click="editingAmount=!editingAmount">{{ editingAmount ? 'Xong' : 'Sửa số tiền' }}</button></div>
       <div v-if="breakdown.total == null || editingAmount" class="field"><GlassInput :label="breakdown.total == null ? 'Số tiền đã thống nhất (đ)' : 'Số tiền chuyển (đ)'" inputmode="numeric" :model-value="amountText" :disabled="loading" placeholder="Nhập số tiền" @update:model-value="setAmountText" /></div>
       <nav v-if="hasBank && hasMomo" class="payment-tabs" aria-label="Cách chuyển tiền"><button type="button" :class="{active:activeTab==='bank'}" :aria-pressed="activeTab==='bank'" @click="activeTab='bank'">Ngân hàng</button><button type="button" :class="{active:activeTab==='momo'}" :aria-pressed="activeTab==='momo'" @click="activeTab='momo'">MoMo</button></nav>
       <template v-if="hasBank || hasMomo">
