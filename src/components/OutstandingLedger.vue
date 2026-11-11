@@ -50,7 +50,7 @@ function ageLabel(date) { const days=age(date); return days<0 ? 'Chưa tới ng�
       <div class="field"><GlassInput label="Tìm người" v-model="search" type="search" /></div>
       <div class="field"><GlassSelect label="Sắp xếp" v-model="sort" :options="[{value:'oldest',label:'Bữa cũ nhất'},{value:'amount',label:'Tổng tiền cao nhất'}]" /></div>
     </div>
-    <p v-if="menuId" class="meta ledger-scope">Đang xem các khoản của menu trong đường dẫn. <AppButton variant="ghost" to="/dashboard">Tất cả menu</AppButton></p>
+    <p v-if="menuId" class="meta ledger-scope">Đang xem một menu. <AppButton variant="ghost" to="/dashboard">Tất cả menu</AppButton></p>
     <p v-if="stale" class="meta" role="status">Đang cập nhật khoảng thời gian đã chọn.</p>
     <p v-if="hasMore" class="load-scope" role="status">{{ orders.length }}{{ totalCount!=null ? ' / '+totalCount : '' }} đơn đã tải{{ loading ? ' · Đang cập nhật' : '' }}.</p>
     <p v-if="error" class="alert" role="alert">{{ error }} <AppButton variant="ghost" @click="emit('retry')">Thử lại</AppButton></p>

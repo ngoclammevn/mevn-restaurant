@@ -89,7 +89,7 @@ function move(offset) { month.value = shiftMonth(month.value, offset); selected.
 function goToday() { month.value = today.slice(0, 7); selected.value = today }
 </script>
 <template><div class="stack history-page">
-  <div class="history-heading"><PageHeader eyebrow="Lịch cơm" title="Đơn của tôi" sub="Chọn ngày để xem bữa trưa, quán và đánh giá." /></div>
+  <div class="history-heading"><PageHeader eyebrow="Lịch cơm" title="Đơn của tôi" /></div>
   <EmptyState v-if="!isSignedIn" title="Đăng nhập để xem lịch cơm"><AppButton @click="showSignIn = true">Đăng nhập</AppButton></EmptyState>
   <template v-else>
     <p v-if="error" class="alert" role="alert">{{ error }} <button type="button" @click="load">Thử lại</button></p>
@@ -106,7 +106,7 @@ function goToday() { month.value = today.slice(0, 7); selected.value = today }
       </div>
       <div class="calendar-legend" aria-label="Chú thích trạng thái thanh toán"><span><i class="legend-swatch legend-paid" aria-hidden="true">✓</i> Đã trả / Được mời</span><span><i class="legend-swatch legend-unpaid" aria-hidden="true">!</i> Có đơn chưa trả</span><span><i class="legend-swatch legend-empty" aria-hidden="true">–</i> Chưa có đơn</span></div>
     </section>
-    <AppDialog :open="dayOpen" :title="`Ngày ${formatVNDate(selected)}`" @close="dayOpen = false"><div class="stack history-day"><AsciiSkeleton v-if="loading && !orders.length" kind="calendar" label="Đang tải lịch cơm…" /><p v-else-if="loading" class="meta" role="status">Đang cập nhật…</p><div class="stack"><OrderCard v-for="order in selectedOrders" :key="order.id" inline-qr :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn" description="Ngày này chưa có bữa trưa. Đơn đặt hộ bạn cũng xuất hiện ở đây." /></div></div></AppDialog>
+    <AppDialog :open="dayOpen" :title="`Ngày ${formatVNDate(selected)}`" @close="dayOpen = false"><div class="stack history-day"><AsciiSkeleton v-if="loading && !orders.length" kind="calendar" label="Đang tải lịch cơm…" /><p v-else-if="loading" class="meta" role="status">Đang cập nhật…</p><div class="stack"><OrderCard v-for="order in selectedOrders" :key="order.id" inline-qr :order="order" :menu="order.menu" @changed="orderChanged(order)" /><EmptyState v-if="!loading && !error && !selectedOrders.length" title="Chưa có đơn" description="Đơn người khác đặt hộ bạn cũng hiện ở đây." /></div></div></AppDialog>
     <div class="history-detail-grid">
       <section class="card stack history-unpaid"><div><h2>Đơn chưa thanh toán</h2></div><div v-if="payGroups.length" class="history-batch"><AppButton v-for="group in payGroups" :key="group.posterId" block @click="batchPosterId = group.posterId">Gom {{ group.priced.length }} đơn trả 1 lần{{ payGroups.length > 1 ? ` cho ${group.poster?.full_name || 'người đăng menu'}` : '' }} · {{ money(batchSummary(group.priced).total) }}</AppButton></div><Spinner v-if="unpaidLoading" label="Đang tải đơn chưa trả…" /><p v-if="unpaidError" class="alert" role="alert">{{ unpaidError }} <button type="button" @click="loadUnpaid">Thử lại</button></p><div v-for="order in unpaidOrders" :key="order.id" class="stack-sm history-unpaid-entry"><p class="meta">{{ formatVNDate(order.menu.menu_date) }}</p><OrderCard :order="order" :menu="order.menu" @changed="orderChanged(order)" /></div><p v-if="!unpaidLoading && !unpaidError && !unpaidOrders.length" class="meta">Bạn đã thanh toán tất cả đơn cơm.</p></section>
     </div>
