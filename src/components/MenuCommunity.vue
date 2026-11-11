@@ -65,7 +65,7 @@ async function markReceived() {
       <span v-if="menu.payment_mode === 'sponsored'" class="badge">Được mời</span><PaidStamp v-else :paid="order.is_paid" />
     </article>
     <AppButton v-if="canReceive && !pickerHasOrder" size="sm" :loading="busy" @click="markReceived">Đã lấy cơm</AppButton>
-    <p v-if="!orders.length" class="meta">Chưa có đơn. Bạn có thể chọn món trước.</p>
+    <p v-if="!orders.length" class="meta">Chưa có ai đặt.</p>
     <p v-if="error" class="alert" role="alert">{{ error }} <button type="button" @click="load">Thử lại</button></p>
   </section>
 </template>
