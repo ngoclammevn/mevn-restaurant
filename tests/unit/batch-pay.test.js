@@ -21,8 +21,8 @@ describe('batchGroups', () => {
 })
 
 describe('batchSummary', () => {
-  it('cộng tổng và lấy khoảng ngày', () => {
-    const [group] = batchGroups([order(1, 'a', '2026-11-05', 40000), order(2, 'a', '2026-11-03', 45000)])
-    expect(batchSummary(group.priced)).toEqual({ total: 85000, count: 2, from: '2026-11-03', to: '2026-11-05' })
+  it('cộng tổng, lấy khoảng ngày và từng ngày (không lặp)', () => {
+    const [group] = batchGroups([order(1, 'a', '2026-11-11', 40000), order(2, 'a', '2026-11-03', 45000), order(3, 'a', '2026-11-09', 30000), order(4, 'a', '2026-11-09', 10000)])
+    expect(batchSummary(group.priced)).toEqual({ total: 125000, count: 4, from: '2026-11-03', to: '2026-11-11', dates: ['2026-11-03', '2026-11-09', '2026-11-11'] })
   })
 })
