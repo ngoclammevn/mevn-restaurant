@@ -18,6 +18,6 @@ export function batchGroups(orders) {
 
 // Tóm tắt các đơn được chọn: tổng tiền, số bữa, ngày đầu và ngày cuối (YYYY-MM-DD).
 export function batchSummary(entries) {
-  const dates = entries.map(entry => entry.order.menu.menu_date).sort()
-  return { total: entries.reduce((sum, entry) => sum + entry.amount, 0), count: entries.length, from: dates[0], to: dates[dates.length - 1] }
+  const dates = [...new Set(entries.map(entry => entry.order.menu.menu_date))].sort()
+  return { total: entries.reduce((sum, entry) => sum + entry.amount, 0), count: entries.length, from: dates[0], to: dates[dates.length - 1], dates }
 }

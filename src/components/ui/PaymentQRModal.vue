@@ -12,7 +12,7 @@ const props = defineProps({
   order: { type: Object, required: true }, poster: { type: Object, required: true },
   menuDate: { type: String, required: true }, menu: { type: Object },
   loading: Boolean, error: { type: String, default: '' }, inline: Boolean,
-  // batch: trả gộp nhiều đơn { total, count, from, to } — thay số tiền, nội dung CK và tiêu đề ảnh.
+  // batch: trả gộp nhiều đơn { total, count, from, to, dates } — thay số tiền, nội dung CK và tiêu đề ảnh.
   batch: { type: Object, default: null },
 })
 // inline: hiện thẳng trong trang/popup khác, khỏi mở thêm một hộp thoại chồng lên.
@@ -47,7 +47,8 @@ function setAmountText(text) {
 }
 const memo = computed(() => {
   const name = String(user.value?.fullName || [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' ')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, value => value === 'Đ' ? 'D' : 'd').replace(/\s+/g, ' ').trim()
-  if (props.batch) return `${name} tra com ${props.batch.count} bua ${batchRange.value}`.trim()
+  // Liệt kê từng ngày (ddmm) để người nhận đối chiếu; ngân hàng bỏ dấu "/" "-" nên dạng khoảng thành dãy số khó đọc.
+  if (props.batch) return `${name} tra com ${props.batch.dates.map(date => dayMonth(date).replace('/', '')).join(' ')}`.trim()
   return `${name} chuyen tien com ${dayMonth(props.menuDate)}`.trim()
 })
 const qrUrl = computed(() => {
