@@ -30,7 +30,8 @@ const payInfo = computed(() => {
   return { bankId: field('NH'), accountNumber: field('STK'), accountName: field('CTK'), momoPhone: field('Momo') }
 })
 const hasBank = computed(() => !!(payInfo.value.bankId && payInfo.value.accountNumber))
-const hasMomo = computed(() => !!payInfo.value.momoPhone)
+// App MoMo không quét được QR ví MoMo (chỉ app ngân hàng quét được), còn QR ngân hàng thì app MoMo quét được → có ngân hàng thì chỉ hiện QR ngân hàng.
+const hasMomo = computed(() => !hasBank.value && !!payInfo.value.momoPhone)
 const fullBankName = computed(() => {
   const bank = LIST_BANKS.find(entry => entry.code === payInfo.value.bankId)
   return bank ? `${bank.name} (${bank.code})` : payInfo.value.bankId
@@ -134,7 +135,6 @@ async function downloadQr() {
     <div class="payment-dialog">
       <div class="payment-heading"><span v-if="!inline || batch" class="meta">{{ heading }}</span><strong class="payment-amount">{{ amount == null ? 'Chưa có số tiền' : money(amount) }}</strong><button v-if="breakdown.total != null" type="button" class="payment-text-action" :disabled="loading" @click="editingAmount=!editingAmount">{{ editingAmount ? 'Xong' : 'Sửa số tiền' }}</button></div>
       <div v-if="breakdown.total == null || editingAmount" class="field"><GlassInput :label="breakdown.total == null ? 'Số tiền đã thống nhất (đ)' : 'Số tiền chuyển (đ)'" inputmode="numeric" :model-value="amountText" :disabled="loading" placeholder="Nhập số tiền" @update:model-value="setAmountText" /></div>
-      <nav v-if="hasBank && hasMomo" class="payment-tabs" aria-label="Cách chuyển tiền"><button type="button" :class="{active:activeTab==='bank'}" :aria-pressed="activeTab==='bank'" @click="activeTab='bank'">Ngân hàng</button><button type="button" :class="{active:activeTab==='momo'}" :aria-pressed="activeTab==='momo'" @click="activeTab='momo'">MoMo</button></nav>
       <template v-if="hasBank || hasMomo">
         <div class="payment-qr-area">
           <template v-if="amount != null"><img v-if="!qrError" :key="`${activeTab}-${qrKey}`" :src="qrUrl" :alt="`Mã QR chuyển ${money(amount)} cho ${poster?.full_name || 'người đăng menu'}`" class="payment-qr" width="240" height="240" @error="qrError=true" /><p v-if="qrError" class="alert">Chưa tải được mã QR. <button type="button" class="payment-text-action" @click="retryQR">Thử lại</button></p><button type="button" class="payment-text-action" :disabled="downloading" @click="downloadQr">{{ downloading ? 'Đang tải…' : 'Tải QR chuyển khoản' }}</button></template><p v-else class="meta">Nhập số tiền để hiện mã QR.</p>

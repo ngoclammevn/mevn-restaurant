@@ -17,6 +17,15 @@ const payOrder = ref(null), paying = ref(false), payError = ref('')
 const canPay = order => order.user_id === user.value?.id && !order.is_paid && props.menu.payment_mode !== 'sponsored'
 const orders = computed(() => props.menu.orders ?? [])
 const people = computed(() => new Set(orders.value.map(o => o.user_id)).size)
+// Dòng tổng thanh toán: đơn chưa có giá không cộng vào số tiền còn thiếu, đếm riêng.
+const payStatus = computed(() => {
+  if (props.menu.payment_mode === 'sponsored' || !orders.value.length) return ''
+  const unpaid = orders.value.filter(o => !o.is_paid), amounts = unpaid.map(o => managedOrderAmount(props.menu, o))
+  const owed = amounts.reduce((sum, value) => sum + (value ?? 0), 0), unpriced = amounts.filter(value => value === null).length
+  const paid = `Đã trả ${orders.value.length - unpaid.length}/${orders.value.length} đơn`
+  if (!unpaid.length) return paid
+  return [paid, owed && `còn thiếu ${owed.toLocaleString('vi-VN')}đ`, unpriced && `${unpriced} đơn chưa có giá`].filter(Boolean).join(' · ')
+})
 const assigned = computed(() => pickup.value && pickup.value.status !== 'unassigned' ? pickup.value : null)
 // Nhãn chỉ gắn vào đơn đầu tiên của mỗi người, tránh lặp khi một người đặt nhiều đơn.
 const firstOrderIds = computed(() => { const seen = new Set(); return new Set(orders.value.filter(o => !seen.has(o.user_id) && seen.add(o.user_id)).map(o => o.id)) })
@@ -66,6 +75,7 @@ async function paid() {
   <section class="card menu-community">
     <slot />
     <div class="menu-community-heading"><h2>Mọi người đã đặt</h2><span class="badge">{{ people }} người</span></div>
+    <p v-if="payStatus" class="meta">{{ payStatus }}</p>
     <p v-if="assigned && !pickerHasOrder" class="meta">Người lấy cơm: <strong>{{ assigned.primary?.full_name || 'Thành viên' }}</strong> · {{ assigned.status === 'received' ? 'Đã lấy cơm' : 'Chưa lấy' }}</p>
     <article v-for="order in orders" :key="order.id" class="menu-community-person">
       <Avatar :profile="order.user" :name="order.user?.full_name" :size="34" />

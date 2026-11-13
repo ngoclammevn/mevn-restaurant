@@ -4,6 +4,7 @@ const toggled = []
 vi.mock('@clerk/vue', async () => { const { ref } = await import('vue'); return { useUser: () => ({ user: ref({ id: 'me' }) }) } })
 vi.mock('../../src/composables/usePickup', () => ({ usePickup: () => ({ getPickup: async () => ({ data: null }) }) }))
 vi.mock('../../src/composables/useSlackNotifications', () => ({ useSlackNotifications: () => ({}) }))
+vi.mock('../../src/lib/manage-summary', () => ({ managedOrderAmount: (_menu, order) => order.price ?? null }))
 vi.mock('../../src/composables/useOrders', () => ({ useOrders: () => ({ togglePaid: async (id, value) => { toggled.push([id, value]); return { data: { is_paid: true } } } }) }))
 vi.mock('../../src/components/ui/Avatar.vue', async () => { const { h } = await import('vue'); return { default: () => h('span') } })
 vi.mock('../../src/components/ui', async () => {
@@ -34,7 +35,13 @@ test('chỉ đơn chưa trả của chính mình có nút Chuyển khoản; tr�
   expect(hostFind(host.root, node => node.props?.id === 'pay')).toBeFalsy()
 })
 
+test('dòng tổng đếm đơn đã trả và cộng tiền còn thiếu, đơn chưa có giá đếm riêng', () => {
+  mount([order('a', 'other', true), { ...order('b', 'x'), price: 45000 }, { ...order('c', 'y'), price: 40000 }, order('d', 'z')])
+  expect(hostText(host.root)).toContain('Đã trả 1/4 đơn · còn thiếu 85.000đ · 1 đơn chưa có giá')
+})
+
 test('bữa được mời thì không có nút Chuyển khoản', () => {
   mount([order('c', 'me')], 'sponsored')
   expect(buttons().length).toBe(0)
+  expect(hostText(host.root)).not.toContain('Đã trả')
 })
