@@ -2,16 +2,30 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useUser } from '@clerk/vue'
 import { usePickup } from '../composables/usePickup'
+import { useOrders } from '../composables/useOrders'
 import { useSlackNotifications } from '../composables/useSlackNotifications'
 import { managedOrderAmount } from '../lib/manage-summary'
-import { AppButton, PaidStamp } from './ui'
+import { AppButton, PaidStamp, PaymentQRModal } from './ui'
 import Avatar from './ui/Avatar.vue'
 const props = defineProps({ menu: { type: Object, required: true } })
 const emit = defineEmits(['changed'])
 const { user } = useUser(), api = usePickup(), notifications = useSlackNotifications()
+const { togglePaid } = useOrders()
 const pickup = ref(null), busy = ref(false), error = ref('')
+// Đơn của chính mình đang mở popup chuyển khoản; cùng điều kiện nút "Chuyển khoản" ở Đơn của tôi.
+const payOrder = ref(null), paying = ref(false), payError = ref('')
+const canPay = order => order.user_id === user.value?.id && !order.is_paid && props.menu.payment_mode !== 'sponsored'
 const orders = computed(() => props.menu.orders ?? [])
 const people = computed(() => new Set(orders.value.map(o => o.user_id)).size)
+// Dòng tổng thanh toán: đơn chưa có giá không cộng vào số tiền còn thiếu, đếm riêng.
+const payStatus = computed(() => {
+  if (props.menu.payment_mode === 'sponsored' || !orders.value.length) return ''
+  const unpaid = orders.value.filter(o => !o.is_paid), amounts = unpaid.map(o => managedOrderAmount(props.menu, o))
+  const owed = amounts.reduce((sum, value) => sum + (value ?? 0), 0), unpriced = amounts.filter(value => value === null).length
+  const paid = `Đã trả ${orders.value.length - unpaid.length}/${orders.value.length} đơn`
+  if (!unpaid.length) return paid
+  return [paid, owed && `còn thiếu ${owed.toLocaleString('vi-VN')}đ`, unpriced && `${unpriced} đơn chưa có giá`].filter(Boolean).join(' · ')
+})
 const assigned = computed(() => pickup.value && pickup.value.status !== 'unassigned' ? pickup.value : null)
 // Nhãn chỉ gắn vào đơn đầu tiên của mỗi người, tránh lặp khi một người đặt nhiều đơn.
 const firstOrderIds = computed(() => { const seen = new Set(); return new Set(orders.value.filter(o => !seen.has(o.user_id) && seen.add(o.user_id)).map(o => o.id)) })
@@ -48,11 +62,20 @@ async function markReceived() {
   } catch { if (current === generation) error.value = 'Chưa cập nhật được lượt lấy cơm. Tải lại rồi thử lại.' }
   finally { busy.value = false }
 }
+async function paid() {
+  if (paying.value || !payOrder.value) return
+  paying.value = true; payError.value = ''
+  const result = await togglePaid(payOrder.value.id, true).catch(error => ({ error }))
+  paying.value = false
+  if (result.error) { payError.value = 'Chưa cập nhật được thanh toán. Thử lại.'; return }
+  payOrder.value = null; emit('changed')
+}
 </script>
 <template>
   <section class="card menu-community">
     <slot />
     <div class="menu-community-heading"><h2>Mọi người đã đặt</h2><span class="badge">{{ people }} người</span></div>
+    <p v-if="payStatus" class="meta">{{ payStatus }}</p>
     <p v-if="assigned && !pickerHasOrder" class="meta">Người lấy cơm: <strong>{{ assigned.primary?.full_name || 'Thành viên' }}</strong> · {{ assigned.status === 'received' ? 'Đã lấy cơm' : 'Chưa lấy' }}</p>
     <article v-for="order in orders" :key="order.id" class="menu-community-person">
       <Avatar :profile="order.user" :name="order.user?.full_name" :size="34" />
@@ -60,12 +83,14 @@ async function markReceived() {
         <strong>{{ order.user?.full_name || 'Thành viên' }}</strong><span v-if="pickupLabel(order)" class="pickup-tag" :class="{ 'pickup-tag--done': assigned.status === 'received' && order.user_id === assigned.primary_user_id }">{{ pickupLabel(order) }}</span>
         <p>{{ order.item_text.split('\n').join(' · ') }}<span v-if="managedOrderAmount(menu, order) !== null"> · {{ Number(managedOrderAmount(menu, order)).toLocaleString('vi-VN') }}đ</span></p>
         <p v-if="order.note" class="meta">{{ order.note }}</p>
+        <AppButton v-if="canPay(order)" size="sm" @click="payOrder = order; payError = ''">Chuyển khoản</AppButton>
         <AppButton v-if="canReceive && order.user_id === assigned.primary_user_id && firstOrderIds.has(order.id)" size="sm" :loading="busy" @click="markReceived">Đã lấy cơm</AppButton>
       </div>
       <span v-if="menu.payment_mode === 'sponsored'" class="badge">Được mời</span><PaidStamp v-else :paid="order.is_paid" />
     </article>
     <AppButton v-if="canReceive && !pickerHasOrder" size="sm" :loading="busy" @click="markReceived">Đã lấy cơm</AppButton>
     <p v-if="!orders.length" class="meta">Chưa có ai đặt.</p>
+    <PaymentQRModal v-if="payOrder" :order="payOrder" :poster="menu.poster" :menu="menu" :menu-date="menu.menu_date" :loading="paying" :error="payError" @close="!paying && (payOrder = null)" @paid="paid" />
     <p v-if="error" class="alert" role="alert">{{ error }} <button type="button" @click="load">Thử lại</button></p>
   </section>
 </template>

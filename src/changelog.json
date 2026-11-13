@@ -1,5 +1,28 @@
 [
   {
+    "date": "2026-11-13",
+    "changes": [
+      "Trang menu có nút Chuyển khoản ngay trên đơn chưa trả của bạn, kèm dòng tổng: đã trả bao nhiêu đơn, còn thiếu bao nhiêu tiền.",
+      "Người nhận có tài khoản ngân hàng thì popup chỉ hiện QR ngân hàng, quét được bằng cả app MoMo lẫn app ngân hàng."
+    ]
+  },
+  {
+    "date": "2026-11-12",
+    "changes": [
+      "Nội dung chuyển khoản khi gom đơn ghi từng ngày ăn, ví dụ 0311 0911 1111."
+    ]
+  },
+  {
+    "date": "2026-11-11",
+    "changes": [
+      "Gom nhiều đơn chưa trả cho cùng một người thành một lần chuyển khoản, một mã QR.",
+      "Nút Tải QR chuyển khoản lưu ảnh gồm số tiền, QR, người nhận và nội dung; trên iPhone lưu thẳng vào Ảnh.",
+      "Popup ngày đưa QR lên đầu, nút Tôi đã chuyển tiền luôn ở đáy; popup trên điện thoại không còn phủ kín màn hình.",
+      "Trang menu và Hôm nay gọn hơn: ảnh thực đơn và danh sách đã đặt chung một thẻ, người lấy cơm hiện ngay trong danh sách.",
+      "Dùng logo ME và rút gọn câu chữ."
+    ]
+  },
+  {
     "date": "2026-11-02",
     "changes": [
       "Nội dung chuyển khoản tự điền tên người chuyển và ngày ăn.",
